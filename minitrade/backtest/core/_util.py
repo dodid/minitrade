@@ -94,7 +94,8 @@ class _Array(np.ndarray):
     def df(self) -> pd.DataFrame:
         values = np.atleast_2d(np.asarray(self))
         index = self._opts['index'][:values.shape[1]]
-        df = pd.DataFrame(values.T, index=index, columns=self.columns or [self.name] * len(values))
+        df = pd.DataFrame(values.T, index=index, columns=[self.name]
+                          * len(values) if self.columns is None else self.columns)
         return df
 
 

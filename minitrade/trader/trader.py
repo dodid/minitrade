@@ -560,13 +560,16 @@ class BacktestRunner:
         status = "failed" if log.error() else "succeeded"
         subject = f'Plan {log.plan_name} {status} @ {ts}' + (f' {len(orders)} new orders' if orders else '')
         data = csv_to_df(log.data, index_col=0, header=[0, 1], parse_dates=True).xs('Close', 1, 1).tail(2).T
-        result = csv_to_df(log.result, index_col=0)
-        result = result[~result.index.str.startswith('_')]['0']
+        if log.result:
+            result = csv_to_df(log.result, index_col=0)
+            result = result[~result.index.str.startswith('_')]['0'].to_string()
+        else:
+            result = None
         message = [
             f'Plan {log.plan_name} @ {ts} {status}',
             '\n'.join([o.tag() for o in orders]) if orders else 'No new orders',
             f'Data\n{data.to_string()}',
-            f'Result\n{result}',
+            f'Result\n{result}' if result else 'No backtest result',
             f'Exception\n{log.exception}' if log.exception else 'No exception',
             f'Stdout\n{log.stdout}' if log.stdout else 'No stdout',
             f'Stderr\n{log.stderr}' if log.stderr else 'No stderr'

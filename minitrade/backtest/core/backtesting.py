@@ -244,6 +244,7 @@ class Strategy(metaclass=ABCMeta):
         """Current account equity (cash plus assets)."""
         return self._broker.equity()
 
+    @property
     def data(self) -> _Data:
         """
         Price data, roughly as passed into
