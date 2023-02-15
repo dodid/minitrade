@@ -3,42 +3,32 @@ import re
 import sys
 import warnings
 from colorsys import hls_to_rgb, rgb_to_hls
-from itertools import cycle, combinations
 from functools import partial
-from typing import Callable, List, Union
+from itertools import combinations, cycle
+from typing import Callable, Dict, List, Union
 
 import numpy as np
 import pandas as pd
-
 from bokeh.colors import RGB
-from bokeh.colors.named import (
-    lime as BULL_COLOR,
-    tomato as BEAR_COLOR
-)
+from bokeh.colors.named import lime as BULL_COLOR
+from bokeh.colors.named import tomato as BEAR_COLOR
+from bokeh.models import (ColumnDataSource, CrosshairTool, CustomJS,
+                          DatetimeTickFormatter, HoverTool, LinearColorMapper,
+                          NumeralTickFormatter, Range1d, Span, WheelZoomTool)
 from bokeh.plotting import figure as _figure
-from bokeh.models import (  # type: ignore
-    CrosshairTool,
-    CustomJS,
-    ColumnDataSource,
-    NumeralTickFormatter,
-    Span,
-    HoverTool,
-    Range1d,
-    DatetimeTickFormatter,
-    WheelZoomTool,
-    LinearColorMapper,
-)
+
 try:
     from bokeh.models import CustomJSTickFormatter
 except ImportError:  # Bokeh < 3.0
-    from bokeh.models import FuncTickFormatter as CustomJSTickFormatter  # type: ignore
-from bokeh.io import output_notebook, output_file, show
+    from bokeh.models import FuncTickFormatter as CustomJSTickFormatter
+
+from bokeh.io import output_file, output_notebook, show
 from bokeh.io.state import curstate
 from bokeh.layouts import gridplot
 from bokeh.palettes import Category10
 from bokeh.transform import factor_cmap
 
-from backtesting._util import _data_period, _as_list, _Indicator
+from ._util import _as_list, _data_period, _Indicator
 
 with open(os.path.join(os.path.dirname(__file__), 'autoscale_cb.js'),
           encoding='utf-8') as _f:
@@ -122,7 +112,7 @@ def _maybe_resample_data(resample_rule, df, indicators, equity_data, trades):
         warnings.warn(f"Data contains too many candlesticks to plot; downsampling to {freq!r}. "
                       "See `Backtest.plot(resample=...)`")
 
-    from .lib import OHLCV_AGG, TRADES_AGG, _EQUITY_AGG
+    from .lib import _EQUITY_AGG, OHLCV_AGG, TRADES_AGG
     df = df.resample(freq, label='right').agg(OHLCV_AGG).dropna()
 
     indicators = [_Indicator(i.df.resample(freq, label='right').mean()
@@ -162,13 +152,14 @@ def _maybe_resample_data(resample_rule, df, indicators, equity_data, trades):
 
 
 def plot(*, results: pd.Series,
+         data: pd.DataFrame,
          df: pd.DataFrame,
          indicators: List[_Indicator],
          filename='', plot_width=None,
          plot_equity=True, plot_return=False, plot_pl=True,
-         plot_volume=True, plot_drawdown=False, plot_trades=True,
+         plot_volume=False, plot_drawdown=False, plot_trades=True,
          smooth_equity=False, relative_equity=True,
-         superimpose=True, resample=True,
+         superimpose=False, resample=True,
          reverse_indicators=True,
          show_legend=True, open_browser=True):
     """
@@ -195,6 +186,7 @@ def plot(*, results: pd.Series,
     is_datetime_index = isinstance(df.index, pd.DatetimeIndex)
 
     from .lib import OHLCV_AGG
+
     # ohlc df may contain many columns. We're only interested in, and pass on to Bokeh, these
     df = df[list(OHLCV_AGG.keys())].copy(deep=False)
 
@@ -234,6 +226,7 @@ def plot(*, results: pd.Series,
         index=trades['ExitBar'],
         datetime=trades['ExitTime'],
         exit_price=trades['ExitPrice'],
+        ticker=trades['Ticker'],
         size=trades['Size'],
         returns_positive=(trades['ReturnPct'] > 0).astype(int).astype(str),
     ))
@@ -269,7 +262,7 @@ return this.labels[index] || "";
         ('Volume', '@Volume{0,0}')]
 
     def new_indicator_figure(**kwargs):
-        kwargs.setdefault('height', 90)
+        kwargs.setdefault('height', 200)
         fig = new_bokeh_figure(x_range=fig_ohlc.x_range,
                                active_scroll='xwheel_zoom',
                                active_drag='xpan',
@@ -415,7 +408,7 @@ return this.labels[index] || "";
                          marker='triangle', line_color='black', size='marker_size')
         r2 = fig.scatter('index', 'returns_short', source=trade_source, fill_color=cmap,
                          marker='inverted_triangle', line_color='black', size='marker_size')
-        tooltips = [("Size", "@size{0,0}")]
+        tooltips = [("Ticker", "@ticker"), ("Size", "@size{0,0}")]
         if 'count' in trades:
             tooltips.append(("Count", "@count{0,0}"))
         set_tooltips(fig, tooltips + [("P/L", "@returns_long{+0.[000]%}")],
@@ -495,6 +488,23 @@ return this.labels[index] || "";
                             legend_label=f'Trades ({len(trades)})',
                             line_width=8, line_alpha=1, line_dash='dotted')
 
+    def _plot_ohlc_universe():
+        fig = fig_ohlc
+        ohlc_colors = colorgen()
+        label_tooltip_pairs = []
+        for ticker in data.columns.levels[0]:
+            color = next(ohlc_colors)
+            source_name = ticker
+            arr = data.loc[:, (ticker, 'Close')]
+            source.add(arr, source_name)
+            label_tooltip_pairs.append((source_name, f'@{{{source_name}}}{{0,0.0[0000]}}'))
+            ohlc_extreme_values[source_name] = arr.reset_index(drop=True)
+            fig.line(
+                'index', source_name, source=source,
+                legend_label=source_name, line_color=color,
+                line_width=2)
+        ohlc_tooltips.extend(label_tooltip_pairs)
+
     def _plot_indicators():
         """Strategy indicators"""
 
@@ -537,10 +547,11 @@ return this.labels[index] || "";
             colors = value._opts['color']
             colors = colors and cycle(_as_list(colors)) or (
                 cycle([next(ohlc_colors)]) if is_overlay else colorgen())
-            legend_label = LegendStr(value.name)
+            legend_label = [LegendStr(value.name)] if value.columns is None else [
+                LegendStr(f'{value.name} {col}') for col in value.columns]
             for j, arr in enumerate(value, 1):
                 color = next(colors)
-                source_name = f'{legend_label}_{i}_{j}'
+                source_name = f'{legend_label[j-1]}_{i}_{j}'
                 if arr.dtype == bool:
                     arr = arr.astype(int)
                 source.add(arr, source_name)
@@ -550,24 +561,24 @@ return this.labels[index] || "";
                     if is_scatter:
                         fig.scatter(
                             'index', source_name, source=source,
-                            legend_label=legend_label, color=color,
+                            legend_label=legend_label[j-1], color=color,
                             line_color='black', fill_alpha=.8,
                             marker='circle', radius=BAR_WIDTH / 2 * 1.5)
                     else:
                         fig.line(
                             'index', source_name, source=source,
-                            legend_label=legend_label, line_color=color,
+                            legend_label=legend_label[j-1], line_color=color,
                             line_width=1.3)
                 else:
                     if is_scatter:
                         r = fig.scatter(
                             'index', source_name, source=source,
-                            legend_label=LegendStr(legend_label), color=color,
+                            legend_label=legend_label[j-1], color=color,
                             marker='circle', radius=BAR_WIDTH / 2 * .9)
                     else:
                         r = fig.line(
                             'index', source_name, source=source,
-                            legend_label=LegendStr(legend_label), line_color=color,
+                            legend_label=legend_label[j-1], line_color=color,
                             line_width=1.3)
                     # Add dashed centerline just because
                     mean = float(pd.Series(arr).mean())
@@ -577,10 +588,12 @@ return this.labels[index] || "";
                         fig.add_layout(Span(location=float(mean), dimension='width',
                                             line_color='#666666', line_dash='dashed',
                                             line_width=.5))
+
+            label_tooltip_pairs = [(label, tooltip) for label, tooltip in zip(legend_label, tooltips)]
             if is_overlay:
-                ohlc_tooltips.append((legend_label, NBSP.join(tooltips)))
+                ohlc_tooltips.extend(label_tooltip_pairs)
             else:
-                set_tooltips(fig, [(legend_label, NBSP.join(tooltips))], vline=True, renderers=[r])
+                set_tooltips(fig, label_tooltip_pairs, vline=True, renderers=[r])
                 # If the sole indicator line on this figure,
                 # have the legend only contain text without the glyph
                 if len(value) == 1:
@@ -611,6 +624,7 @@ return this.labels[index] || "";
     ohlc_bars = _plot_ohlc()
     if plot_trades:
         _plot_ohlc_trades()
+    _plot_ohlc_universe()
     indicator_figs = _plot_indicators()
     if reverse_indicators:
         indicator_figs = indicator_figs[::-1]

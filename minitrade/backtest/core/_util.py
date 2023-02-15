@@ -45,15 +45,17 @@ class _Array(np.ndarray):
     ndarray extended to supply .name and other arbitrary properties
     in ._opts dict.
     """
-    def __new__(cls, array, *, name=None, **kwargs):
+    def __new__(cls, array, *, name=None, columns=None, **kwargs):
         obj = np.asarray(array).view(cls)
         obj.name = name or array.name
+        obj.columns = columns
         obj._opts = kwargs
         return obj
 
     def __array_finalize__(self, obj):
         if obj is not None:
             self.name = getattr(obj, 'name', '')
+            self.columns = getattr(obj, 'columns', None)
             self._opts = getattr(obj, '_opts', {})
 
     # Make sure properties name and _opts are carried over
@@ -92,7 +94,7 @@ class _Array(np.ndarray):
     def df(self) -> pd.DataFrame:
         values = np.atleast_2d(np.asarray(self))
         index = self._opts['index'][:values.shape[1]]
-        df = pd.DataFrame(values.T, index=index, columns=[self.name] * len(values))
+        df = pd.DataFrame(values.T, index=index, columns=self.columns or [self.name] * len(values))
         return df
 
 
@@ -107,12 +109,14 @@ class _Data:
     and the returned "series" are _not_ `pd.Series` but `np.ndarray`
     for performance reasons.
     """
+
     def __init__(self, df: pd.DataFrame):
         self.__df = df
         self.__i = len(df)
         self.__pip: Optional[float] = None
         self.__cache: Dict[str, _Array] = {}
         self.__arrays: Dict[str, _Array] = {}
+        self.__cache['__tickers'] = list(self.__df.columns.levels[0])
         self._update()
 
     def __getitem__(self, item):
@@ -186,6 +190,10 @@ class _Data:
     @property
     def index(self) -> pd.DatetimeIndex:
         return self.__get_array('__index')
+
+    @property
+    def tickers(self) -> List[str]:
+        return self.__get_array('__tickers')
 
     # Make pickling in Backtest.optimize() work with our catch-all __getattr__
     def __getstate__(self):

@@ -1,3 +1,4 @@
+import warnings
 from typing import TYPE_CHECKING, List, Union
 
 import numpy as np
@@ -6,7 +7,7 @@ import pandas as pd
 from ._util import _data_period
 
 if TYPE_CHECKING:
-    from .backtesting import Strategy, Trade
+    from .backtesting import Order, Strategy, Trade
 
 
 def compute_drawdown_duration_peaks(dd: pd.Series):
@@ -33,6 +34,7 @@ def geometric_mean(returns: pd.Series) -> float:
 
 
 def compute_stats(
+        orders: List['Order'],
         trades: Union[List['Trade'], pd.DataFrame],
         equity: np.ndarray,
         ohlc_data: pd.DataFrame,
@@ -45,6 +47,14 @@ def compute_stats(
     dd = 1 - equity / np.maximum.accumulate(equity)
     dd_dur, dd_peaks = compute_drawdown_duration_peaks(pd.Series(dd, index=index))
 
+    orders_df = pd.DataFrame({
+        'SignalDate': [t.entry_time for t in orders],
+        'Ticker': [t.ticker for t in orders],
+        'Side': ['Buy' if t.size > 0 else 'Sell' for t in orders],
+        'Size': [int(t.size) for t in orders],
+        'EntryType': [t.entry_type for t in orders],
+    }).set_index('SignalDate')
+
     equity_df = pd.DataFrame({
         'Equity': equity,
         'DrawdownPct': dd,
@@ -52,13 +62,14 @@ def compute_stats(
         index=index)
 
     if isinstance(trades, pd.DataFrame):
-        trades_df: pd.DataFrame = trades
+        trades_df = trades
     else:
         # Came straight from Backtest.run()
         trades_df = pd.DataFrame({
-            'Size': [t.size for t in trades],
             'EntryBar': [t.entry_bar for t in trades],
             'ExitBar': [t.exit_bar for t in trades],
+            'Ticker': [t.ticker for t in trades],
+            'Size': [t.size for t in trades],
             'EntryPrice': [t.entry_price for t in trades],
             'ExitPrice': [t.exit_price for t in trades],
             'PnL': [t.pl for t in trades],
@@ -119,8 +130,14 @@ def compute_stats(
     # Our Sharpe mismatches `empyrical.sharpe_ratio()` because they use arithmetic mean return
     # and simple standard deviation
     s.loc['Sharpe Ratio'] = (s.loc['Return (Ann.) [%]'] - risk_free_rate) / (s.loc['Volatility (Ann.) [%]'] or np.nan)  # noqa: E501
-    # Our Sortino mismatches `empyrical.sortino_ratio()` because they use arithmetic mean return
-    s.loc['Sortino Ratio'] = (annualized_return - risk_free_rate) / (np.sqrt(np.mean(day_returns.clip(-np.inf, 0)**2)) * np.sqrt(annual_trading_days))  # noqa: E501
+    with warnings.catch_warnings():
+        # wrap to catch RuntimeWarning: divide by zero encountered in scalar divide
+        warnings.filterwarnings('error')
+        try:
+            # Our Sortino mismatches `empyrical.sortino_ratio()` because they use arithmetic mean return
+            s.loc['Sortino Ratio'] = (annualized_return - risk_free_rate) / (np.sqrt(np.mean(day_returns.clip(-np.inf, 0)**2)) * np.sqrt(annual_trading_days))  # noqa: E501
+        except Warning:
+            s.loc['Sortino Ratio'] = np.nan
     max_dd = -np.nan_to_num(dd.max())
     s.loc['Calmar Ratio'] = annualized_return / (-max_dd or np.nan)
     s.loc['Max. Drawdown [%]'] = max_dd * 100
@@ -144,6 +161,7 @@ def compute_stats(
     s.loc['_strategy'] = strategy_instance
     s.loc['_equity_curve'] = equity_df
     s.loc['_trades'] = trades_df
+    s.loc['_orders'] = orders_df
 
     s = _Stats(s)
     return s

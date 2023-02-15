@@ -8,10 +8,12 @@ module directly, e.g.
 import multiprocessing as mp
 import os
 import sys
+import traceback
 import warnings
 from abc import ABCMeta, abstractmethod
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from copy import copy
+from datetime import datetime
 from functools import lru_cache, partial
 from itertools import chain, compress, product, repeat
 from math import copysign
@@ -31,7 +33,7 @@ except ImportError:
 
 from ._plotting import plot  # noqa: I001
 from ._stats import compute_stats
-from ._util import _as_str, _Indicator, _Data, try_
+from ._util import _as_str, _Data, _Indicator, try_
 
 __pdoc__ = {
     'Strategy.__init__': False,
@@ -49,6 +51,7 @@ class Strategy(metaclass=ABCMeta):
     `backtesting.backtesting.Strategy.next` to define
     your own strategy.
     """
+
     def __init__(self, broker, data, params):
         self._indicators = []
         self._broker: _Broker = broker
@@ -76,7 +79,7 @@ class Strategy(metaclass=ABCMeta):
         return params
 
     def I(self,  # noqa: E743
-          func: Callable, *args,
+          funcval: Callable | pd.Series | pd.DataFrame, *args,
           name=None, plot=True, overlay=None, color=None, scatter=False,
           **kwargs) -> np.ndarray:
         """
@@ -86,8 +89,9 @@ class Strategy(metaclass=ABCMeta):
         `backtesting.backtesting.Strategy.data` is.
         Returns `np.ndarray` of indicator values.
 
-        `func` is a function that returns the indicator array(s) of
-        same length as `backtesting.backtesting.Strategy.data`.
+        `funcval` is either a function that returns the indicator array(s) of
+        same length as `backtesting.backtesting.Strategy.data`, or
+        the indicator array(s) itself as a DataFrame or Series. 
 
         In the plot legend, the indicator is labeled with
         function name, unless `name` overrides it.
@@ -115,20 +119,25 @@ class Strategy(metaclass=ABCMeta):
             def init():
                 self.sma = self.I(ta.SMA, self.data.Close, self.n_sma)
         """
-        if name is None:
-            params = ','.join(filter(None, map(_as_str, chain(args, kwargs.values()))))
-            func_name = _as_str(func)
-            name = (f'{func_name}({params})' if params else f'{func_name}')
-        else:
-            name = name.format(*map(_as_str, args),
-                               **dict(zip(kwargs.keys(), map(_as_str, kwargs.values()))))
+        if callable(funcval):
+            if name is None:
+                params = ','.join(filter(None, map(_as_str, chain(args, kwargs.values()))))
+                func_name = _as_str(funcval)
+                name = (f'{func_name}({params})' if params else f'{func_name}')
+            else:
+                name = name.format(*map(_as_str, args),
+                                   **dict(zip(kwargs.keys(), map(_as_str, kwargs.values()))))
 
-        try:
-            value = func(*args, **kwargs)
-        except Exception as e:
-            raise RuntimeError(f'Indicator "{name}" error') from e
+            try:
+                value = funcval(*args, **kwargs)
+            except Exception as e:
+                raise RuntimeError(f'Indicator "{name}" error') from e
+        else:
+            value = funcval
+            name = name if name else 'Unnamed'
 
         if isinstance(value, pd.DataFrame):
+            columns = value.columns
             value = value.values.T
 
         if value is not None:
@@ -139,21 +148,14 @@ class Strategy(metaclass=ABCMeta):
         if is_arraylike and np.argmax(value.shape) == 0:
             value = value.T
 
-        if not is_arraylike or not 1 <= value.ndim <= 2 or value.shape[-1] != len(self._data.Close):
+        if not is_arraylike or not 1 <= value.ndim <= 2 or value.shape[-1] != len(self._data):
             raise ValueError(
                 'Indicators must return (optionally a tuple of) numpy.arrays of same '
-                f'length as `data` (data shape: {self._data.Close.shape}; indicator "{name}" '
+                f'length as `data` (data shape: {len(self._data)}; indicator "{name}"'
                 f'shape: {getattr(value, "shape" , "")}, returned value: {value})')
 
-        if plot and overlay is None and np.issubdtype(value.dtype, np.number):
-            x = value / self._data.Close
-            # By default, overlay if strong majority of indicator values
-            # is within 30% of Close
-            with np.errstate(invalid='ignore'):
-                overlay = ((x < 1.4) & (x > .6)).mean() > .6
-
         value = _Indicator(value, name=name, plot=plot, overlay=overlay,
-                           color=color, scatter=scatter,
+                           color=color, scatter=scatter, columns=columns,
                            # _Indicator.s Series accessor uses this:
                            index=self.data.index)
         self._indicators.append(value)
@@ -195,6 +197,7 @@ class Strategy(metaclass=ABCMeta):
     _FULL_EQUITY = __FULL_EQUITY(1 - sys.float_info.epsilon)
 
     def buy(self, *,
+            ticker: str,
             size: float = _FULL_EQUITY,
             limit: Optional[float] = None,
             stop: Optional[float] = None,
@@ -210,9 +213,10 @@ class Strategy(metaclass=ABCMeta):
         """
         assert 0 < size < 1 or round(size) == size, \
             "size must be a positive fraction of equity, or a positive whole number of units"
-        return self._broker.new_order(size, limit, stop, sl, tp, tag)
+        return self._broker.new_order(ticker, size, limit, stop, sl, tp, tag)
 
     def sell(self, *,
+             ticker: str,
              size: float = _FULL_EQUITY,
              limit: Optional[float] = None,
              stop: Optional[float] = None,
@@ -230,14 +234,16 @@ class Strategy(metaclass=ABCMeta):
         """
         assert 0 < size < 1 or round(size) == size, \
             "size must be a positive fraction of equity, or a positive whole number of units"
-        return self._broker.new_order(-size, limit, stop, sl, tp, tag)
+        return self._broker.new_order(ticker, -size, limit, stop, sl, tp, tag)
+
+    def rebalance(self, weights: pd.Series, lot_size: int, force_rebalance: bool = False):
+        self._broker.rebalance(weights, lot_size, force_rebalance)
 
     @property
     def equity(self) -> float:
         """Current account equity (cash plus assets)."""
-        return self._broker.equity
+        return self._broker.equity()
 
-    @property
     def data(self) -> _Data:
         """
         Price data, roughly as passed into
@@ -267,14 +273,18 @@ class Strategy(metaclass=ABCMeta):
         return self._data
 
     @property
-    def position(self) -> 'Position':
+    def positions(self) -> Dict[str, 'Position']:
         """Instance of `backtesting.backtesting.Position`."""
-        return self._broker.position
+        return self._broker.positions
+
+    def position(self, ticker: str) -> 'Position':
+        """Instance of `backtesting.backtesting.Position`."""
+        return self._broker.positions[ticker]
 
     @property
     def orders(self) -> 'Tuple[Order, ...]':
         """List of orders (see `Order`) waiting for execution."""
-        return _Orders(self._broker.orders)
+        return self._broker.orders
 
     @property
     def trades(self) -> 'Tuple[Trade, ...]':
@@ -287,27 +297,6 @@ class Strategy(metaclass=ABCMeta):
         return tuple(self._broker.closed_trades)
 
 
-class _Orders(tuple):
-    """
-    TODO: remove this class. Only for deprecation.
-    """
-    def cancel(self):
-        """Cancel all non-contingent (i.e. SL/TP) orders."""
-        for order in self:
-            if not order.is_contingent:
-                order.cancel()
-
-    def __getattr__(self, item):
-        # TODO: Warn on deprecations from the previous version. Remove in the next.
-        removed_attrs = ('entry', 'set_entry', 'is_long', 'is_short',
-                         'sl', 'tp', 'set_sl', 'set_tp')
-        if item in removed_attrs:
-            raise AttributeError(f'Strategy.orders.{"/.".join(removed_attrs)} were removed in'
-                                 'Backtesting 0.2.0. '
-                                 'Use `Order` API instead. See docs.')
-        raise AttributeError(f"'tuple' object has no attribute {item!r}")
-
-
 class Position:
     """
     Currently held asset position, available as
@@ -318,8 +307,10 @@ class Position:
         if self.position:
             ...  # we have a position, either long or short
     """
-    def __init__(self, broker: '_Broker'):
+
+    def __init__(self, broker: '_Broker', ticker: str):
         self.__broker = broker
+        self.__ticker = ticker
 
     def __bool__(self):
         return self.size != 0
@@ -327,19 +318,19 @@ class Position:
     @property
     def size(self) -> float:
         """Position size in units of asset. Negative if position is short."""
-        return sum(trade.size for trade in self.__broker.trades)
+        return sum(trade.size for trade in self.__broker.trades[self.__ticker])
 
     @property
     def pl(self) -> float:
         """Profit (positive) or loss (negative) of the current position in cash units."""
-        return sum(trade.pl for trade in self.__broker.trades)
+        return sum(trade.pl for trade in self.__broker.trades[self.__ticker])
 
     @property
     def pl_pct(self) -> float:
         """Profit (positive) or loss (negative) of the current position in percent."""
-        weights = np.abs([trade.size for trade in self.__broker.trades])
+        weights = np.abs([trade.size for trade in self.__broker.trades[self.__ticker]])
         weights = weights / weights.sum()
-        pl_pcts = np.array([trade.pl_pct for trade in self.__broker.trades])
+        pl_pcts = np.array([trade.pl_pct for trade in self.__broker.trades[self.__ticker]])
         return (pl_pcts * weights).sum()
 
     @property
@@ -356,11 +347,11 @@ class Position:
         """
         Close portion of position by closing `portion` of each active trade. See `Trade.close`.
         """
-        for trade in self.__broker.trades:
+        for trade in self.__broker.trades[self.__ticker]:
             trade.close(portion)
 
     def __repr__(self):
-        return f'<Position: {self.size} ({len(self.__broker.trades)} trades)>'
+        return f'<Position: {self.size} ({len(self.__broker.trades[self.__ticker])} trades)>'
 
 
 class _OutOfMoneyError(Exception):
@@ -382,15 +373,20 @@ class Order:
     [filled]: https://www.investopedia.com/terms/f/fill.asp
     [Good 'Til Canceled]: https://www.investopedia.com/terms/g/gtc.asp
     """
+
     def __init__(self, broker: '_Broker',
+                 ticker: str,
                  size: float,
                  limit_price: Optional[float] = None,
                  stop_price: Optional[float] = None,
                  sl_price: Optional[float] = None,
                  tp_price: Optional[float] = None,
                  parent_trade: Optional['Trade'] = None,
+                 entry_time: datetime = None,
+                 entry_type: str = None,
                  tag: object = None):
         self.__broker = broker
+        self.__ticker = ticker
         assert size != 0
         self.__size = size
         self.__limit_price = limit_price
@@ -398,6 +394,8 @@ class Order:
         self.__sl_price = sl_price
         self.__tp_price = tp_price
         self.__parent_trade = parent_trade
+        self.__entry_time = entry_time
+        self.__entry_type = entry_type      # 'MOC' for market-on-close order, 'MOO' for market-on-open order
         self.__tag = tag
 
     def _replace(self, **kwargs):
@@ -406,16 +404,15 @@ class Order:
         return self
 
     def __repr__(self):
-        return '<Order {}>'.format(', '.join(f'{param}={round(value, 5)}'
-                                             for param, value in (
-                                                 ('size', self.__size),
-                                                 ('limit', self.__limit_price),
-                                                 ('stop', self.__stop_price),
-                                                 ('sl', self.__sl_price),
-                                                 ('tp', self.__tp_price),
-                                                 ('contingent', self.is_contingent),
-                                                 ('tag', self.__tag),
-                                             ) if value is not None))
+        return f'<Order {self.__ticker} {{}}>'.format(', '.join(f'{param}={round(value, 5)}'
+                                                                for param, value in (
+                                                                    ('size', self.__size),
+                                                                    ('limit', self.__limit_price),
+                                                                    ('stop', self.__stop_price),
+                                                                    ('sl', self.__sl_price),
+                                                                    ('tp', self.__tp_price),
+                                                                    ('contingent', self.is_contingent),
+                                                                ) if value is not None))
 
     def cancel(self):
         """Cancel the order."""
@@ -433,6 +430,10 @@ class Order:
     # Fields getters
 
     @property
+    def ticker(self) -> str:
+        return self.__ticker
+
+    @property
     def size(self) -> float:
         """
         Order size (negative for short orders).
@@ -442,6 +443,11 @@ class Order:
         A value greater than or equal to 1 indicates an absolute number of units.
         """
         return self.__size
+
+    @size.setter
+    def size(self, size):
+        """ Setter of order size """
+        self.__size = size
 
     @property
     def limit(self) -> Optional[float]:
@@ -522,14 +528,26 @@ class Order:
         """
         return bool(self.__parent_trade)
 
+    @property
+    def entry_time(self) -> datetime:
+        """Time of when the order is created."""
+        return self.__entry_time
+
+    @property
+    def entry_type(self) -> str:
+        """Type of order entry"""
+        return self.__entry_type
+
 
 class Trade:
     """
     When an `Order` is filled, it results in an active `Trade`.
     Find active trades in `Strategy.trades` and closed, settled trades in `Strategy.closed_trades`.
     """
-    def __init__(self, broker: '_Broker', size: int, entry_price: float, entry_bar, tag):
+
+    def __init__(self, broker: '_Broker', ticker: str, size: int, entry_price: float, entry_bar, tag):
         self.__broker = broker
+        self.__ticker = ticker
         self.__size = size
         self.__entry_price = entry_price
         self.__exit_price: Optional[float] = None
@@ -556,10 +574,16 @@ class Trade:
         """Place new `Order` to close `portion` of the trade at next market price."""
         assert 0 < portion <= 1, "portion must be a fraction between 0 and 1"
         size = copysign(max(1, round(abs(self.__size) * portion)), -self.__size)
-        order = Order(self.__broker, size, parent_trade=self, tag=self.__tag)
+        entry_type = 'MOC' if self.__broker._trade_on_close else 'MOO'
+        order = Order(self.__broker, self.__ticker, size, parent_trade=self,
+                      entry_time=self.__broker._iter_date, entry_type=entry_type, tag=self.__tag)
         self.__broker.orders.insert(0, order)
 
     # Fields getters
+
+    @property
+    def ticker(self):
+        return self.__ticker
 
     @property
     def size(self):
@@ -637,19 +661,19 @@ class Trade:
     @property
     def pl(self):
         """Trade profit (positive) or loss (negative) in cash units."""
-        price = self.__exit_price or self.__broker.last_price
+        price = self.__exit_price or self.__broker.last_price(self.__ticker)
         return self.__size * (price - self.__entry_price)
 
     @property
     def pl_pct(self):
         """Trade profit (positive) or loss (negative) in percent."""
-        price = self.__exit_price or self.__broker.last_price
+        price = self.__exit_price or self.__broker.last_price(self.__ticker)
         return copysign(1, self.__size) * (price / self.__entry_price - 1)
 
     @property
     def value(self):
         """Trade total value in cash (volume × price)."""
-        price = self.__exit_price or self.__broker.last_price
+        price = self.__exit_price or self.__broker.last_price(self.__ticker)
         return abs(self.__size) * price
 
     # SL/TP management API
@@ -693,36 +717,82 @@ class Trade:
             order.cancel()
         if price:
             kwargs = {'stop': price} if type == 'sl' else {'limit': price}
-            order = self.__broker.new_order(-self.size, trade=self, tag=self.tag, **kwargs)
+            order = self.__broker.new_order(self.ticker, -self.size, trade=self, tag=self.tag, **kwargs)
             setattr(self, attr, order)
 
 
 class _Broker:
-    def __init__(self, *, data, cash, commission, margin,
-                 trade_on_close, hedging, exclusive_orders, index):
+    def __init__(self, *, data: _Data, cash, commission, margin,
+                 trade_on_close, hedging, exclusive_orders, index, trade_start_date):
         assert 0 < cash, f"cash should be >0, is {cash}"
         assert -.1 <= commission < .1, \
             ("commission should be between -10% "
              f"(e.g. market-maker's rebates) and 10% (fees), is {commission}")
         assert 0 < margin <= 1, f"margin should be between 0 and 1, is {margin}"
-        self._data: _Data = data
+        self._data = data
         self._cash = cash
         self._commission = commission
         self._leverage = 1 / margin
         self._trade_on_close = trade_on_close
         self._hedging = hedging
         self._exclusive_orders = exclusive_orders
+        self._trade_start_date = trade_start_date
 
         self._equity = np.tile(np.nan, len(index))
+        self._weights = self._prev_weights = None
         self.orders: List[Order] = []
-        self.trades: List[Trade] = []
-        self.position = Position(self)
+        self.trades: Dict[str, List[Trade]] = {ticker: [] for ticker in self._data.tickers}
+        self.positions: Dict[str, Position] = {ticker: Position(self, ticker) for ticker in self._data.tickers}
         self.closed_trades: List[Trade] = []
 
     def __repr__(self):
-        return f'<Broker: {self._cash:.0f}{self.position.pl:+.1f} ({len(self.trades)} trades)>'
+        pos = ','.join([f'{k}:{int(p.pl)}' for k, p in self.positions.items()])
+        return f'<Broker: {self._cash:.0f}{pos} ({len(self.trades)} trades)>'
+
+    def rebalance(self, weights: pd.Series, lot_size: int, force_rebalance: bool = False):
+        # ignore any trade actions before trade_start_date
+        if self._trade_start_date and self._iter_date.replace(tzinfo=None) < self._trade_start_date:
+            return
+        # percentage of total equity reserved as cash to account for order quantity rounding
+        # and sudden price changes
+        cash_reserve = 0.1
+        # minimal percentage value gap to the desired allocation to trigger an order
+        rebalance_threshold = 0.1
+        # make a copy and unify ticker order in weight series
+        self._weights = weights.sort_index()
+        # rebalance if force_rebalance is true or portfolio weights have changed
+        if force_rebalance or not self._weights.equals(self._prev_weights):
+            # money value of current portfolio
+            total_equity = self.equity()
+            # desired values for each ticker excluding cash reserve that is not to be allocated
+            allocation = self._weights * total_equity * (1 - cash_reserve)
+            # weight changes to each ticker
+            weight_change = self._weights - self._prev_weights if self._prev_weights is not None else self._weights
+            # sort in ascending order so that sell orders are placed first then buy orders to make sure that cash
+            # balance is always positive in simulation
+            weight_change.sort_values(inplace=True)
+            for ticker in weight_change.index:
+                if weights.loc[ticker] == 0:
+                    # this may generate multiple orders for the same ticker if multiple long positions are opened
+                    # for the same ticker previously over time
+                    for trade in self.trades[ticker]:
+                        trade.close()
+                else:
+                    # calculate the amount to buy or sell
+                    value_adjust = allocation.loc[ticker] - self.equity(ticker)
+                    # rebalance if the current value deviate too much from the desired value
+                    # this is to avoid tiny orders triggered by ticker price fluctuation
+                    if value_adjust and abs(value_adjust) / allocation.loc[ticker] > rebalance_threshold:
+                        # calculate number of shares to buy respecting lot_size
+                        # implicitly this forces order in whole share, fractional share not supported for now
+                        size = value_adjust // self.last_price(ticker)
+                        size = (size // lot_size) * lot_size
+                        if size != 0:
+                            self.new_order(ticker=ticker, size=size)
+        self._prev_weights = self._weights
 
     def new_order(self,
+                  ticker: str,
                   size: float,
                   limit: Optional[float] = None,
                   stop: Optional[float] = None,
@@ -734,6 +804,10 @@ class _Broker:
         """
         Argument size indicates whether the order is long or short
         """
+        # ignore any trade actions before trade_start_date
+        if self._trade_start_date and self._iter_date.replace(tzinfo=None) < self._trade_start_date:
+            return
+
         size = float(size)
         stop = stop and float(stop)
         limit = limit and float(limit)
@@ -741,7 +815,7 @@ class _Broker:
         tp = tp and float(tp)
 
         is_long = size > 0
-        adjusted_price = self._adjusted_price(size)
+        adjusted_price = self._adjusted_price(ticker, size)
 
         if is_long:
             if not (sl or -np.inf) < (limit or stop or adjusted_price) < (tp or np.inf):
@@ -754,7 +828,8 @@ class _Broker:
                     "Short orders require: "
                     f"TP ({tp}) < LIMIT ({limit or stop or adjusted_price}) < SL ({sl})")
 
-        order = Order(self, size, limit, stop, sl, tp, trade, tag)
+        entry_type = 'MOC' if self._trade_on_close else 'MOO'
+        order = Order(self, ticker, size, limit, stop, sl, tp, trade, self._iter_date, entry_type, tag)
         # Put the new order in the order queue,
         # inserting SL/TP/trade-closing orders in-front
         if trade:
@@ -766,41 +841,49 @@ class _Broker:
                 for o in self.orders:
                     if not o.is_contingent:
                         o.cancel()
-                for t in self.trades:
+                for t in self.trades[ticker]:
                     t.close()
 
             self.orders.append(order)
 
         return order
 
-    @property
-    def last_price(self) -> float:
+    def last_price(self, ticker) -> float:
         """ Price at the last (current) close. """
-        return self._data.Close[-1]
+        return self._data[ticker, 'Close'][-1]
 
-    def _adjusted_price(self, size=None, price=None) -> float:
+    def _adjusted_price(self, ticker: str, size=None, price=None) -> float:
         """
         Long/short `price`, adjusted for commisions.
         In long positions, the adjusted price is a fraction higher, and vice versa.
         """
-        return (price or self.last_price) * (1 + copysign(self._commission, size))
+        return (price or self.last_price(ticker)) * (1 + copysign(self._commission, size))
 
-    @property
-    def equity(self) -> float:
-        return self._cash + sum(trade.pl for trade in self.trades)
+    def equity(self, ticker: str = None) -> float:
+        if ticker is None:
+            return self._cash + sum([sum(trade.pl for trade in self.trades[ticker]) for ticker in self.trades.keys()])
+        else:
+            # return current value of the asset
+            return sum(trade.value for trade in self.trades[ticker])
 
     @property
     def margin_available(self) -> float:
         # From https://github.com/QuantConnect/Lean/pull/3768
-        margin_used = sum(trade.value / self._leverage for trade in self.trades)
-        return max(0, self.equity - margin_used)
+        margin_used = sum([sum(trade.value / self._leverage for trade in self.trades[ticker])
+                           for ticker in self.trades.keys()])
+        return max(0, self.equity() - margin_used)
+
+    def set_iter(self, step: int):
+        # keep track of current index and date in backtest iteration
+        self._iter = step
+        self._iter_date = self._data.index[self._iter]
 
     def next(self):
-        i = self._i = len(self._data) - 1
+        i = self._i = self._iter
         self._process_orders()
 
         # Log account equity for the equity curve
-        equity = self.equity
+        equity = self.equity()
         self._equity[i] = equity
 
         # If equity is negative, set all to 0 and stop the simulation
@@ -813,13 +896,15 @@ class _Broker:
             raise _OutOfMoneyError
 
     def _process_orders(self):
-        data = self._data
-        open, high, low = data.Open[-1], data.High[-1], data.Low[-1]
-        prev_close = data.Close[-2]
         reprocess_orders = False
 
         # Process orders
         for order in list(self.orders):  # type: Order
+
+            data = self._data
+            open_, high, low = data[order.ticker, 'Open'][-1], data[order.ticker,
+                                                                    'High'][-1], data[order.ticker, 'Low'][-1]
+            prev_close = data[order.ticker, 'Close'][-2]
 
             # Related SL/TP order was already removed
             if order not in self.orders:
@@ -850,12 +935,12 @@ class _Broker:
                     continue
 
                 # stop_price, if set, was hit within this bar
-                price = (min(stop_price or open, order.limit)
+                price = (min(stop_price or open_, order.limit)
                          if order.is_long else
-                         max(stop_price or open, order.limit))
+                         max(stop_price or open_, order.limit))
             else:
                 # Market-if-touched / market order
-                price = prev_close if self._trade_on_close else open
+                price = prev_close if self._trade_on_close else open_
                 price = (max(price, stop_price or -np.inf)
                          if order.is_long else
                          min(price, stop_price or np.inf))
@@ -872,9 +957,9 @@ class _Broker:
                 # order and part of the trade was already closed beforehand
                 size = copysign(min(abs(_prev_size), abs(order.size)), order.size)
                 # If this trade isn't already closed (e.g. on multiple `trade.close(.5)` calls)
-                if trade in self.trades:
+                if trade in self.trades[order.ticker]:
                     self._reduce_trade(trade, price, size, time_index)
-                    assert order.size != -_prev_size or trade not in self.trades
+                    assert order.size != -_prev_size or trade not in self.trades[order.ticker]
                 if order in (trade._sl_order,
                              trade._tp_order):
                     assert order.size == -trade.size
@@ -889,7 +974,7 @@ class _Broker:
 
             # Adjust price to include commission (or bid-ask spread).
             # In long positions, the adjusted price is a fraction higher, and vice versa.
-            adjusted_price = self._adjusted_price(order.size, price)
+            adjusted_price = self._adjusted_price(order.ticker, order.size, price)
 
             # If order size was specified proportionally,
             # precompute true size in units, accounting for margin and spread/commissions
@@ -901,6 +986,9 @@ class _Broker:
                 if not size:
                     self.orders.remove(order)
                     continue
+                else:
+                    # replace relative size with calculated size
+                    order.size = int(size)
             assert size == round(size)
             need_size = int(size)
 
@@ -908,7 +996,7 @@ class _Broker:
                 # Fill position by FIFO closing/reducing existing opposite-facing trades.
                 # Existing trades are closed at unadjusted price, because the adjustment
                 # was already made when buying.
-                for trade in list(self.trades):
+                for trade in list(self.trades[order.ticker]):
                     if trade.is_long == order.is_long:
                         continue
                     assert trade.size * order.size < 0
@@ -929,17 +1017,14 @@ class _Broker:
 
             # If we don't have enough liquidity to cover for the order, cancel it
             if abs(need_size) * adjusted_price > self.margin_available * self._leverage:
+                print(
+                    f'Not enough liquidity, has {int(self.margin_available * self._leverage)}, needs {int(abs(need_size) * adjusted_price)}, canceling {order}')
                 self.orders.remove(order)
                 continue
 
             # Open a new trade
             if need_size:
-                self._open_trade(adjusted_price,
-                                 need_size,
-                                 order.sl,
-                                 order.tp,
-                                 time_index,
-                                 order.tag)
+                self._open_trade(order.ticker, adjusted_price, need_size, order.sl, order.tp, time_index, order.tag)
 
                 # We need to reprocess the SL/TP orders newly added to the queue.
                 # This allows e.g. SL hitting in the same bar the order was open.
@@ -983,12 +1068,12 @@ class _Broker:
 
             # ... by closing a reduced copy of it
             close_trade = trade._copy(size=-size, sl_order=None, tp_order=None)
-            self.trades.append(close_trade)
+            self.trades[trade.ticker].append(close_trade)
 
         self._close_trade(close_trade, price, time_index)
 
     def _close_trade(self, trade: Trade, price: float, time_index: int):
-        self.trades.remove(trade)
+        self.trades[trade.ticker].remove(trade)
         if trade._sl_order:
             self.orders.remove(trade._sl_order)
         if trade._tp_order:
@@ -997,10 +1082,10 @@ class _Broker:
         self.closed_trades.append(trade._replace(exit_price=price, exit_bar=time_index))
         self._cash += trade.pl
 
-    def _open_trade(self, price: float, size: int,
+    def _open_trade(self, ticker: str, price: float, size: int,
                     sl: Optional[float], tp: Optional[float], time_index: int, tag):
-        trade = Trade(self, size, price, time_index, tag)
-        self.trades.append(trade)
+        trade = Trade(self, ticker, size, price, time_index, tag)
+        self.trades[ticker].append(trade)
         # Create SL/TP (bracket) orders.
         # Make sure SL order is created first so it gets adversarially processed before TP order
         # in case of an ambiguous tie (both hit within a single bar).
@@ -1021,6 +1106,7 @@ class Backtest:
     instance, or `backtesting.backtesting.Backtest.optimize` to
     optimize it.
     """
+
     def __init__(self,
                  data: pd.DataFrame,
                  strategy: Type[Strategy],
@@ -1030,7 +1116,8 @@ class Backtest:
                  margin: float = 1.,
                  trade_on_close=False,
                  hedging=False,
-                 exclusive_orders=False
+                 exclusive_orders=False,
+                 trade_start_date=None,
                  ):
         """
         Initialize a backtest. Requires data and a strategy to test.
@@ -1075,6 +1162,9 @@ class Backtest:
         trade/position, making at most a single trade (long or short) in effect
         at each time.
 
+        If `trade_start_date` is not None, orders generated before the date are 
+        surpressed and ignored in backtesting.
+
         [FIFO]: https://www.investopedia.com/terms/n/nfa-compliance-rule-2-43b.asp
         """
 
@@ -1098,20 +1188,14 @@ class Backtest:
                 data.index = pd.to_datetime(data.index, infer_datetime_format=True)
             except ValueError:
                 pass
-
-        if 'Volume' not in data:
-            data['Volume'] = np.nan
-
-        if len(data) == 0:
-            raise ValueError('OHLC `data` is empty')
-        if len(data.columns.intersection({'Open', 'High', 'Low', 'Close', 'Volume'})) != 5:
+        if list(data.columns.levels[1]) != ['Open', 'High', 'Low', 'Close', 'Volume']:
             raise ValueError("`data` must be a pandas.DataFrame with columns "
-                             "'Open', 'High', 'Low', 'Close', and (optionally) 'Volume'")
-        if data[['Open', 'High', 'Low', 'Close']].isnull().values.any():
+                             "'Open', 'High', 'Low', 'Close', and 'Volume'")
+        if data.isnull().values.any():
             raise ValueError('Some OHLC values are missing (NaN). '
                              'Please strip those lines with `df.dropna()` or '
                              'fill them in with `df.interpolate()` or whatever.')
-        if np.any(data['Close'] > cash):
+        if np.any(data.xs('Close', axis=1, level=1) > cash):
             warnings.warn('Some prices are larger than initial cash value. Note that fractional '
                           'trading is not supported. If you want to trade Bitcoin, '
                           'increase initial cash, or trade μBTC or satoshis instead (GH-134).',
@@ -1124,12 +1208,14 @@ class Backtest:
             warnings.warn('Data index is not datetime. Assuming simple periods, '
                           'but `pd.DateTimeIndex` is advised.',
                           stacklevel=2)
+        data.index.name = 'dt'
 
-        self._data: pd.DataFrame = data
+        self._data = data
         self._broker = partial(
             _Broker, cash=cash, commission=commission, margin=margin,
             trade_on_close=trade_on_close, hedging=hedging,
             exclusive_orders=exclusive_orders, index=data.index,
+            trade_start_date=datetime.strptime(trade_start_date, '%Y-%m-%d') if trade_start_date else None,
         )
         self._strategy = strategy
         self._results: Optional[pd.Series] = None
@@ -1185,8 +1271,14 @@ class Backtest:
         broker: _Broker = self._broker(data=data)
         strategy: Strategy = self._strategy(broker, data, kwargs)
 
-        strategy.init()
-        data._update()  # Strategy.init might have changed/added to data.df
+        processed_orders: List[Order] = []
+
+        try:
+            strategy.init()
+        except Exception as e:
+            print('Strategy initialization throws exception', e)
+            print(traceback.format_exc())
+            return
 
         # Indicators used in Strategy.next()
         indicator_attrs = {attr: indicator
@@ -1208,6 +1300,7 @@ class Backtest:
                 for attr, indicator in indicator_attrs:
                     # Slice indicator on the last dimension (case of 2d indicator)
                     setattr(strategy, attr, indicator[..., :i + 1])
+                broker.set_iter(i)
 
                 # Handle orders processing and broker stuff
                 try:
@@ -1217,10 +1310,14 @@ class Backtest:
 
                 # Next tick, a moment before bar close
                 strategy.next()
+
+                # take note of the orders generated
+                processed_orders.extend(broker.orders)
             else:
                 # Close any remaining open trades so they produce some stats
-                for trade in broker.trades:
-                    trade.close()
+                for trades in broker.trades.values():
+                    for trade in trades:
+                        trade.close()
 
                 # Re-run broker one last time to handle orders placed in the last strategy
                 # iteration. Use the same OHLC values as in the last broker iteration.
@@ -1232,10 +1329,15 @@ class Backtest:
             data._set_length(len(self._data))
 
             equity = pd.Series(broker._equity).bfill().fillna(broker._cash).values
+
+            # TODO change to equal weighed average
+            self._ohlc_ref_data = self._data.groupby(level=1, axis=1).agg(np.mean)
+
             self._results = compute_stats(
+                orders=processed_orders,
                 trades=broker.closed_trades,
                 equity=equity,
-                ohlc_data=self._data,
+                ohlc_data=self._ohlc_ref_data,
                 risk_free_rate=0.0,
                 strategy_instance=strategy,
             )
@@ -1386,7 +1488,7 @@ class Backtest:
             if not param_combos:
                 raise ValueError('No admissible parameter combinations to test')
 
-            if len(param_combos) > 300:
+            if len(param_combos) > 1000:
                 warnings.warn(f'Searching for best of {len(param_combos)} configurations.',
                               stacklevel=2)
 
@@ -1554,9 +1656,9 @@ class Backtest:
 
     def plot(self, *, results: pd.Series = None, filename=None, plot_width=None,
              plot_equity=True, plot_return=False, plot_pl=True,
-             plot_volume=True, plot_drawdown=False, plot_trades=True,
+             plot_volume=False, plot_drawdown=False, plot_trades=True,
              smooth_equity=False, relative_equity=True,
-             superimpose: Union[bool, str] = True,
+             superimpose: Union[bool, str] = False,
              resample=True, reverse_indicators=False,
              show_legend=True, open_browser=True):
         """
@@ -1645,7 +1747,8 @@ class Backtest:
 
         return plot(
             results=results,
-            df=self._data,
+            data=self._data,
+            df=self._ohlc_ref_data,
             indicators=results._strategy._indicators,
             filename=filename,
             plot_width=plot_width,

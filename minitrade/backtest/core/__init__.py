@@ -15,7 +15,7 @@
 
 These tutorials are also available as live Jupyter notebooks:
 [![Binder](https://mybinder.org/badge_logo.svg)][binder]
-[![Google Colab](https://colab.research.google.com/assets/colab-badge.png)][colab]
+[![Google Colab](https://colab.research.google.com/assets/colab-badge.svg)][colab]
 <br>In Colab, you might have to `!pip install backtesting`.
 
 [binder]: \
@@ -53,7 +53,7 @@ itself find their way back to the community.
 # API Reference Documentation
 """
 try:
-    from ._version import version as __version__
+    from ._version import version as __version__  # noqa: F401
 except ImportError:
     __version__ = '?.?.?'  # Package not installed
 
