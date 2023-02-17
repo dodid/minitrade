@@ -1,2 +1,2 @@
 from .trader import (BacktestRunLog, BacktestRunner, RawOrder, StrategyManager,
-                     TradePlan, Trader)
+                     TradePlan, Trader, entry_strategy)

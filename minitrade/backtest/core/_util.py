@@ -105,10 +105,8 @@ class _Indicator(_Array):
 
 class _Data:
     """
-    A data array accessor. Provides access to OHLCV "columns"
-    as a standard `pd.DataFrame` would, except it's not a DataFrame
-    and the returned "series" are _not_ `pd.Series` but `np.ndarray`
-    for performance reasons.
+    A data array accessor. Provides access by ticker or by OHLCV "columns" or by both. 
+    Unlike the original backtesting.py lib, here it returns data as pd.DataFrame or pd.Series instead of _Array.
     """
 
     def __init__(self, df: pd.DataFrame):
@@ -117,7 +115,7 @@ class _Data:
         self.__pip: Optional[float] = None
         self.__cache: Dict[str, _Array] = {}
         self.__arrays: Dict[str, _Array] = {}
-        self.__cache['__tickers'] = list(self.__df.columns.levels[0])
+        self.__tickers = list(self.__df.columns.levels[0])
         self._update()
 
     def __getitem__(self, item):
@@ -135,8 +133,13 @@ class _Data:
 
     def _update(self):
         index = self.__df.index.copy()
-        self.__arrays = {col: _Array(arr, index=index)
-                         for col, arr in self.__df.items()}
+        self.__arrays = {
+            ticker_col: arr for ticker_col, arr in self.__df.items()} | {
+            col: self.__df.xs(col, axis=1, level=1) for col in self.__df.columns.levels[1]} | {
+            ticker: self.__df[ticker] for ticker in self.__df.columns.levels[0]}
+        # convert single column dataframe into series
+        self.__arrays = {key: df.iloc[:, 0] if isinstance(df, pd.DataFrame) and len(
+            df.columns) == 1 else df for key, df in self.__arrays.items()}
         # Leave index as Series because pd.Timestamp nicer API to work with
         self.__arrays['__index'] = index
 
@@ -169,23 +172,23 @@ class _Data:
         return arr
 
     @property
-    def Open(self) -> _Array:
+    def Open(self) -> pd.DataFrame | pd.Series:
         return self.__get_array('Open')
 
     @property
-    def High(self) -> _Array:
+    def High(self) -> pd.DataFrame | pd.Series:
         return self.__get_array('High')
 
     @property
-    def Low(self) -> _Array:
+    def Low(self) -> pd.DataFrame | pd.Series:
         return self.__get_array('Low')
 
     @property
-    def Close(self) -> _Array:
+    def Close(self) -> pd.DataFrame | pd.Series:
         return self.__get_array('Close')
 
     @property
-    def Volume(self) -> _Array:
+    def Volume(self) -> pd.DataFrame | pd.Series:
         return self.__get_array('Volume')
 
     @property
@@ -194,7 +197,14 @@ class _Data:
 
     @property
     def tickers(self) -> List[str]:
-        return self.__get_array('__tickers')
+        return self.__tickers
+
+    @property
+    def the_ticker(self) -> str:
+        if len(self.__tickers) == 1:
+            return self.__tickers[0]
+        else:
+            raise ValueError('Ticker must explicitly specified for multi-asset backtesting')
 
     # Make pickling in Backtest.optimize() work with our catch-all __getattr__
     def __getstate__(self):

@@ -139,6 +139,8 @@ class Strategy(metaclass=ABCMeta):
         if isinstance(value, pd.DataFrame):
             columns = value.columns
             value = value.values.T
+        else:
+            columns = None
 
         if value is not None:
             value = try_(lambda: np.asarray(value, order='C'), None)
@@ -197,7 +199,7 @@ class Strategy(metaclass=ABCMeta):
     _FULL_EQUITY = __FULL_EQUITY(1 - sys.float_info.epsilon)
 
     def buy(self, *,
-            ticker: str,
+            ticker: str = None,
             size: float = _FULL_EQUITY,
             limit: Optional[float] = None,
             stop: Optional[float] = None,
@@ -216,7 +218,7 @@ class Strategy(metaclass=ABCMeta):
         return self._broker.new_order(ticker, size, limit, stop, sl, tp, tag)
 
     def sell(self, *,
-             ticker: str,
+             ticker: str = None,
              size: float = _FULL_EQUITY,
              limit: Optional[float] = None,
              stop: Optional[float] = None,
@@ -278,8 +280,9 @@ class Strategy(metaclass=ABCMeta):
         """Instance of `backtesting.backtesting.Position`."""
         return self._broker.positions
 
-    def position(self, ticker: str) -> 'Position':
+    def position(self, ticker: str = None) -> 'Position':
         """Instance of `backtesting.backtesting.Position`."""
+        ticker = ticker or self._data.the_ticker
         return self._broker.positions[ticker]
 
     @property
@@ -740,7 +743,8 @@ class _Broker:
         self._trade_start_date = trade_start_date
 
         self._equity = np.tile(np.nan, len(index))
-        self._weights = self._prev_weights = None
+        self._weights = None
+        self._prev_weights = None
         self.orders: List[Order] = []
         self.trades: Dict[str, List[Trade]] = {ticker: [] for ticker in self._data.tickers}
         self.positions: Dict[str, Position] = {ticker: Position(self, ticker) for ticker in self._data.tickers}
@@ -805,6 +809,8 @@ class _Broker:
         """
         Argument size indicates whether the order is long or short
         """
+        ticker = ticker or self._data.the_ticker
+
         # ignore any trade actions before trade_start_date
         if self._trade_start_date and self._iter_date.replace(tzinfo=None) < self._trade_start_date:
             return
@@ -1178,6 +1184,10 @@ class Backtest:
                             'entry order price')
 
         data = data.copy(deep=False)
+
+        # Convert single asset data into 2-level column index
+        if data.columns.nlevels == 1:
+            data.columns = pd.MultiIndex.from_product([['Unnamed'], data.columns])
 
         # Convert index to datetime index
         if (not isinstance(data.index, pd.DatetimeIndex) and
