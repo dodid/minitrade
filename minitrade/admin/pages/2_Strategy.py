@@ -17,7 +17,7 @@ def load_strategy(strategy_file: str) -> str:
     try:
         StrategyManager.load_strategy(strategy_file)
     except Exception as e:
-        st.error('Strategy class not found or cannot be loaded successfully')
+        st.error(e)
     return StrategyManager.read_strategy(strategy_file)
 
 

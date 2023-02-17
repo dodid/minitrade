@@ -9,6 +9,7 @@ import subprocess
 import sys
 import traceback
 from datetime import datetime, timedelta
+from functools import wraps
 from posixpath import expanduser
 from typing import Any
 from zoneinfo import ZoneInfo
@@ -217,6 +218,12 @@ class TradePlan:
             raise RuntimeError(f'Getting orders for plan {self.id} {self.name} failed') from e
 
 
+def entry_strategy(strategy):
+    ''' Decorator to help specify the entry strategy if multiple strategy classes exists in a strategy file'''
+    strategy.__entry_strategy__ = True
+    return strategy
+
+
 class StrategyManager:
 
     __strategy_root = expanduser('~/.minitrade/strategy')
@@ -279,14 +286,24 @@ class StrategyManager:
         sys.modules[module_name] = module
         spec.loader.exec_module(module)
         # look up and return the strategy class
+        strategy_found = []
         for attr in dir(module):
             attr_val = getattr(module, attr)
             try:
                 if issubclass(attr_val, Strategy) and attr != 'Strategy':
-                    return attr_val
+                    strategy_found.append(attr_val)
             except Exception:
                 pass
-        raise RuntimeError(f'No strategy found in {strategy_path}')
+        if len(strategy_found) > 1:
+            entry = [s for s in strategy_found if '__entry_strategy__' in s.__dict__]
+            if len(entry) == 1:
+                return entry[0]
+            raise RuntimeError(
+                f'Multiple strategy classes found: {strategy_found}. Use @entry_strategy decorator to specify which one should run.')
+        elif len(strategy_found) == 1:
+            return strategy_found[0]
+        else:
+            raise RuntimeError(f'No strategy found in {strategy_path}')
 
     @staticmethod
     def read_strategy(strategy_file: str) -> str:
