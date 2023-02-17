@@ -22,7 +22,7 @@ import pandas as pd
 
 from ._plotting import plot_heatmaps as _plot_heatmaps
 from ._stats import compute_stats as _compute_stats
-from ._util import _Array, _as_str
+from ._util import _as_str
 from .backtesting import Strategy
 
 __pdoc__ = {}
@@ -200,7 +200,7 @@ def compute_stats(
 
 def resample_apply(rule: str,
                    func: Optional[Callable[..., Sequence]],
-                   series: Union[pd.Series, pd.DataFrame, _Array],
+                   series: Union[pd.Series, pd.DataFrame],
                    *args,
                    agg: Optional[Union[str, dict]] = None,
                    **kwargs):
@@ -278,12 +278,6 @@ http://pandas.pydata.org/pandas-docs/stable/timeseries.html#offset-aliases
     if func is None:
         def func(x, *_, **__):
             return x
-
-    if not isinstance(series, (pd.Series, pd.DataFrame)):
-        assert isinstance(series, _Array), \
-            'resample_apply() takes either a `pd.Series`, `pd.DataFrame`, ' \
-            'or a `Strategy.data.*` array'
-        series = series.s
 
     if agg is None:
         agg = OHLCV_AGG.get(getattr(series, 'name', ''), 'last')

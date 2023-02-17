@@ -40,69 +40,6 @@ def _data_period(index) -> Union[pd.Timedelta, Number]:
     return values.diff().dropna().median()
 
 
-class _Array(np.ndarray):
-    """
-    ndarray extended to supply .name and other arbitrary properties
-    in ._opts dict.
-    """
-    def __new__(cls, array, *, name=None, columns=None, **kwargs):
-        obj = np.asarray(array).view(cls)
-        obj.name = name or array.name
-        obj.columns = columns
-        obj._opts = kwargs
-        return obj
-
-    def __array_finalize__(self, obj):
-        if obj is not None:
-            self.name = getattr(obj, 'name', '')
-            self.columns = getattr(obj, 'columns', None)
-            self._opts = getattr(obj, '_opts', {})
-
-    # Make sure properties name and _opts are carried over
-    # when (un-)pickling.
-    def __reduce__(self):
-        value = super().__reduce__()
-        return value[:2] + (value[2] + (self.__dict__,),)
-
-    def __setstate__(self, state):
-        self.__dict__.update(state[-1])
-        super().__setstate__(state[:-1])
-
-    def __bool__(self):
-        try:
-            return bool(self[-1])
-        except IndexError:
-            return super().__bool__()
-
-    def __float__(self):
-        try:
-            return float(self[-1])
-        except IndexError:
-            return super().__float__()
-
-    def to_series(self):
-        warnings.warn("`.to_series()` is deprecated. For pd.Series conversion, use accessor `.s`")
-        return self.s
-
-    @property
-    def s(self) -> pd.Series:
-        values = np.atleast_2d(self)
-        index = self._opts['index'][:values.shape[1]]
-        return pd.Series(values[0], index=index, name=self.name)
-
-    @property
-    def df(self) -> pd.DataFrame:
-        values = np.atleast_2d(np.asarray(self))
-        index = self._opts['index'][:values.shape[1]]
-        df = pd.DataFrame(values.T, index=index, columns=[self.name]
-                          * len(values) if self.columns is None else self.columns)
-        return df
-
-
-class _Indicator(_Array):
-    pass
-
-
 class _Data:
     """
     A data array accessor. Provides access by ticker or by OHLCV "columns" or by both. 
@@ -113,8 +50,8 @@ class _Data:
         self.__df = df
         self.__i = len(df)
         self.__pip: Optional[float] = None
-        self.__cache: Dict[str, _Array] = {}
-        self.__arrays: Dict[str, _Array] = {}
+        self.__cache: Dict[str, Union[pd.DataFrame, pd.Series]] = {}
+        self.__arrays: Dict[str, Union[pd.DataFrame, pd.Series]] = {}
         self.__tickers = list(self.__df.columns.levels[0])
         self._update()
 
@@ -165,30 +102,30 @@ class _Data:
                                                for s in self.__arrays['Close'].astype(str)]))
         return self.__pip
 
-    def __get_array(self, key) -> _Array:
+    def __get_array(self, key) -> Union[pd.DataFrame, pd.Series]:
         arr = self.__cache.get(key)
         if arr is None:
-            arr = self.__cache[key] = cast(_Array, self.__arrays[key][:self.__i])
+            arr = self.__cache[key] = self.__arrays[key][:self.__i]
         return arr
 
     @property
-    def Open(self) -> pd.DataFrame | pd.Series:
+    def Open(self) -> Union[pd.DataFrame, pd.Series]:
         return self.__get_array('Open')
 
     @property
-    def High(self) -> pd.DataFrame | pd.Series:
+    def High(self) -> Union[pd.DataFrame, pd.Series]:
         return self.__get_array('High')
 
     @property
-    def Low(self) -> pd.DataFrame | pd.Series:
+    def Low(self) -> Union[pd.DataFrame, pd.Series]:
         return self.__get_array('Low')
 
     @property
-    def Close(self) -> pd.DataFrame | pd.Series:
+    def Close(self) -> Union[pd.DataFrame, pd.Series]:
         return self.__get_array('Close')
 
     @property
-    def Volume(self) -> pd.DataFrame | pd.Series:
+    def Volume(self) -> Union[pd.DataFrame, pd.Series]:
         return self.__get_array('Volume')
 
     @property

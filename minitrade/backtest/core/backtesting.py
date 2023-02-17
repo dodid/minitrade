@@ -33,7 +33,7 @@ except ImportError:
 
 from ._plotting import plot  # noqa: I001
 from ._stats import compute_stats
-from ._util import _as_str, _Data, _Indicator, try_
+from ._util import _as_str, _Data, try_
 
 __pdoc__ = {
     'Strategy.__init__': False,
@@ -79,9 +79,9 @@ class Strategy(metaclass=ABCMeta):
         return params
 
     def I(self,  # noqa: E743
-          funcval: Callable | pd.Series | pd.DataFrame, *args,
-          name=None, plot=True, overlay=None, color=None, scatter=False,
-          **kwargs) -> np.ndarray:
+          funcval: Union[pd.DataFrame, pd.Series, Callable], *args,
+          plot=True, overlay=None, color=None, scatter=False,
+          **kwargs) -> Union[pd.DataFrame, pd.Series]:
         """
         Declare an indicator. An indicator is just an array of values,
         but one that is revealed gradually in
@@ -120,48 +120,23 @@ class Strategy(metaclass=ABCMeta):
                 self.sma = self.I(ta.SMA, self.data.Close, self.n_sma)
         """
         if callable(funcval):
-            if name is None:
-                params = ','.join(filter(None, map(_as_str, chain(args, kwargs.values()))))
-                func_name = _as_str(funcval)
-                name = (f'{func_name}({params})' if params else f'{func_name}')
-            else:
-                name = name.format(*map(_as_str, args),
-                                   **dict(zip(kwargs.keys(), map(_as_str, kwargs.values()))))
-
             try:
-                value = funcval(*args, **kwargs)
+                val = funcval(*args, **kwargs)
             except Exception as e:
-                raise RuntimeError(f'Indicator "{name}" error') from e
+                raise RuntimeError(f'Indicator "{funcval}" error') from e
         else:
-            value = funcval
-            name = name if name else 'Unnamed'
+            val = funcval
 
-        if isinstance(value, pd.DataFrame):
-            columns = value.columns
-            value = value.values.T
-        else:
-            columns = None
-
-        if value is not None:
-            value = try_(lambda: np.asarray(value, order='C'), None)
-        is_arraylike = bool(value is not None and value.shape)
-
-        # Optionally flip the array if the user returned e.g. `df.values`
-        if is_arraylike and np.argmax(value.shape) == 0:
-            value = value.T
-
-        if not is_arraylike or not 1 <= value.ndim <= 2 or value.shape[-1] != len(self._data):
+        if not val.index.equals(self._data.index):
             raise ValueError(
-                'Indicators must return (optionally a tuple of) numpy.arrays of same '
-                f'length as `data` (data shape: {len(self._data)}; indicator "{name}"'
-                f'shape: {getattr(value, "shape" , "")}, returned value: {value})')
+                'Indicators must return pd.DataFrame or pd.Series of same index as'
+                f' `data` (data shape: {len(self._data)}; indicator shape: {len(val)}.\n'
+                f'`data` index: {self._data.index}\n'
+                f'Indicator index: {val.index}\n')
 
-        value = _Indicator(value, name=name, plot=plot, overlay=overlay,
-                           color=color, scatter=scatter, columns=columns,
-                           # _Indicator.s Series accessor uses this:
-                           index=self.data.index)
-        self._indicators.append(value)
-        return value
+        val._opts = {'plot': plot, 'overlay': overlay, 'color': color, 'scatter': scatter, **kwargs}
+        self._indicators.append(val)
+        return val
 
     @abstractmethod
     def init(self):
@@ -1292,14 +1267,13 @@ class Backtest:
             return
 
         # Indicators used in Strategy.next()
-        indicator_attrs = {attr: indicator
-                           for attr, indicator in strategy.__dict__.items()
-                           if isinstance(indicator, _Indicator)}.items()
+        indicator_attrs = {attr: indicator for attr, indicator in strategy.__dict__.items()
+                           if any([indicator is item for item in strategy._indicators])}.items()
 
         # Skip first few candles where indicators are still "warming up"
         # +1 to have at least two entries available
-        start = 1 + max((np.isnan(indicator.astype(float)).argmin(axis=-1).max()
-                         for _, indicator in indicator_attrs), default=0)
+        start = 1 + max((indicator.isna().any(axis=1).argmin() if isinstance(indicator, pd.DataFrame)
+                        else indicator.isna().argmin() for _, indicator in indicator_attrs), default=0)
 
         # Disable "invalid value encountered in ..." warnings. Comparison
         # np.nan >= 3 is not invalid; it's False.
@@ -1310,7 +1284,7 @@ class Backtest:
                 data._set_length(i + 1)
                 for attr, indicator in indicator_attrs:
                     # Slice indicator on the last dimension (case of 2d indicator)
-                    setattr(strategy, attr, indicator[..., :i + 1])
+                    setattr(strategy, attr, indicator.iloc[:i + 1])
                 broker.set_iter(i)
 
                 # Handle orders processing and broker stuff
