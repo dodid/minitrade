@@ -751,7 +751,8 @@ class OrderValidator:
         self.__assert(iborder is None or iborder['status'] == 'Inactive', 'Order exists in iborder table')
 
     def _assert_order_is_not_in_ibtrade_table(self, order: RawOrder):
-        self.__assert_is_null(self.broker.get_cached_trade_status(order), 'Order exists in ibtrade table')
+        trades = self.broker.get_cached_trade_status(order)
+        self.__assert_equal(len(trades), 0, 'Order exists in ibtrade table')
 
     def validate(self, order: RawOrder, trace_id: str = None):
         tests = [
