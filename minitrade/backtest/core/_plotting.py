@@ -262,7 +262,7 @@ return this.labels[index] || "";
         ('Volume', '@Volume{0,0}')]
 
     def new_indicator_figure(**kwargs):
-        kwargs.setdefault('height', 200)
+        kwargs.setdefault('height', 80)
         fig = new_bokeh_figure(x_range=fig_ohlc.x_range,
                                active_scroll='xwheel_zoom',
                                active_drag='xpan',
@@ -509,7 +509,6 @@ return this.labels[index] || "";
         """Strategy indicators"""
 
         def _too_many_dims(value):
-            assert value.ndim >= 2
             if value.ndim > 2:
                 warnings.warn(f"Can't plot indicators with >2D ('{value.name}')",
                               stacklevel=5)
@@ -529,27 +528,32 @@ return this.labels[index] || "";
         indicator_figs = []
 
         for i, value in enumerate(indicators):
-            value = np.atleast_2d(value)
 
-            # Use .get()! A user might have assigned a Strategy.data-evolved
-            # _Array without Strategy.I()
-            if not value._opts.get('plot') or _too_many_dims(value):
+            if not value.attrs.get('plot') or _too_many_dims(value):
                 continue
 
-            is_overlay = value._opts['overlay']
-            is_scatter = value._opts['scatter']
+            is_overlay = value.attrs['overlay']
+            is_scatter = value.attrs['scatter']
+            if isinstance(value, pd.DataFrame):
+                legend_label = (
+                    [LegendStr(f'{value.attrs["name"]} {col}') for col in value.columns]
+                    if value.attrs["name"]
+                    else [LegendStr(col) for col in value.columns]
+                )
+                series_lst = [value[col] for col in value.columns]
+            else:
+                legend_label = [LegendStr(value.attrs["name"] or value.name)]
+                series_lst = [value]
             if is_overlay:
                 fig = fig_ohlc
             else:
-                fig = new_indicator_figure()
+                fig = new_indicator_figure(height=60 + 20 * len(series_lst))
                 indicator_figs.append(fig)
             tooltips = []
-            colors = value._opts['color']
+            colors = value.attrs['color']
             colors = colors and cycle(_as_list(colors)) or (
                 cycle([next(ohlc_colors)]) if is_overlay else colorgen())
-            legend_label = [LegendStr(value.name)] if value.columns is None else [
-                LegendStr(f'{value.name} {col}') for col in value.columns]
-            for j, arr in enumerate(value, 1):
+            for j, arr in enumerate(series_lst, 1):
                 color = next(colors)
                 source_name = f'{legend_label[j-1]}_{i}_{j}'
                 if arr.dtype == bool:

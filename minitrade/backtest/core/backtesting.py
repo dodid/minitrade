@@ -80,7 +80,7 @@ class Strategy(metaclass=ABCMeta):
 
     def I(self,  # noqa: E743
           funcval: Union[pd.DataFrame, pd.Series, Callable], *args,
-          plot=True, overlay=None, color=None, scatter=False,
+          name=None, plot=True, overlay=None, color=None, scatter=False,
           **kwargs) -> Union[pd.DataFrame, pd.Series]:
         """
         Declare an indicator. An indicator is just an array of values,
@@ -134,7 +134,9 @@ class Strategy(metaclass=ABCMeta):
                 f'`data` index: {self._data.index}\n'
                 f'Indicator index: {val.index}\n')
 
-        val._opts = {'plot': plot, 'overlay': overlay, 'color': color, 'scatter': scatter, **kwargs}
+        # Use an experimental feature to save DataFrame/Series metadata
+        # https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.attrs.html
+        val.attrs.update({'name': name, 'plot': plot, 'overlay': overlay, 'color': color, 'scatter': scatter, **kwargs})
         self._indicators.append(val)
         return val
 

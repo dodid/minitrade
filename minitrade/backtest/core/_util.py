@@ -91,9 +91,12 @@ class _Data:
 
     @property
     def df(self) -> pd.DataFrame:
-        return (self.__df.iloc[:self.__i]
-                if self.__i < len(self.__df)
-                else self.__df)
+        df = (self.__df.iloc[:self.__i]
+              if self.__i < len(self.__df)
+              else self.__df)
+        if len(self.__tickers) == 1:
+            df = df[self.the_ticker]
+        return df
 
     @property
     def pip(self) -> float:
