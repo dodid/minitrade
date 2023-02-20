@@ -120,6 +120,13 @@ class Strategy(metaclass=ABCMeta):
                 self.sma = self.I(ta.SMA, self.data.Close, self.n_sma)
         """
         if callable(funcval):
+            if name is None:
+                params = ','.join(filter(None, map(_as_str, chain(args, kwargs.values()))))
+                func_name = _as_str(funcval)
+                name = (f'{func_name}({params})' if params else f'{func_name}')
+            else:
+                name = name.format(*map(_as_str, args),
+                                   **dict(zip(kwargs.keys(), map(_as_str, kwargs.values()))))
             try:
                 val = funcval(*args, **kwargs)
             except Exception as e:
@@ -252,25 +259,19 @@ class Strategy(metaclass=ABCMeta):
         """
         return self._data
 
-    @property
-    def positions(self) -> Dict[str, 'Position']:
-        """Instance of `backtesting.backtesting.Position`."""
-        return self._broker.positions
-
     def position(self, ticker: str = None) -> 'Position':
         """Instance of `backtesting.backtesting.Position`."""
         ticker = ticker or self._data.the_ticker
         return self._broker.positions[ticker]
 
     @property
-    def orders(self) -> 'Tuple[Order, ...]':
+    def orders(self) -> 'List[Order]':
         """List of orders (see `Order`) waiting for execution."""
         return self._broker.orders
 
-    @property
-    def trades(self) -> 'Tuple[Trade, ...]':
+    def trades(self, ticker: str = None) -> 'Tuple[Trade, ...]':
         """List of active trades (see `Trade`)."""
-        return tuple(self._broker.trades)
+        return tuple(self._broker.trades[ticker] if ticker else self._broker.all_trades)
 
     @property
     def closed_trades(self) -> 'Tuple[Trade, ...]':
@@ -729,7 +730,7 @@ class _Broker:
 
     def __repr__(self):
         pos = ','.join([f'{k}:{int(p.pl)}' for k, p in self.positions.items()])
-        return f'<Broker: {self._cash:.0f}{pos} ({len(self.trades)} trades)>'
+        return f'<Broker: {self._cash:.0f}{pos} ({len(self.all_trades)} trades)>'
 
     def rebalance(self, weights: pd.Series, lot_size: int, force_rebalance: bool = False):
         # ignore any trade actions before trade_start_date
@@ -844,18 +845,21 @@ class _Broker:
         return (price or self.last_price(ticker)) * (1 + copysign(self._commission, size))
 
     def equity(self, ticker: str = None) -> float:
-        if ticker is None:
-            return self._cash + sum([sum(trade.pl for trade in self.trades[ticker]) for ticker in self.trades.keys()])
-        else:
+        if ticker:
             # return current value of the asset
             return sum(trade.value for trade in self.trades[ticker])
+        else:
+            return self._cash + sum(trade.pl for trade in self.all_trades)
 
     @property
     def margin_available(self) -> float:
         # From https://github.com/QuantConnect/Lean/pull/3768
-        margin_used = sum([sum(trade.value / self._leverage for trade in self.trades[ticker])
-                           for ticker in self.trades.keys()])
+        margin_used = sum(trade.value / self._leverage for trade in self.all_trades)
         return max(0, self.equity() - margin_used)
+
+    @property
+    def all_trades(self) -> List[Trade]:
+        return [trade for _, trades in self.trades.items() for trade in trades]
 
     def set_iter(self, step: int):
         # keep track of current index and date in backtest iteration
@@ -873,7 +877,7 @@ class _Broker:
         # If equity is negative, set all to 0 and stop the simulation
         if equity <= 0:
             assert self.margin_available <= 0
-            for trade in self.trades:
+            for trade in self.all_trades:
                 self._close_trade(trade, self._data.Close[-1], i)
             self._cash = 0
             self._equity[i:] = 0
@@ -1176,7 +1180,7 @@ class Backtest:
                 data.index = pd.to_datetime(data.index, infer_datetime_format=True)
             except ValueError:
                 pass
-        if list(data.columns.levels[1]) != ['Open', 'High', 'Low', 'Close', 'Volume']:
+        if set(data.columns.levels[1]) != set(['Open', 'High', 'Low', 'Close', 'Volume']):
             raise ValueError("`data` must be a pandas.DataFrame with columns "
                              "'Open', 'High', 'Low', 'Close', and 'Volume'")
         if data.isnull().values.any():
@@ -1302,9 +1306,8 @@ class Backtest:
                 processed_orders.extend(broker.orders)
             else:
                 # Close any remaining open trades so they produce some stats
-                for trades in broker.trades.values():
-                    for trade in trades:
-                        trade.close()
+                for trade in broker.all_trades:
+                    trade.close()
 
                 # Re-run broker one last time to handle orders placed in the last strategy
                 # iteration. Use the same OHLC values as in the last broker iteration.
