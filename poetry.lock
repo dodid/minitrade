@@ -2440,6 +2440,17 @@ decorator = ">=3.4.0"
 test = ["flake8 (>=2.4.0)", "isort (>=4.2.2)", "pytest (>=2.2.3)"]
 
 [[package]]
+name = "vprof"
+version = "0.38"
+description = "Visual profiler for Python"
+category = "dev"
+optional = false
+python-versions = "*"
+
+[package.dependencies]
+psutil = ">=3"
+
+[[package]]
 name = "watchdog"
 version = "2.2.1"
 description = "Filesystem events monitoring"
@@ -2557,7 +2568,7 @@ testing = ["flake8 (<5)", "func-timeout", "jaraco.functools", "jaraco.itertools"
 [metadata]
 lock-version = "1.1"
 python-versions = "3.10.*"
-content-hash = "5159c3df888ac0bd32439df1bee67bd284a5ddf73f35f681e1421f40393f5be7"
+content-hash = "50d04c243f83aab28e90e8ff26e1932dbfacf7db676bba49e3d6abe5bab2a5ca"
 
 [metadata.files]
 alabaster = [
@@ -4356,6 +4367,10 @@ uvloop = [
 ]
 validators = [
     {file = "validators-0.20.0.tar.gz", hash = "sha256:24148ce4e64100a2d5e267233e23e7afeb55316b47d30faae7eb6e7292bc226a"},
+]
+vprof = [
+    {file = "vprof-0.38-py3-none-any.whl", hash = "sha256:91b91d8868176c29e0fe3426c9239d11cd192c7144c7baf26a211e48923a5ee8"},
+    {file = "vprof-0.38.tar.gz", hash = "sha256:7f1000912eeb7a450c7c94d3cc96739af45ad0ff01d5abcc0b09a175d40ffadb"},
 ]
 watchdog = [
     {file = "watchdog-2.2.1-cp310-cp310-macosx_10_9_universal2.whl", hash = "sha256:a09483249d25cbdb4c268e020cb861c51baab2d1affd9a6affc68ffe6a231260"},

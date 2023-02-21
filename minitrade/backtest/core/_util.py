@@ -1,10 +1,12 @@
 import warnings
 from datetime import datetime
+from functools import partial
 from numbers import Number
-from typing import Dict, List, Optional, Sequence, Union, cast
+from typing import Callable, Dict, List, Optional, Sequence, Union, cast
 
 import numpy as np
 import pandas as pd
+from pandas_ta import AnalysisIndicators
 
 
 def try_(lazy_func, default=None, exception=Exception):
@@ -69,6 +71,7 @@ class _Data:
         self.__dataframes: Dict[str, Union[pd.DataFrame, pd.Series]] = {}
         self.__tickers = list(self.__df.columns.levels[0])
         self.__data_df = _Data.DF(self.__get_dataframe)
+        self.__ta = TA(self.__df)
         self._update()
 
     def __getitem__(self, item):
@@ -115,7 +118,7 @@ class _Data:
         return self.__i
 
     @property
-    def df(self):
+    def df(self) -> DF:
         return self.__data_df
 
     @property
@@ -161,6 +164,13 @@ class _Data:
     def index(self) -> pd.DatetimeIndex:
         return self.__get_array('__index')
 
+    # Make pickling in Backtest.optimize() work with our catch-all __getattr__
+    def __getstate__(self):
+        return self.__dict__
+
+    def __setstate__(self, state):
+        self.__dict__ = state
+
     @property
     def now(self) -> datetime:
         return self.__now
@@ -176,9 +186,66 @@ class _Data:
         else:
             raise ValueError('Ticker must explicitly specified for multi-asset backtesting')
 
-    # Make pickling in Backtest.optimize() work with our catch-all __getattr__
-    def __getstate__(self):
-        return self.__dict__
+    @property
+    def ta(self) -> 'TA':
+        return self.__ta
 
-    def __setstate__(self, state):
-        self.__dict__ = state
+
+try:
+    # delete the accessor created by pandas_ta to avoid warning
+    del pd.DataFrame.ta
+except AttributeError:
+    pass
+
+
+@pd.api.extensions.register_dataframe_accessor("ta")
+class TA:
+    def __init__(self, df: pd.DataFrame):
+        self.__df = df
+        if self.__df.columns.nlevels == 2:
+            self.__tickers = list(self.__df.columns.levels[0])
+            self.__indicators = {ticker: AnalysisIndicators(df[ticker]) for ticker in self.__tickers}
+        elif self.__df.columns.nlevels == 1:
+            self.__tickers = []
+            self.__indicator = AnalysisIndicators(df)
+
+    def __call_ta(self, method, *args, columns=None, **kwargs):
+        if self.__tickers:
+            dir_ = {ticker: getattr(indicator, method)(*args, **kwargs)
+                    for ticker, indicator in self.__indicators.items()}
+            if columns:
+                for _, df in dir_.items():
+                    df.columns = columns
+            return pd.concat(dir_, axis=1)
+        else:
+            return getattr(self.__indicator, method)(*args, **kwargs)
+
+    def __getattr__(self, method: str):
+        return partial(self.__call_ta, method)
+
+    def apply(self, func, *args, **kwargs):
+        if self.__tickers:
+            dir_ = {ticker: func(self.__df[ticker], *args, **kwargs) for ticker in self.__tickers}
+            return pd.concat(dir_, axis=1)
+        else:
+            return func(self.__df, *args, **kwargs)
+
+
+class _Indicator(np.ndarray):
+    """Array with a corresponding DataFrame/Series attachment."""
+    # https://numpy.org/devdocs/user/basics.subclassing.html#slightly-more-realistic-example-attribute-added-to-existing-array
+    def __new__(cls, array, df: Union[Callable, pd.DataFrame]):
+        obj = np.asarray(array).view(cls)
+        obj.__df = df
+        return obj
+
+    def __array_finalize__(self, obj):
+        if obj is None:
+            return
+        self.__df = getattr(obj, '__df', None)
+
+    @property
+    def df(self) -> Union[pd.DataFrame, pd.Series]:
+        if callable(self.__df):
+            self.__df = self.__df()
+        return self.__df

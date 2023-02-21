@@ -33,7 +33,7 @@ except ImportError:
 
 from ._plotting import plot  # noqa: I001
 from ._stats import compute_stats
-from ._util import _as_str, _Data, try_
+from ._util import _as_str, _Data, _Indicator, try_
 
 __pdoc__ = {
     'Strategy.__init__': False,
@@ -81,7 +81,7 @@ class Strategy(metaclass=ABCMeta):
     def I(self,  # noqa: E743
           funcval: Union[pd.DataFrame, pd.Series, Callable], *args,
           name=None, plot=True, overlay=None, color=None, scatter=False,
-          ** kwargs) -> Union[pd.DataFrame, pd.Series]:
+          ** kwargs) -> Union[pd.DataFrame, pd.Series, _Indicator]:
         """
         Declare an indicator. An indicator is just an array of values,
         but one that is revealed gradually in
@@ -91,7 +91,7 @@ class Strategy(metaclass=ABCMeta):
 
         `funcval` is either a function that returns the indicator array(s) of
         same length as `backtesting.backtesting.Strategy.data`, or
-        the indicator array(s) itself as a DataFrame or Series. 
+        the indicator array(s) itself as a DataFrame or Series.
 
         In the plot legend, the indicator is labeled with
         function name, unless `name` overrides it.
@@ -1171,7 +1171,7 @@ class Backtest:
         trade/position, making at most a single trade (long or short) in effect
         at each time.
 
-        If `trade_start_date` is not None, orders generated before the date are 
+        If `trade_start_date` is not None, orders generated before the date are
         surpressed and ignored in backtesting.
 
         [FIFO]: https://www.investopedia.com/terms/n/nfa-compliance-rule-2-43b.asp
@@ -1295,15 +1295,15 @@ class Backtest:
 
         # Indicators used in Strategy.next()
         indicator_attrs = {attr: indicator for attr, indicator in strategy.__dict__.items()
-                           if any([indicator is item for item in strategy._indicators])}.items()
+                           if any([indicator is item for item in strategy._indicators])}
 
         # Skip first few candles where indicators are still "warming up"
         # +1 to have at least two entries available
         start = 1 + max((indicator.isna().any(axis=1).argmin() if isinstance(indicator, pd.DataFrame)
-                        else indicator.isna().argmin() for _, indicator in indicator_attrs), default=0)
+                        else indicator.isna().argmin() for indicator in indicator_attrs.values()), default=0)
 
         # Preprocess indicators to numpy array for better performance
-        indicator_attrs_np = {attr: indicator.to_numpy() for attr, indicator in indicator_attrs}.items()
+        indicator_attrs_np = {attr: indicator.to_numpy() for attr, indicator in indicator_attrs.items()}
 
         # Disable "invalid value encountered in ..." warnings. Comparison
         # np.nan >= 3 is not invalid; it's False.
@@ -1312,8 +1312,9 @@ class Backtest:
             for i in range(start, len(self._data)):
                 # Prepare data and indicators for `next` call
                 data._set_length(i + 1)
-                for attr, indicator in indicator_attrs_np:
-                    setattr(strategy, attr, indicator[..., :i+1])
+                for attr, indicator in indicator_attrs_np.items():
+                    setattr(strategy, attr,
+                            _Indicator(array=indicator[..., : i + 1], df=lambda: indicator_attrs[attr].iloc[: i + 1]))
 
                 # Handle orders processing and broker stuff
                 try:
@@ -1601,7 +1602,7 @@ class Backtest:
             INVALID = 1e300
             progress = iter(_tqdm(repeat(None), total=max_tries, desc='Backtest.optimize'))
 
-            @use_named_args(dimensions=dimensions)
+            @ use_named_args(dimensions=dimensions)
             def objective_function(**params):
                 next(progress)
                 # Check constraints
@@ -1657,7 +1658,7 @@ class Backtest:
             raise ValueError(f"Method should be 'grid' or 'skopt', not {method!r}")
         return output
 
-    @staticmethod
+    @ staticmethod
     def _mp_task(backtest_uuid, batch_index):
         bt, param_batches, maximize_func = Backtest._mp_backtests[backtest_uuid]
         return batch_index, [maximize_func(stats) if stats['# Trades'] else np.nan
