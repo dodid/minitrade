@@ -1,4 +1,5 @@
 import warnings
+from datetime import datetime
 from numbers import Number
 from typing import Dict, List, Optional, Sequence, Union, cast
 
@@ -43,19 +44,36 @@ def _data_period(index) -> Union[pd.Timedelta, Number]:
 class _Data:
     """
     A data array accessor. Provides access by ticker or by OHLCV "columns" or by both. 
-    Unlike the original backtesting.py lib, here it returns data as pd.DataFrame or pd.Series instead of _Array.
+    Unlike the original backtesting.py lib, here it returns data as pd.DataFrame or 
+    pd.Series or Numpy ndarray instead of _Array.
     """
+
+    class DF:
+
+        def __init__(self, getitem):
+            self.getitem = getitem
+
+        def __getitem__(self, item) -> Union[pd.DataFrame, pd.Series]:
+            if item == slice(None, None, None):
+                item = None
+            return self.getitem(item)
 
     def __init__(self, df: pd.DataFrame):
         self.__df = df
         self.__i = len(df)
+        self.__now = df.index[-1]
         self.__pip: Optional[float] = None
-        self.__cache: Dict[str, Union[pd.DataFrame, pd.Series]] = {}
-        self.__arrays: Dict[str, Union[pd.DataFrame, pd.Series]] = {}
+        self.__np_cache: Dict[str, np.ndarray] = {}
+        self.__pd_cache: Dict[str, Union[pd.DataFrame, pd.Series]] = {}
+        self.__arrays: Dict[str, np.ndarray] = {}
+        self.__dataframes: Dict[str, Union[pd.DataFrame, pd.Series]] = {}
         self.__tickers = list(self.__df.columns.levels[0])
+        self.__data_df = _Data.DF(self.__get_dataframe)
         self._update()
 
     def __getitem__(self, item):
+        if item == slice(None, None, None):
+            item = None
         return self.__get_array(item)
 
     def __getattr__(self, item):
@@ -66,17 +84,24 @@ class _Data:
 
     def _set_length(self, i):
         self.__i = i
-        self.__cache.clear()
+        self.__now = self.__index[min(self.__i, len(self.__df)) - 1]
+        self.__np_cache.clear()
+        self.__pd_cache.clear()
 
     def _update(self):
         index = self.__df.index.copy()
-        self.__arrays = {
-            ticker_col: arr for ticker_col, arr in self.__df.items()} | {
-            col: self.__df.xs(col, axis=1, level=1) for col in self.__df.columns.levels[1]} | {
-            ticker: self.__df[ticker] for ticker in self.__df.columns.levels[0]}
-        # convert single column dataframe into series
-        self.__arrays = {key: df.iloc[:, 0] if isinstance(df, pd.DataFrame) and len(
-            df.columns) == 1 else df for key, df in self.__arrays.items()}
+        self.__index = index.to_numpy()
+        # cache slices of the data as DataFrame/Series for faster access
+        self.__dataframes = (
+            {ticker_col: arr for ticker_col, arr in self.__df.items()}
+            | {col: self.__df.xs(col, axis=1, level=1) for col in self.__df.columns.levels[1]}
+            | {ticker: self.__df[ticker] for ticker in self.__df.columns.levels[0]}
+            | {None: self.__df[self.the_ticker] if len(self.__tickers) == 1 else self.__df}
+        )
+        self.__dataframes = {key: df.iloc[:, 0] if isinstance(df, pd.DataFrame) and len(
+            df.columns) == 1 else df for key, df in self.__dataframes.items()}
+        # keep another copy as Numpy array
+        self.__arrays = {key: df.to_numpy() for key, df in self.__dataframes.items()}
         # Leave index as Series because pd.Timestamp nicer API to work with
         self.__arrays['__index'] = index
 
@@ -90,13 +115,8 @@ class _Data:
         return self.__i
 
     @property
-    def df(self) -> pd.DataFrame:
-        df = (self.__df.iloc[:self.__i]
-              if self.__i < len(self.__df)
-              else self.__df)
-        if len(self.__tickers) == 1:
-            df = df[self.the_ticker]
-        return df
+    def df(self):
+        return self.__data_df
 
     @property
     def pip(self) -> float:
@@ -105,35 +125,45 @@ class _Data:
                                                for s in self.__arrays['Close'].astype(str)]))
         return self.__pip
 
-    def __get_array(self, key) -> Union[pd.DataFrame, pd.Series]:
-        arr = self.__cache.get(key)
+    def __get_dataframe(self, key) -> Union[pd.DataFrame, pd.Series]:
+        arr = self.__pd_cache.get(key)
         if arr is None:
-            arr = self.__cache[key] = self.__arrays[key][:self.__i]
+            arr = self.__pd_cache[key] = self.__dataframes[key][:self.__i]
+        return arr
+
+    def __get_array(self, key) -> np.ndarray:
+        arr = self.__np_cache.get(key)
+        if arr is None:
+            arr = self.__np_cache[key] = self.__arrays[key][:self.__i]
         return arr
 
     @property
-    def Open(self) -> Union[pd.DataFrame, pd.Series]:
+    def Open(self) -> np.ndarray:
         return self.__get_array('Open')
 
     @property
-    def High(self) -> Union[pd.DataFrame, pd.Series]:
+    def High(self) -> np.ndarray:
         return self.__get_array('High')
 
     @property
-    def Low(self) -> Union[pd.DataFrame, pd.Series]:
+    def Low(self) -> np.ndarray:
         return self.__get_array('Low')
 
     @property
-    def Close(self) -> Union[pd.DataFrame, pd.Series]:
+    def Close(self) -> np.ndarray:
         return self.__get_array('Close')
 
     @property
-    def Volume(self) -> Union[pd.DataFrame, pd.Series]:
+    def Volume(self) -> np.ndarray:
         return self.__get_array('Volume')
 
     @property
     def index(self) -> pd.DatetimeIndex:
         return self.__get_array('__index')
+
+    @property
+    def now(self) -> datetime:
+        return self.__now
 
     @property
     def tickers(self) -> List[str]:

@@ -81,7 +81,7 @@ class Strategy(metaclass=ABCMeta):
     def I(self,  # noqa: E743
           funcval: Union[pd.DataFrame, pd.Series, Callable], *args,
           name=None, plot=True, overlay=None, color=None, scatter=False,
-          **kwargs) -> Union[pd.DataFrame, pd.Series]:
+          ** kwargs) -> Union[pd.DataFrame, pd.Series]:
         """
         Declare an indicator. An indicator is just an array of values,
         but one that is revealed gradually in
@@ -128,24 +128,44 @@ class Strategy(metaclass=ABCMeta):
                 name = name.format(*map(_as_str, args),
                                    **dict(zip(kwargs.keys(), map(_as_str, kwargs.values()))))
             try:
-                val = funcval(*args, **kwargs)
+                value = funcval(*args, **kwargs)
             except Exception as e:
                 raise RuntimeError(f'Indicator "{funcval}" error') from e
         else:
-            val = funcval
+            value = funcval
 
-        if not val.index.equals(self._data.index):
-            raise ValueError(
-                'Indicators must return pd.DataFrame or pd.Series of same index as'
-                f' `data` (data shape: {len(self._data)}; indicator shape: {len(val)}.\n'
-                f'`data` index: {self._data.index}\n'
-                f'Indicator index: {val.index}\n')
+        if any([isinstance(value, pd.DataFrame), isinstance(value, pd.Series)]):
+            if not value.index.equals(self._data.index):
+                raise ValueError(
+                    'Indicators of pd.DataFrame or pd.Series must have the same index as'
+                    f' `data` (data shape: {len(self._data)}; indicator shape: {len(value)}.\n'
+                    f'`data` index: {self._data.index}\n'
+                    f'Indicator index: {value.index}\n')
+        else:
+            if value is not None:
+                value = try_(lambda: np.asarray(value, order='C'), None)
+            is_arraylike = bool(value is not None and value.shape)
+
+            # Optionally flip the array if the long side of array is not on the 1st dimension
+            if is_arraylike and np.argmin(value.shape) == 0:
+                value = value.T
+
+            if not is_arraylike or not 1 <= value.ndim <= 2 or value.shape[0] != len(self._data.Close):
+                raise ValueError(
+                    'Indicators of numpy.ndarray must have the same '
+                    f'length as `data` (data shape: {len(self._data)}; indicator "{name}" '
+                    f'shape: {getattr(value, "shape" , "")}, returned value: {value})')
+            elif value.ndim == 1:
+                value = pd.Series(value, index=self._data.index, name=name)
+            else:
+                value = pd.DataFrame(value, index=self._data.index)
 
         # Use an experimental feature to save DataFrame/Series metadata
         # https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.attrs.html
-        val.attrs.update({'name': name, 'plot': plot, 'overlay': overlay, 'color': color, 'scatter': scatter, **kwargs})
-        self._indicators.append(val)
-        return val
+        value.attrs.update({'name': name, 'plot': plot, 'overlay': overlay,
+                           'color': color, 'scatter': scatter, **kwargs})
+        self._indicators.append(value)
+        return value
 
     @abstractmethod
     def init(self):
@@ -558,7 +578,7 @@ class Trade:
         size = copysign(max(1, round(abs(self.__size) * portion)), -self.__size)
         entry_type = 'MOC' if self.__broker._trade_on_close else 'MOO'
         order = Order(self.__broker, self.__ticker, size, parent_trade=self,
-                      entry_time=self.__broker._iter_date, entry_type=entry_type, tag=self.__tag)
+                      entry_time=self.__broker.now, entry_type=entry_type, tag=self.__tag)
         self.__broker.orders.insert(0, order)
 
     # Fields getters
@@ -734,7 +754,7 @@ class _Broker:
 
     def rebalance(self, weights: pd.Series, lot_size: int, force_rebalance: bool = False):
         # ignore any trade actions before trade_start_date
-        if self._trade_start_date and self._iter_date.replace(tzinfo=None) < self._trade_start_date:
+        if self._trade_start_date and self.now.replace(tzinfo=None) < self._trade_start_date:
             return
         # percentage of total equity reserved as cash to account for order quantity rounding
         # and sudden price changes
@@ -790,7 +810,7 @@ class _Broker:
         ticker = ticker or self._data.the_ticker
 
         # ignore any trade actions before trade_start_date
-        if self._trade_start_date and self._iter_date.replace(tzinfo=None) < self._trade_start_date:
+        if self._trade_start_date and self.now.replace(tzinfo=None) < self._trade_start_date:
             return
 
         size = float(size)
@@ -814,7 +834,7 @@ class _Broker:
                     f"TP ({tp}) < LIMIT ({limit or stop or adjusted_price}) < SL ({sl})")
 
         entry_type = 'MOC' if self._trade_on_close else 'MOO'
-        order = Order(self, ticker, size, limit, stop, sl, tp, trade, self._iter_date, entry_type, tag)
+        order = Order(self, ticker, size, limit, stop, sl, tp, trade, self.now, entry_type, tag)
         # Put the new order in the order queue,
         # inserting SL/TP/trade-closing orders in-front
         if trade:
@@ -861,13 +881,12 @@ class _Broker:
     def all_trades(self) -> List[Trade]:
         return [trade for _, trades in self.trades.items() for trade in trades]
 
-    def set_iter(self, step: int):
-        # keep track of current index and date in backtest iteration
-        self._iter = step
-        self._iter_date = self._data.index[self._iter]
+    @property
+    def now(self):
+        return self._data.now
 
-    def next(self):
-        i = self._i = self._iter
+    def next(self, i):
+        self._i = i
         self._process_orders()
 
         # Log account equity for the equity curve
@@ -890,8 +909,10 @@ class _Broker:
         for order in list(self.orders):  # type: Order
 
             data = self._data
-            open_, high, low = data[order.ticker, 'Open'][-1], data[order.ticker,
-                                                                    'High'][-1], data[order.ticker, 'Low'][-1]
+            open_, high, low = (
+                data[order.ticker, 'Open'][-1],
+                data[order.ticker, 'High'][-1],
+                data[order.ticker, 'Low'][-1])
             prev_close = data[order.ticker, 'Close'][-2]
 
             # Related SL/TP order was already removed
@@ -1180,8 +1201,8 @@ class Backtest:
                 data.index = pd.to_datetime(data.index, infer_datetime_format=True)
             except ValueError:
                 pass
-        if set(data.columns.levels[1]) != set(['Open', 'High', 'Low', 'Close', 'Volume']):
-            raise ValueError("`data` must be a pandas.DataFrame with columns "
+        if not set(data.columns.levels[1]).issuperset(set(['Open', 'High', 'Low', 'Close', 'Volume'])):
+            raise ValueError("`data` must be a pandas.DataFrame containing columns "
                              "'Open', 'High', 'Low', 'Close', and 'Volume'")
         if data.isnull().values.any():
             raise ValueError('Some OHLC values are missing (NaN). '
@@ -1281,6 +1302,9 @@ class Backtest:
         start = 1 + max((indicator.isna().any(axis=1).argmin() if isinstance(indicator, pd.DataFrame)
                         else indicator.isna().argmin() for _, indicator in indicator_attrs), default=0)
 
+        # Preprocess indicators to numpy array for better performance
+        indicator_attrs_np = {attr: indicator.to_numpy() for attr, indicator in indicator_attrs}.items()
+
         # Disable "invalid value encountered in ..." warnings. Comparison
         # np.nan >= 3 is not invalid; it's False.
         with np.errstate(invalid='ignore'):
@@ -1288,14 +1312,12 @@ class Backtest:
             for i in range(start, len(self._data)):
                 # Prepare data and indicators for `next` call
                 data._set_length(i + 1)
-                for attr, indicator in indicator_attrs:
-                    # Slice indicator on the last dimension (case of 2d indicator)
-                    setattr(strategy, attr, indicator.iloc[:i + 1])
-                broker.set_iter(i)
+                for attr, indicator in indicator_attrs_np:
+                    setattr(strategy, attr, indicator[..., :i+1])
 
                 # Handle orders processing and broker stuff
                 try:
-                    broker.next()
+                    broker.next(i)
                 except _OutOfMoneyError:
                     break
 
@@ -1312,7 +1334,7 @@ class Backtest:
                 # Re-run broker one last time to handle orders placed in the last strategy
                 # iteration. Use the same OHLC values as in the last broker iteration.
                 if start < len(self._data):
-                    try_(broker.next, exception=_OutOfMoneyError)
+                    try_(partial(broker.next, i), exception=_OutOfMoneyError)
 
             # Set data back to full length
             # for future `indicator._opts['data'].index` calls to work
