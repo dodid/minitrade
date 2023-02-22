@@ -135,7 +135,7 @@ class Strategy(metaclass=ABCMeta):
             value = funcval
 
         if any([isinstance(value, pd.DataFrame), isinstance(value, pd.Series)]):
-            if not value.index.equals(self._data.index):
+            if not value.index.equals(self._data.index.df):
                 raise ValueError(
                     'Indicators of pd.DataFrame or pd.Series must have the same index as'
                     f' `data` (data shape: {len(self._data)}; indicator shape: {len(value)}.\n'
@@ -1189,7 +1189,7 @@ class Backtest:
 
         # Convert single asset data into 2-level column index
         if data.columns.nlevels == 1:
-            data.columns = pd.MultiIndex.from_product([['Unnamed'], data.columns])
+            data.columns = pd.MultiIndex.from_product([['Asset'], data.columns])
 
         # Convert index to datetime index
         if (not isinstance(data.index, pd.DatetimeIndex) and

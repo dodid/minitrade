@@ -43,34 +43,45 @@ def _data_period(index) -> Union[pd.Timedelta, Number]:
     return values.diff().dropna().median()
 
 
+class _Array(np.ndarray):
+    """Array with a corresponding DataFrame/Series attachment."""
+
+    def __new__(cls, array, df: Union[Callable, pd.DataFrame, pd.Series]):
+        obj = np.asarray(array).view(cls)
+        obj.__df = df
+        return obj
+
+    def __array_finalize__(self, obj):
+        if obj is None:
+            return
+        self.__df = getattr(obj, '__df', None)
+
+    @property
+    def df(self) -> Union[pd.DataFrame, pd.Series]:
+        if callable(self.__df):
+            self.__df = self.__df()
+        return self.__df
+
+
+class _Indicator(_Array):
+    pass
+
+
 class _Data:
     """
-    A data array accessor. Provides access by ticker or by OHLCV "columns" or by both. 
-    Unlike the original backtesting.py lib, here it returns data as pd.DataFrame or 
-    pd.Series or Numpy ndarray instead of _Array.
+    A data array accessor. Provides access to OHLCV "columns"
+    as a standard `pd.DataFrame` would, except it's not a DataFrame
+    and the returned "series" are _not_ `pd.Series` but `np.ndarray`
+    for performance reasons.
     """
-
-    class DF:
-
-        def __init__(self, getitem):
-            self.getitem = getitem
-
-        def __getitem__(self, item) -> Union[pd.DataFrame, pd.Series]:
-            if item == slice(None, None, None):
-                item = None
-            return self.getitem(item)
 
     def __init__(self, df: pd.DataFrame):
         self.__df = df
         self.__i = len(df)
-        self.__now = df.index[-1]
         self.__pip: Optional[float] = None
-        self.__np_cache: Dict[str, np.ndarray] = {}
-        self.__pd_cache: Dict[str, Union[pd.DataFrame, pd.Series]] = {}
+        self.__cache: Dict[str, np.ndarray] = {}
         self.__arrays: Dict[str, np.ndarray] = {}
-        self.__dataframes: Dict[str, Union[pd.DataFrame, pd.Series]] = {}
         self.__tickers = list(self.__df.columns.levels[0])
-        self.__data_df = _Data.DF(self.__get_dataframe)
         self.__ta = TA(self.__df)
         self._update()
 
@@ -82,31 +93,26 @@ class _Data:
     def __getattr__(self, item):
         try:
             return self.__get_array(item)
-        except KeyError:
-            raise AttributeError(f"Column '{item}' not in data") from None
+        except KeyError as e:
+            raise AttributeError(f"Column '{item}' not in data") from e
 
     def _set_length(self, i):
         self.__i = i
-        self.__now = self.__index[min(self.__i, len(self.__df)) - 1]
-        self.__np_cache.clear()
-        self.__pd_cache.clear()
+        self.__cache.clear()
 
     def _update(self):
-        index = self.__df.index.copy()
-        self.__index = index.to_numpy()
         # cache slices of the data as DataFrame/Series for faster access
-        self.__dataframes = (
+        arrays = (
             {ticker_col: arr for ticker_col, arr in self.__df.items()}
             | {col: self.__df.xs(col, axis=1, level=1) for col in self.__df.columns.levels[1]}
             | {ticker: self.__df[ticker] for ticker in self.__df.columns.levels[0]}
             | {None: self.__df[self.the_ticker] if len(self.__tickers) == 1 else self.__df}
+            | {'__index': self.__df.index.copy()}
         )
-        self.__dataframes = {key: df.iloc[:, 0] if isinstance(df, pd.DataFrame) and len(
-            df.columns) == 1 else df for key, df in self.__dataframes.items()}
+        arrays = {key: df.iloc[:, 0] if isinstance(df, pd.DataFrame) and len(
+            df.columns) == 1 else df for key, df in arrays.items()}
         # keep another copy as Numpy array
-        self.__arrays = {key: df.to_numpy() for key, df in self.__dataframes.items()}
-        # Leave index as Series because pd.Timestamp nicer API to work with
-        self.__arrays['__index'] = index
+        self.__arrays = {key: (df.to_numpy(), df) for key, df in arrays.items()}
 
     def __repr__(self):
         i = min(self.__i, len(self.__df)) - 1
@@ -118,8 +124,9 @@ class _Data:
         return self.__i
 
     @property
-    def df(self) -> DF:
-        return self.__data_df
+    def df(self) -> pd.DataFrame:
+        __df = self.__df[self.the_ticker] if len(self.tickers) == 1 else self.__df
+        return __df.iloc[:self.__i] if self.__i < len(__df) else __df
 
     @property
     def pip(self) -> float:
@@ -128,36 +135,34 @@ class _Data:
                                                for s in self.__arrays['Close'].astype(str)]))
         return self.__pip
 
-    def __get_dataframe(self, key) -> Union[pd.DataFrame, pd.Series]:
-        arr = self.__pd_cache.get(key)
+    def __get_array(self, key) -> _Array:
+        arr = self.__cache.get(key)
         if arr is None:
-            arr = self.__pd_cache[key] = self.__dataframes[key][:self.__i]
-        return arr
-
-    def __get_array(self, key) -> np.ndarray:
-        arr = self.__np_cache.get(key)
-        if arr is None:
-            arr = self.__np_cache[key] = self.__arrays[key][:self.__i]
+            array, df = self.__arrays[key]
+            if key == '__index':
+                arr = self.__cache[key] = _Indicator(array=array[..., :self.__i], df=lambda: df[:self.__i])
+            else:
+                arr = self.__cache[key] = _Indicator(array=array[..., :self.__i], df=lambda: df.iloc[:self.__i])
         return arr
 
     @property
-    def Open(self) -> np.ndarray:
+    def Open(self) -> _Array:
         return self.__get_array('Open')
 
     @property
-    def High(self) -> np.ndarray:
+    def High(self) -> _Array:
         return self.__get_array('High')
 
     @property
-    def Low(self) -> np.ndarray:
+    def Low(self) -> _Array:
         return self.__get_array('Low')
 
     @property
-    def Close(self) -> np.ndarray:
+    def Close(self) -> _Array:
         return self.__get_array('Close')
 
     @property
-    def Volume(self) -> np.ndarray:
+    def Volume(self) -> _Array:
         return self.__get_array('Volume')
 
     @property
@@ -173,7 +178,7 @@ class _Data:
 
     @property
     def now(self) -> datetime:
-        return self.__now
+        return self.index[-1]
 
     @property
     def tickers(self) -> List[str]:
@@ -201,6 +206,8 @@ except AttributeError:
 @pd.api.extensions.register_dataframe_accessor("ta")
 class TA:
     def __init__(self, df: pd.DataFrame):
+        if df.empty:
+            return
         self.__df = df
         if self.__df.columns.nlevels == 2:
             self.__tickers = list(self.__df.columns.levels[0])
@@ -208,8 +215,11 @@ class TA:
         elif self.__df.columns.nlevels == 1:
             self.__tickers = []
             self.__indicator = AnalysisIndicators(df)
+        else:
+            raise AttributeError(
+                f'df.columns can have at most 2 levels, got {self.__df.columns.nlevels}')
 
-    def __call_ta(self, method, *args, columns=None, **kwargs):
+    def __ta(self, method, *args, columns=None, **kwargs):
         if self.__tickers:
             dir_ = {ticker: getattr(indicator, method)(*args, **kwargs)
                     for ticker, indicator in self.__indicators.items()}
@@ -221,7 +231,7 @@ class TA:
             return getattr(self.__indicator, method)(*args, **kwargs)
 
     def __getattr__(self, method: str):
-        return partial(self.__call_ta, method)
+        return partial(self.__ta, method)
 
     def apply(self, func, *args, **kwargs):
         if self.__tickers:
@@ -229,23 +239,3 @@ class TA:
             return pd.concat(dir_, axis=1)
         else:
             return func(self.__df, *args, **kwargs)
-
-
-class _Indicator(np.ndarray):
-    """Array with a corresponding DataFrame/Series attachment."""
-    # https://numpy.org/devdocs/user/basics.subclassing.html#slightly-more-realistic-example-attribute-added-to-existing-array
-    def __new__(cls, array, df: Union[Callable, pd.DataFrame]):
-        obj = np.asarray(array).view(cls)
-        obj.__df = df
-        return obj
-
-    def __array_finalize__(self, obj):
-        if obj is None:
-            return
-        self.__df = getattr(obj, '__df', None)
-
-    @property
-    def df(self) -> Union[pd.DataFrame, pd.Series]:
-        if callable(self.__df):
-            self.__df = self.__df()
-        return self.__df
