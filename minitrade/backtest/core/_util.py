@@ -226,7 +226,7 @@ class TA:
             if columns:
                 for _, df in dir_.items():
                     df.columns = columns
-            return pd.concat(dir_, axis=1)
+            return pd.concat(dir_, axis=1) if len(dir_) > 1 else dir_[self.__tickers[0]]
         else:
             return getattr(self.__indicator, method)(*args, **kwargs)
 

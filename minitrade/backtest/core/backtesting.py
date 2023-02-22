@@ -1303,7 +1303,8 @@ class Backtest:
                         else indicator.isna().argmin() for indicator in indicator_attrs.values()), default=0)
 
         # Preprocess indicators to numpy array for better performance
-        indicator_attrs_np = {attr: indicator.to_numpy() for attr, indicator in indicator_attrs.items()}
+        def deframe(df): return df.iloc[:, 0] if isinstance(df, pd.DataFrame) and len(df.columns) == 1 else df
+        indicator_attrs_np = {attr: deframe(indicator).to_numpy() for attr, indicator in indicator_attrs.items()}
 
         # Disable "invalid value encountered in ..." warnings. Comparison
         # np.nan >= 3 is not invalid; it's False.
