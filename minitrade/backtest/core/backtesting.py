@@ -33,7 +33,7 @@ except ImportError:
 
 from ._plotting import plot  # noqa: I001
 from ._stats import compute_stats
-from ._util import _as_str, _Data, _Indicator, try_
+from ._util import _Allocation, _as_str, _Data, _Indicator, try_
 
 __pdoc__ = {
     'Strategy.__init__': False,
@@ -57,6 +57,7 @@ class Strategy(metaclass=ABCMeta):
         self._broker: _Broker = broker
         self._data: _Data = data
         self._params = self._check_params(params)
+        self._alloc = _Allocation(data)
 
     def __repr__(self):
         return '<Strategy ' + str(self) + '>'
@@ -242,8 +243,8 @@ class Strategy(metaclass=ABCMeta):
             "size must be a positive fraction of equity, or a positive whole number of units"
         return self._broker.new_order(ticker, -size, limit, stop, sl, tp, tag)
 
-    def rebalance(self, weights: pd.Series, lot_size: int, force_rebalance: bool = False):
-        self._broker.rebalance(weights, lot_size, force_rebalance)
+    def rebalance(self, force_rebalance: bool = False):
+        self._broker.rebalance(self._alloc, force_rebalance)
 
     @property
     def equity(self) -> float:
@@ -297,6 +298,11 @@ class Strategy(metaclass=ABCMeta):
     def closed_trades(self) -> 'Tuple[Trade, ...]':
         """List of settled trades (see `Trade`)."""
         return tuple(self._broker.closed_trades)
+
+    @property
+    def alloc(self) -> _Allocation:
+        """Portfolio allocation"""
+        return self._alloc
 
 
 class Position:
@@ -725,7 +731,7 @@ class Trade:
 
 class _Broker:
     def __init__(self, *, data: _Data, cash, commission, margin,
-                 trade_on_close, hedging, exclusive_orders, index, trade_start_date):
+                 trade_on_close, hedging, exclusive_orders, index, trade_start_date, lot_size):
         assert 0 < cash, f"cash should be >0, is {cash}"
         assert -.1 <= commission < .1, \
             ("commission should be between -10% "
@@ -739,10 +745,9 @@ class _Broker:
         self._hedging = hedging
         self._exclusive_orders = exclusive_orders
         self._trade_start_date = trade_start_date
+        self._lot_size = lot_size
 
         self._equity = np.tile(np.nan, len(index))
-        self._weights = None
-        self._prev_weights = None
         self.orders: List[Order] = []
         self.trades: Dict[str, List[Trade]] = {ticker: [] for ticker in self._data.tickers}
         self.positions: Dict[str, Position] = {ticker: Position(self, ticker) for ticker in self._data.tickers}
@@ -752,47 +757,42 @@ class _Broker:
         pos = ','.join([f'{k}:{int(p.pl)}' for k, p in self.positions.items()])
         return f'<Broker: {self._cash:.0f}{pos} ({len(self.all_trades)} trades)>'
 
-    def rebalance(self, weights: pd.Series, lot_size: int, force_rebalance: bool = False):
+    def rebalance(self, alloc: _Allocation, force_rebalance: bool = False):
         # ignore any trade actions before trade_start_date
         if self._trade_start_date and self.now.replace(tzinfo=None) < self._trade_start_date:
+            alloc.clear()
             return
         # percentage of total equity reserved as cash to account for order quantity rounding
         # and sudden price changes
         cash_reserve = 0.1
         # minimal percentage value gap to the desired allocation to trigger an order
         rebalance_threshold = 0.1
-        # make a copy and unify ticker order in weight series
-        self._weights = weights.sort_index()
         # rebalance if force_rebalance is true or portfolio weights have changed
-        if force_rebalance or not self._weights.equals(self._prev_weights):
+        if force_rebalance or alloc.modified:
             # money value of current portfolio
             total_equity = self.equity()
             # desired values for each ticker excluding cash reserve that is not to be allocated
-            allocation = self._weights * total_equity * (1 - cash_reserve)
-            # weight changes to each ticker
-            weight_change = self._weights - self._prev_weights if self._prev_weights is not None else self._weights
+            value_allocation = alloc.current * total_equity * (1 - cash_reserve)
             # sort in ascending order so that sell orders are placed first then buy orders to make sure that cash
             # balance is always positive in simulation
-            weight_change.sort_values(inplace=True)
-            for ticker in weight_change.index:
-                if weights.loc[ticker] == 0:
+            for ticker in alloc.delta.sort_values().index:
+                if alloc.current.loc[ticker] == 0:
                     # this may generate multiple orders for the same ticker if multiple long positions are opened
                     # for the same ticker previously over time
                     for trade in self.trades[ticker]:
                         trade.close()
                 else:
                     # calculate the amount to buy or sell
-                    value_adjust = allocation.loc[ticker] - self.equity(ticker)
+                    value_adjust = value_allocation.loc[ticker] - self.equity(ticker)
                     # rebalance if the current value deviate too much from the desired value
                     # this is to avoid tiny orders triggered by ticker price fluctuation
-                    if value_adjust and abs(value_adjust) / allocation.loc[ticker] > rebalance_threshold:
+                    if value_adjust and abs(value_adjust) / value_allocation.loc[ticker] > rebalance_threshold:
                         # calculate number of shares to buy respecting lot_size
                         # implicitly this forces order in whole share, fractional share not supported for now
-                        size = value_adjust // self.last_price(ticker)
-                        size = (size // lot_size) * lot_size
+                        size = value_adjust // self.last_price(ticker) // self._lot_size * self._lot_size
                         if size != 0:
                             self.new_order(ticker=ticker, size=size)
-        self._prev_weights = self._weights
+        alloc.next()
 
     def new_order(self,
                   ticker: str,
@@ -1127,6 +1127,7 @@ class Backtest:
                  hedging=False,
                  exclusive_orders=False,
                  trade_start_date=None,
+                 lot_size=1,
                  ):
         """
         Initialize a backtest. Requires data and a strategy to test.
@@ -1229,6 +1230,7 @@ class Backtest:
             trade_on_close=trade_on_close, hedging=hedging,
             exclusive_orders=exclusive_orders, index=data.index,
             trade_start_date=datetime.strptime(trade_start_date, '%Y-%m-%d') if trade_start_date else None,
+            lot_size=lot_size,
         )
         self._strategy = strategy
         self._results: Optional[pd.Series] = None

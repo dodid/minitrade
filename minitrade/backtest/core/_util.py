@@ -82,7 +82,7 @@ class _Data:
         self.__cache: Dict[str, np.ndarray] = {}
         self.__arrays: Dict[str, np.ndarray] = {}
         self.__tickers = list(self.__df.columns.levels[0])
-        self.__ta = TA(self.__df)
+        self.__ta = _TA(self.__df)
         self._update()
 
     def __getitem__(self, item):
@@ -192,7 +192,7 @@ class _Data:
             raise ValueError('Ticker must explicitly specified for multi-asset backtesting')
 
     @property
-    def ta(self) -> 'TA':
+    def ta(self) -> '_TA':
         return self.__ta
 
 
@@ -204,7 +204,7 @@ except AttributeError:
 
 
 @pd.api.extensions.register_dataframe_accessor("ta")
-class TA:
+class _TA:
     def __init__(self, df: pd.DataFrame):
         if df.empty:
             return
@@ -239,3 +239,80 @@ class TA:
             return pd.concat(dir_, axis=1)
         else:
             return func(self.__df, *args, **kwargs)
+
+
+class _Allocation:
+    def __init__(self, data):
+        self._data = data
+        self.alloc = pd.DataFrame({'s': False, 'c': 0, 'p': 0}, index=data.tickers)
+
+    def __str__(self):
+        return self.alloc.to_string()
+
+    @property
+    def selected(self):
+        return self.alloc['s']
+
+    @property
+    def current(self):
+        return self.alloc['c']
+
+    @current.setter
+    def current(self, value):
+        if (value < 0).any() or value.sum() > 1:
+            raise AttributeError(f'Weight must be positive and sum up to less than 1. Got {value}')
+        self.alloc['c'] = value
+
+    @property
+    def previous(self):
+        return self.alloc['p']
+
+    @property
+    def delta(self):
+        return self.current - self.previous
+
+    @property
+    def modified(self):
+        return self.delta.any()
+
+    def add(self, *where, limit=None):
+        selected = pd.Series(True, index=self._data.tickers)
+        for condition in where:
+            if not isinstance(condition, pd.Series):
+                condition = pd.Series(True, index=condition)
+            selected &= condition
+        if limit:
+            selected = selected[selected].index
+            for ticker in selected:
+                if self.alloc['s'].sum() < limit:
+                    self.alloc.loc[ticker, 's'] = True
+                else:
+                    break
+        else:
+            self.alloc.loc[selected, 's'] = True
+        return self
+
+    def drop(self, *where):
+        selected = pd.Series(True, index=self.data.tickers)
+        for conditon in where:
+            selected &= conditon
+        self.alloc.loc[selected, 's'] = False
+        return self
+
+    def equal_weight(self, sum_=1):
+        if self.alloc['s'].any():
+            selected = self.alloc['s'].astype(int)
+            self.alloc.loc[:, 'c'] = selected * sum_ / selected.sum()
+        else:
+            self.alloc.loc[:, 'c'] = 0
+        return self
+
+    def next(self):
+        self.alloc.loc[:, 's'] = False
+        self.alloc.loc[:, 'p'] = self.alloc['c']
+        self.alloc.loc[:, 'c'] = 0
+
+    def clear(self):
+        self.alloc.loc[:, 's'] = False
+        self.alloc.loc[:, 'p'] = 0
+        self.alloc.loc[:, 'c'] = 0
