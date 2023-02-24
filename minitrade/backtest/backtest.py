@@ -36,6 +36,7 @@ __all__ = [
     'generate_random_portfolios',
     'explore_strategy_parameters',
     'explore_strategy_performance_over_portfolios',
+    'plot_heatmap',
     'calculate_trade_stats',
 ]
 
@@ -85,10 +86,32 @@ def explore_strategy_performance_over_portfolios(data_lst, strategy: Strategy, g
     for label, data in tq:
         tq.set_description(str(label))
         bt = Backtest(data, strategy=strategy, fail_fast=False)
-        stats, heatmap = bt.optimize(maximize=goal, return_heatmap=True, **kwargs)
-        if stats is not None and heatmap is not None:
-            _stats[label], _heatmap[label] = stats, heatmap
-    return pd.DataFrame(_stats), pd.DataFrame(_heatmap)
+        s, h = bt.optimize(maximize=goal, return_heatmap=True, **kwargs)
+        if s is not None and h is not None:
+            _stats[label], _heatmap[label] = s, h
+    stats, heatmap = pd.DataFrame(_stats).T, pd.DataFrame(_heatmap).T
+    heatmap.attrs['goal'] = goal
+    return stats, heatmap
+
+
+def plot_heatmap(heatmap: pd.DataFrame, smooth=None):
+    '''
+    Plot the heatmap for visual inspection
+    '''
+    # If smooth is given, use the lowest performance across a small window centered
+    # at a value as the performance for the parameter at the value
+    if smooth:
+        heatmap = heatmap.rolling(smooth, center=True, axis=1).min()
+    # sort portfolio by a rough sense of "overall" performance
+    heatmap = heatmap.loc[heatmap.sum(axis=1).sort_values(ascending=False).index]
+    # break plot into pages as too big a plot can have memory issue.
+    for i in range(0, len(heatmap), 50):
+        pg = heatmap.iloc[i:i+50]
+        _, ax = plt.subplots(figsize=(pg.shape[1]//4+1, pg.shape[0]//4+1))
+        ax.set_title(f'{heatmap.attrs.get("goal", "")} (rank {i} - {i + len(pg)})')
+        sns.heatmap(pg, cmap='viridis')
+        plt.savefig(f'performance_{i}-{i+len(pg)}.png', bbox_inches='tight')
+        plt.show()
 
 
 def calculate_trade_stats(data: pd.DataFrame, init_cash: int, orders: list[dict]):
