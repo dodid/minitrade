@@ -404,7 +404,7 @@ class BacktestRunner:
         '''
         try:
             source = QuoteSource.get_source(self.plan.data_source)
-            return source.read_daily_ohlcv_for_tickers(
+            return source.daily_ohlcv(
                 tickers=self.plan.ticker_css.split(','),
                 start=self.plan.backtest_start_date)
         except Exception as e:

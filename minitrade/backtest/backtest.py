@@ -9,33 +9,39 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import seaborn as sns
-from IPython.display import display
-from tqdm.autonotebook import tqdm
+from tqdm.auto import tqdm
 
 from minitrade.backtest.core import Backtest, Strategy
-from minitrade.utils.misc import check_streamlit
 
 plt.rcParams["figure.figsize"] = (20, 3)
 plt.rcParams['axes.grid'] = True
 
 matplotlib.rcParams['font.family'] = ['Heiti TC']
 
+
 try:
     mp.set_start_method('fork')
 except RuntimeError:
     pass
 
+try:
+    from IPython.display import display
+except ModuleNotFoundError:
+    display = print
 
-if check_streamlit():
-    import streamlit as st
-    print = st.write
-    display = st.write
+try:
+    from streamlit.runtime.scriptrunner import get_script_run_ctx
+    if get_script_run_ctx():
+        import streamlit as st
+        print = display = st.write
+except ModuleNotFoundError:
+    pass
 
 
 __all__ = [
     'generate_random_portfolios',
-    'explore_strategy_parameters',
-    'explore_strategy_performance_over_portfolios',
+    'backtest_strategy_parameters',
+    'backtest_strategy_on_portfolios',
     'plot_heatmap',
     'calculate_trade_stats',
 ]
@@ -55,9 +61,9 @@ def generate_random_portfolios(universe: list[str], k: int, limit: int = None):
         return list(itertools.combinations(universe, k))
 
 
-def explore_strategy_parameters(data, strategy: Strategy,
-                                goals=['Return [%]', 'Max. Drawdown [%]', 'Calmar Ratio', 'SQN'],
-                                **kwargs):
+def backtest_strategy_parameters(data, strategy: Strategy,
+                                 goals=['Return [%]', 'Max. Drawdown [%]', 'Calmar Ratio', 'SQN'],
+                                 **kwargs):
     """
     Visualize strategy performance vs. strategy parameters.
     """
@@ -76,7 +82,7 @@ def explore_strategy_parameters(data, strategy: Strategy,
     return
 
 
-def explore_strategy_performance_over_portfolios(data_lst, strategy: Strategy, goal='Return [%]', **kwargs):
+def backtest_strategy_on_portfolios(data_lst, strategy: Strategy, goal='Return [%]', **kwargs):
     '''
     Run test over random assets and collect the performance data
     '''
@@ -109,6 +115,7 @@ def plot_heatmap(heatmap: pd.DataFrame, smooth=None):
         pg = heatmap.iloc[i:i+50]
         _, ax = plt.subplots(figsize=(pg.shape[1]//4+1, pg.shape[0]//4+1))
         ax.set_title(f'{heatmap.attrs.get("goal", "")} (rank {i} - {i + len(pg)})')
+        ax.grid(False)
         sns.heatmap(pg, cmap='viridis')
         plt.savefig(f'performance_{i}-{i+len(pg)}.png', bbox_inches='tight')
         plt.show()

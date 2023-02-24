@@ -11,13 +11,15 @@ from minitrade.utils.mtdb import MTDB
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+__all__ = [
+    'QuoteSource',
+    'populate_nasdaq_traded_symbols'
+]
+
 
 class QuoteSource(ABC):
 
-    @staticmethod
-    def get_supported_sources() -> list[str]:
-        ''' Return supported quote sources '''
-        return ['Yahoo']
+    AVAILABLE_SOURCES = ['Yahoo']
 
     @staticmethod
     def get_source(name: str, **kwargs) -> QuoteSource:
@@ -41,13 +43,13 @@ class QuoteSource(ABC):
             If the asked data source is not supported
         '''
         if name == 'Yahoo':
-            from .yahoo import QuoteSourceYahoo
-            return QuoteSourceYahoo(**kwargs)
+            from .yahoo import YahooQuoteSource
+            return YahooQuoteSource(**kwargs)
         else:
-            raise RuntimeError('Quote source {source_name} is not supported')
+            raise AttributeError(f'Quote source {name} is not supported')
 
     @abstractmethod
-    def read_daily_ohlcv(self, ticker: str, start: str = '2000-01-01', end: str = None) -> pd.DataFrame:
+    def _daily_ohlcv(self, ticker: str, start: str, end: str = None) -> pd.DataFrame:
         '''Read end-of-day OHLCV data for `ticker` starting from `start` date and ending on `end` date (both inclusive).
 
         Parameters
@@ -71,15 +73,15 @@ class QuoteSource(ABC):
         '''
         raise NotImplementedError()
 
-    def read_daily_ohlcv_for_tickers(
+    def daily_ohlcv(
             self, tickers: list[str] | str,
-            start: str = '2000-01-01', end: str = None, align: bool = True, normalize: bool = False) -> pd.DataFrame:
+            start: str = '2020-01-01', end: str = None, align: bool = True, normalize: bool = False) -> pd.DataFrame:
         '''Read end-of-day OHLCV data for a list of tickers starting from `start` date and ending on `end` date (both inclusive).
 
         Parameters
         ----------
-        ticker_space : list[str] | str
-            A list of tickers or tickers in comma separated string format
+        tickers : list[str] | str
+            Tickers as a list of string or as one comma separated string
         start : str
             Start date in string format 'YYYY-MM-DD'
         end : str
@@ -103,11 +105,12 @@ class QuoteSource(ABC):
         try:
             if isinstance(tickers, str):
                 tickers = tickers.split(',')
-            ddir = {s: self.read_daily_ohlcv(s, start, end) for s in tickers}
-            df = pd.concat(ddir, axis=1)
+            data = {ticker: self._daily_ohlcv(ticker, start, end) for ticker in tickers}
             ohlc = ['Open', 'High', 'Low', 'Close']
-            df.loc[:, (slice(None), 'Volume')] = df.loc[:, (slice(None), 'Volume')].fillna(0)
-            df.loc[:, (slice(None), ohlc)] = df.loc[:, (slice(None), ohlc)].fillna(method='ffill')
+            for _, df in data.items():
+                df.loc[:, ohlc] = df[ohlc].fillna(method='ffill')
+                df.loc[:, 'Volume'] = df['Volume'].fillna(0)
+            df = pd.concat(data, axis=1)
             if align:
                 start_index = df[df.notna().all(axis=1)].index[0]
                 df = df.loc[start_index:, :]
@@ -116,17 +119,15 @@ class QuoteSource(ABC):
                         df.loc[:, (s, ohlc)] = df.loc[:, (s, ohlc)] / df[s].loc[start_index, 'Close']
             return df
         except Exception as e:
-            raise RuntimeError(
-                f'Reading OHLCV data failed for tickers={tickers} start={start} end={end} align={align} normalize={normalize}') from e
+            raise RuntimeError(f'Reading OHLCV data failed for tickers={tickers}'
+                               f' start={start} end={end} align={align} normalize={normalize}') from e
 
 
-class SymbolSource:
-    @staticmethod
-    def nasdaq_traded():
-        with urllib.request.urlopen('ftp://ftp.nasdaqtrader.com/SymbolDirectory/nasdaqtraded.txt') as f:
-            rows = f.read().decode('utf-8').split('\r\n')
-        columns = rows[0].replace(' ', '_').lower().split('|')
-        # skip header and footer
-        tickers = [dict(zip(columns, row.split('|'))) for row in rows[1:-2]]
-        tickers = [ticker for ticker in tickers if ticker['test_issue'] == 'N']
-        MTDB.save_objects(tickers, 'nasdaqtraded', on_conflict='update')
+def populate_nasdaq_traded_symbols():
+    with urllib.request.urlopen('ftp://ftp.nasdaqtrader.com/SymbolDirectory/nasdaqtraded.txt') as f:
+        rows = f.read().decode('utf-8').split('\r\n')
+    columns = rows[0].replace(' ', '_').lower().split('|')
+    # skip header and footer
+    tickers = [dict(zip(columns, row.split('|'))) for row in rows[1:-2]]
+    tickers = [ticker for ticker in tickers if ticker['test_issue'] == 'N']
+    MTDB.save_objects(tickers, 'nasdaqtraded', on_conflict='update')

@@ -1,2 +1,2 @@
-from .base import QuoteSource, SymbolSource
-from .yahoo import QuoteSourceYahoo
+from .base import *
+from .yahoo import YahooQuoteSource

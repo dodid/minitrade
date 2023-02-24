@@ -6,13 +6,13 @@ from minitrade.utils.config import config
 
 st.set_page_config(page_title='Datasource', layout='wide')
 
-source = st.sidebar.radio('Source', QuoteSource.get_supported_sources())
+source = st.sidebar.radio('Source', QuoteSource.AVAILABLE_SOURCES)
 
 
 def test_and_save_yahoo_proxy(enable_proxy, proxy):
     st.caption('Getting SPY')
     df = QuoteSource.get_source(
-        'Yahoo', use_proxy=enable_proxy, proxy=proxy).read_daily_ohlcv(
+        'Yahoo', use_proxy=enable_proxy, proxy=proxy).daily_ohlcv(
         'SPY', start='2022-01-01')
     if len(df) > 0:
         st.write(df.head())

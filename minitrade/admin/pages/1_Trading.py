@@ -49,7 +49,7 @@ def get_broker_ticker_map(tickers: dict | None) -> dict | None:
 def show_create_trade_plan_form() -> TradePlan | None:
     strategy_file = st.selectbox('Pick a strategy', StrategyManager.list_strategies())
     ticker_css = st.text_input('Define the asset space')
-    data_source = st.selectbox('Select a data source', QuoteSource.get_supported_sources())
+    data_source = st.selectbox('Select a data source', QuoteSource.AVAILABLE_SOURCES)
     market_timezone = market_timezone_selectbox()
     backtest_start_date = st.date_input(
         'Pick a backtest start date (run backtest from that date)', value=datetime.today()-timedelta(days=110))
