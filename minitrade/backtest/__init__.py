@@ -1,2 +1,2 @@
-from .backtest import portfolio_report
+from .backtest import *
 from .core import Backtest, Strategy

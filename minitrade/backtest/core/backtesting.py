@@ -731,7 +731,7 @@ class Trade:
 
 class _Broker:
     def __init__(self, *, data: _Data, cash, commission, margin,
-                 trade_on_close, hedging, exclusive_orders, index, trade_start_date, lot_size):
+                 trade_on_close, hedging, exclusive_orders, index, trade_start_date, lot_size, fail_fast):
         assert 0 < cash, f"cash should be >0, is {cash}"
         assert -.1 <= commission < .1, \
             ("commission should be between -10% "
@@ -746,6 +746,7 @@ class _Broker:
         self._exclusive_orders = exclusive_orders
         self._trade_start_date = trade_start_date
         self._lot_size = lot_size
+        self._fail_fast = fail_fast
 
         self._equity = np.tile(np.nan, len(index))
         self.orders: List[Order] = []
@@ -1024,12 +1025,15 @@ class _Broker:
                     if not need_size:
                         break
 
-            # If we don't have enough liquidity to cover for the order, cancel it
+            # If we don't have enough liquidity to cover for the order, abort the backtest
             if abs(need_size) * adjusted_price > self.margin_available * self._leverage:
-                print(
-                    f'Not enough liquidity, has {int(self.margin_available * self._leverage)}, needs {int(abs(need_size) * adjusted_price)}, canceling {order}')
-                self.orders.remove(order)
-                continue
+                if self._fail_fast:
+                    raise RuntimeError(
+                        f'Not enough liquidity for {order}, has {int(self.margin_available * self._leverage)},'
+                        f' needs {int(abs(need_size) * adjusted_price)}, aborting')
+                else:
+                    self.orders.remove(order)
+                    continue
 
             # Open a new trade
             if need_size:
@@ -1128,6 +1132,7 @@ class Backtest:
                  exclusive_orders=False,
                  trade_start_date=None,
                  lot_size=1,
+                 fail_fast=True
                  ):
         """
         Initialize a backtest. Requires data and a strategy to test.
@@ -1230,7 +1235,7 @@ class Backtest:
             trade_on_close=trade_on_close, hedging=hedging,
             exclusive_orders=exclusive_orders, index=data.index,
             trade_start_date=datetime.strptime(trade_start_date, '%Y-%m-%d') if trade_start_date else None,
-            lot_size=lot_size,
+            lot_size=lot_size, fail_fast=fail_fast
         )
         self._strategy = strategy
         self._results: Optional[pd.Series] = None

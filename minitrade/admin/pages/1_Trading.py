@@ -4,7 +4,7 @@ from datetime import datetime, time, timedelta
 import streamlit as st
 from attrs import asdict
 
-from minitrade.backtest import portfolio_report
+from minitrade.backtest import calculate_trade_stats
 from minitrade.broker import Broker, BrokerAccount
 from minitrade.datasource import QuoteSource
 from minitrade.trader import (BacktestRunLog, BacktestRunner, StrategyManager,
@@ -201,7 +201,7 @@ def show_trade_plan_execution_history(plan: TradePlan) -> None:
     with tab3:
         data = csv_to_df(logs[0].data, index_col=0, header=[0, 1], parse_dates=True)
         trades = broker.get_cached_trades(orders)
-        _, trade_df, equity, pnl, commission_rate = portfolio_report(data, plan.initial_cash, trades)
+        _, trade_df, equity, pnl, commission_rate = calculate_trade_stats(data, plan.initial_cash, trades)
         rr = (equity / equity[0] - 1) * 100
         rr.name = 'Return rate (%)'
         c1, c2, c3, c4 = st.columns(4)

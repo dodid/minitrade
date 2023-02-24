@@ -1,11 +1,97 @@
 
+import itertools
+import multiprocessing as mp
+import random
 from math import copysign
 
+import matplotlib
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+import seaborn as sns
+from IPython.display import display
+from tqdm.autonotebook import tqdm
+
+from minitrade.backtest.core import Backtest, Strategy
+from minitrade.utils.misc import check_streamlit
+
+plt.rcParams["figure.figsize"] = (20, 3)
+plt.rcParams['axes.grid'] = True
+
+matplotlib.rcParams['font.family'] = ['Heiti TC']
+
+try:
+    mp.set_start_method('fork')
+except RuntimeError:
+    pass
 
 
-def portfolio_report(data: pd.DataFrame, init_cash: int, orders: list[dict]):
+if check_streamlit():
+    import streamlit as st
+    print = st.write
+    display = st.write
+
+
+__all__ = [
+    'generate_random_portfolios',
+    'explore_strategy_parameters',
+    'explore_strategy_performance_over_portfolios',
+    'calculate_trade_stats',
+]
+
+
+def generate_random_portfolios(universe: list[str], k: int, limit: int = None):
+    '''
+    Generate randome portfolios with each containing k assets.
+    '''
+    assert len(universe) > k
+    if limit:
+        samples = set()
+        while len(samples) < limit:
+            samples.add(tuple(sorted(random.sample(universe, k))))
+        return list(samples)
+    else:
+        return list(itertools.combinations(universe, k))
+
+
+def explore_strategy_parameters(data, strategy: Strategy,
+                                goals=['Return [%]', 'Max. Drawdown [%]', 'Calmar Ratio', 'SQN'],
+                                **kwargs):
+    """
+    Visualize strategy performance vs. strategy parameters.
+    """
+    bt = Backtest(data, strategy=strategy, fail_fast=False)
+    for goal in goals:
+        stats, heatmap = bt.optimize(maximize=goal, return_heatmap=True, **kwargs)
+        if heatmap.index.nlevels == 1:
+            heatmap.plot.bar(title=goal)
+        else:
+            heatmap = heatmap.unstack(0)
+            _, ax = plt.subplots(figsize=(20, len(heatmap) * 0.5))
+            ax.set_title(goal)
+            sns.heatmap(heatmap, cmap='viridis')
+        plt.show()
+        display(stats.to_frame().transpose())
+    return
+
+
+def explore_strategy_performance_over_portfolios(data_lst, strategy: Strategy, goal='Return [%]', **kwargs):
+    '''
+    Run test over random assets and collect the performance data
+    '''
+    label_data = {','.join(data.columns.levels[0]): data for data in data_lst}
+    _stats, _heatmap = {}, {}
+    tq = tqdm(label_data.items(), leave=False)
+    for label, data in tq:
+        tq.set_description(str(label))
+        bt = Backtest(data, strategy=strategy, fail_fast=False)
+        stats, heatmap = bt.optimize(maximize=goal, return_heatmap=True, **kwargs)
+        if stats is not None and heatmap is not None:
+            _stats[label], _heatmap[label] = stats, heatmap
+    return pd.DataFrame(_stats), pd.DataFrame(_heatmap)
+
+
+def calculate_trade_stats(data: pd.DataFrame, init_cash: int, orders: list[dict]):
     '''
     Create day by day portolio report based on initial cash and order executed.
     '''
