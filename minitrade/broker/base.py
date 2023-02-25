@@ -1,25 +1,24 @@
 from __future__ import annotations
 
-import logging
 import typing
 from abc import ABC, abstractmethod
+from dataclasses import dataclass
 
-import attrs
 import pandas as pd
-from pypika import Query, Table
 
-from minitrade.utils.config import config
 from minitrade.utils.mtdb import MTDB
 
 if typing.TYPE_CHECKING:
     from minitrade.backtest import RawOrder
     from minitrade.trader import TradePlan
 
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+__all__ = [
+    'BrokerAccount',
+    'Broker',
+]
 
 
-@attrs.define(slots=False, kw_only=True)
+@dataclass(kw_only=True)
 class BrokerAccount:
     alias: str
     broker: str
@@ -28,79 +27,37 @@ class BrokerAccount:
     password: str
 
     @staticmethod
-    def get_account(plan_or_alias: TradePlan | str) -> BrokerAccount:
+    def get_account(plan: TradePlan | str) -> BrokerAccount:
         '''Look up a broker account from a trade plan
 
         Parameters
         ----------
-        plan_or_alias : TradePlan | str
-            Trade plan that contains broker account alias or the alias itself
+        plan : TradePlan | str
+            Trade plan or a trade plan alias
 
         Returns
         -------
         account
-            Broker account if found
-
-        Raises
-        ------
-        RuntimeError
-            If looking up broker account failed
+            Broker account if found, otherwise None
         '''
-        alias = plan_or_alias if isinstance(plan_or_alias, str) else plan_or_alias.broker_account
-        if alias:
-            try:
-                brokeraccount = Table('brokeraccount')
-                stmt = Query.from_(brokeraccount).select('*').where(brokeraccount['alias'] == alias)
-                with MTDB.conn() as conn:
-                    row = conn.execute(str(stmt)).fetchone()
-                return BrokerAccount.from_row(row)
-            except Exception as e:
-                raise RuntimeError(f'Looking up broker account {alias} failed') from e
-        raise RuntimeError(f'Cannot find broker account {alias}')
+        alias = plan if isinstance(plan, str) else plan.broker_account
+        return MTDB.get_one('brokeraccount', 'alias', alias, cls=BrokerAccount)
 
     @staticmethod
-    def list_accounts() -> list[BrokerAccount]:
+    def list() -> list[BrokerAccount]:
         '''Return the list of available broker accounts
 
         Returns
         -------
         list
             A list of broker accounts
-
-        Raises
-        ------
-        RuntimeError
-            If looking up broker account failed
         '''
-        try:
-            with MTDB.conn() as conn:
-                rows = conn.execute('SELECT * FROM brokeraccount ORDER BY alias').fetchall()
-            return [BrokerAccount.from_row(row) for row in rows]
-        except Exception as e:
-            raise RuntimeError('Looking up broker account failed') from e
-
-    @classmethod
-    def from_row(cls, row):
-        return cls(**row)
+        return MTDB.get_all('brokeraccount', cls=BrokerAccount, orderby='alias')
 
     def save(self) -> None:
         '''Save broker account to database. 
-
-        Overwrite existing ones if account alias already exists.
-
-        Raises
-        ------
-        RuntimeError
-            If saving broker account failed
         '''
-        try:
-            data = attrs.asdict(self)
-            brokeraccount = Table('brokeraccount')
-            stmt = Query.into(brokeraccount).columns(*data.keys()).insert(*data.values())
-            with MTDB.conn() as conn:
-                conn.execute(str(stmt))
-        except Exception as e:
-            raise RuntimeError(f'Saving broker account {self.alias} failed') from e
+        MTDB.save(self, 'brokeraccount', on_conflict='error')
 
     def delete(self) -> None:
         '''Delete broker account from database. 
@@ -110,27 +67,12 @@ class BrokerAccount:
         RuntimeError
             If deleting broker account failed
         '''
-        try:
-            brokeraccount = Table('brokeraccount')
-            stmt = Query.from_(brokeraccount).delete().where(brokeraccount['alias'] == self.alias)
-            with MTDB.conn() as conn:
-                conn.execute(str(stmt))
-        except Exception as e:
-            raise RuntimeError(f'Deleting broker account {self.alias} failed') from e
+        MTDB.delete('brokeraccount', 'alias', self.alias)
 
 
 class Broker(ABC):
 
-    @staticmethod
-    def get_supported_brokers() -> dict[str, str]:
-        ''' Return supported brokers
-
-        Returns
-        -------
-        dict
-            A dict that maps the short broker name to a long friendly name for supported brokers
-        '''
-        return {'IB': 'Interactive Brokers'}
+    AVAILABLE_BROKERS = {'IB': 'Interactive Brokers'}
 
     @staticmethod
     def get_broker(account: BrokerAccount) -> Broker:
@@ -152,10 +94,10 @@ class Broker(ABC):
             If the broker is not supported
         '''
         if account.broker == 'IB':
-            from .ib import BrokerIB
-            return BrokerIB(account)
+            from .ib import InteractiveBrokers
+            return InteractiveBrokers(account)
         else:
-            raise NotImplementedError(f'Broker {account.broker} is not supported')
+            raise AttributeError(f'Broker {account.broker} is not supported')
 
     def __init__(self, account: BrokerAccount):
         ''' Create a broker connection with the supplied `account` info. 
@@ -168,8 +110,8 @@ class Broker(ABC):
         self.account = account
 
     @abstractmethod
-    def is_broker_ready(self) -> bool:
-        '''Return if the broker account is connected and ready to receive orders
+    def is_ready(self) -> bool:
+        '''Return True if the broker account is connected and ready to receive orders
 
         Returns
         -------
@@ -179,57 +121,44 @@ class Broker(ABC):
         raise NotImplementedError()
 
     @abstractmethod
-    def prepare(self, alias: str) -> bool:
-        '''Set up a working connection to the broker account identified by `alias`.
+    def connect(self):
+        '''Set up a working connection to the broker account.
 
-        Parameters
-        ----------
-        alias : str
-            Account alias
-
-        Returns
+        Raises
         -------
-        ready
-            True if ready, otherwise False
+        ConnectionError
+            Raise ConnectionError if a working connection can't be established.
         '''
         raise NotImplementedError()
 
     @abstractmethod
-    def place_order(self, plan: TradePlan, order: RawOrder, trace_id: str = None) -> str:
-        '''Place an order 
+    def submit_order(self, plan: TradePlan, order: RawOrder, trace_id: str = None) -> str:
+        '''Submit an order via broker interface
 
         Parameters
         ----------
-        plan : TradePlan
-            The trade plan that contains broker specific ticker mapping
+        plan: TradePlan
+            The trade plan
         order : RawOrder
-            The raw order generated by backtesting
+            Order to be placed
+        trace_id: str
+            ID to trace order as part of a workflow
 
         Returns
         -------
         order_id
-            Broker order ID
-
-        Raises
-        ------
-        RuntimeError
-            If placing order fails for any reason
+            Broker assigned order ID if order is submitted successfully, otherwise None
         '''
         raise NotImplementedError()
 
     @abstractmethod
-    def get_metainfo(self) -> dict:
+    def get_account_info(self) -> dict:
         '''Get broker account meta info
 
         Returns
         -------
         info
             A dict that contains broker specific account information
-
-        Raises
-        ------
-        RuntimeError
-            If getting infomation fails for any reason
         '''
         raise NotImplementedError()
 
@@ -241,11 +170,6 @@ class Broker(ABC):
         -------
         portfolio
             A dataframe that contains broker specific portfolio infomation
-
-        Raises
-        ------
-        RuntimeError
-            If getting portfolio fails for any reason
         '''
         raise NotImplementedError()
 
@@ -259,11 +183,6 @@ class Broker(ABC):
         -------
         trades
             A dataframe that contains recently finished trades
-
-        Raises
-        ------
-        RuntimeError
-            If getting trades fails for any reason
         '''
         raise NotImplementedError()
 
@@ -277,16 +196,11 @@ class Broker(ABC):
         -------
         orders
             A dataframe that contains recent orders which can be submitted, filled, or cancelled
-
-        Raises
-        ------
-        RuntimeError
-            If getting order fails for any reason
         '''
         raise NotImplementedError()
 
     @abstractmethod
-    def release(self) -> None:
+    def disconnect(self) -> None:
         '''Disconnect from broker and release any resources.
         '''
         raise NotImplementedError()
@@ -317,16 +231,11 @@ class Broker(ABC):
             }
             where id is the broker specific ticker ID, label is a human readable string
             to help disambiguate the options.
-
-        Raises
-        ------
-        RuntimeError
-            If resolving tickers fails for any reason
         '''
         raise NotImplementedError()
 
     @abstractmethod
-    def get_cached_trade_status(self, order: RawOrder) -> dict:
+    def find_trades(self, order: RawOrder) -> dict:
         '''Get trade information associated with the raw order.
 
         Parameters
@@ -339,16 +248,11 @@ class Broker(ABC):
         trade
             A dict that contains broker specific trade infomation associated with the order, 
             or None if no trade is found or 
-
-        Raises
-        ------
-        RuntimeError
-            If getting trade status fails for any reason
         '''
         raise NotImplementedError()
 
     @abstractmethod
-    def get_cached_order_status(self, order: RawOrder) -> dict:
+    def find_order(self, order: RawOrder) -> dict:
         '''Get last known order status, not necessarily latest.
 
         Parameters
@@ -361,16 +265,11 @@ class Broker(ABC):
         order
             A dict that contains broker specific order infomation associated with the order, 
             or None if no broker order is found or 
-
-        Raises
-        ------
-        RuntimeError
-            If getting order status fails for any reason
         '''
         raise NotImplementedError()
 
     @abstractmethod
-    def get_cached_trades(self, orders: list[RawOrder]) -> list[dict]:
+    def format_trades(self, orders: list[RawOrder]) -> list[dict]:
         '''Get trade status corresponding to the list of orders and format as the following
             {
                 'ticker': ...,
@@ -389,10 +288,5 @@ class Broker(ABC):
         -------
         trades
             A list of completed trades with relevant information
-
-        Raises
-        ------
-        RuntimeError
-            If getting trade status fails for any reason
         '''
         raise NotImplementedError()

@@ -2,12 +2,12 @@ import logging
 import sqlite3
 import sys
 import threading
+from dataclasses import asdict
 from posixpath import expanduser
 from typing import Any
 
-from attrs import asdict
 from nanoid import generate
-from pypika import Query, Table
+from pypika import Order, Query, Table
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -33,37 +33,51 @@ class MTDB:
             return MTDB.thread_local.db
 
     @staticmethod
-    def get_object(tablename: str, key: str, value: Any, cls=None):
+    def get_one(tablename: str, where_key: str, where_value: Any, *, cls=None):
+        '''Return single row matching the query or None if no rows are available.'''
         table = Table(tablename)
-        stmt = Query.from_(table).select('*').where(table[key] == value)
-        try:
-            with MTDB.conn() as conn:
-                row = conn.execute(str(stmt)).fetchone()
-            return None if row is None else row if cls is None else cls.from_row(row)
-        except Exception as e:
-            raise RuntimeError(f'Reading object failed, cls {cls} tablename {tablename} key {key} value {value}') from e
+        stmt = Query.from_(table).select('*').where(table[where_key] == where_value)
+        with MTDB.conn() as conn:
+            row = conn.execute(str(stmt)).fetchone()
+        return row if cls is None else cls(**row)
 
     @staticmethod
-    def get_objects(tablename: str, key: str = None, value: Any = None, cls=None):
+    def get_all(tablename: str, where_key: str = None, where_value: Any = None, *, where: dict = None, orderby: str |
+                tuple[str, bool] = None, limit: int = None, cls=None):
+        '''Return all rows matching the query as a list, or empty list if no rows are available.'''
         table = Table(tablename)
         stmt = Query.from_(table).select('*')
-        if key is not None:
-            stmt = stmt.where(table[key] == value)
-        try:
-            with MTDB.conn() as conn:
-                rows = conn.execute(str(stmt)).fetchall()
-            if cls is None:
-                return rows
-            elif cls is dict:
-                return [dict(r) for r in rows]
-            else:
-                return [cls.from_row(r) for r in rows]
-        except Exception as e:
-            raise RuntimeError(
-                f'Reading objects failed, cls {cls} tablename {tablename} key {key} value {value}') from e
+        if where_key is not None:
+            stmt = stmt.where(table[where_key] == where_value)
+        if where:
+            for k, v in where.items():
+                stmt = stmt.where(table[k] == v)
+        if orderby is not None:
+            try:
+                field, ascending = orderby
+                ascending = Order.asc if ascending else Order.desc
+            except Exception:
+                field, ascending = orderby, Order.asc
+            stmt = stmt.orderby(field, order=ascending)
+        if limit:
+            stmt = stmt.limit(limit)
+        with MTDB.conn() as conn:
+            rows = conn.execute(str(stmt)).fetchall()
+        return rows if cls is None else [cls(**r) for r in rows]
 
     @staticmethod
-    def save_objects(objects, tablename: str, on_conflict='error', whitelist=None):
+    def update(tablename: str, where_key: str, where_value: Any, *, values: dict):
+        '''Update rows matching the query'''
+        table = Table(tablename)
+        stmt = Query.update(table).where(table[where_key] == where_value)
+        for k, v in values.items():
+            stmt.set(table[k], v)
+        with MTDB.conn() as conn:
+            conn.execute(str(stmt))
+
+    @staticmethod
+    def save(objects, tablename: str, *, on_conflict='error', whitelist=None):
+        '''Save objects to ddb'''
         if not isinstance(objects, list):
             objects = [objects]
         for obj in objects:
@@ -88,6 +102,17 @@ class MTDB:
                 conn.execute(str(stmt))
 
     @staticmethod
+    def delete(tablename: str, key: str, value: Any):
+        '''Delete rows matching the query'''
+        table = Table(tablename)
+        stmt = Query.from_(table).delete().where(table[key] == value)
+        try:
+            with MTDB.conn() as conn:
+                conn.execute(str(stmt))
+        except Exception as e:
+            raise RuntimeError(f'Deleting from table {tablename} failed: key {key}, value {value}') from e
+
+    @staticmethod
     def uniqueid():
-        ''' Generate a short unique id '''
+        ''' Generate a short unique ID '''
         return generate('1234567890abcdef', 20)

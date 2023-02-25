@@ -1,15 +1,16 @@
 
+from dataclasses import asdict
 from datetime import datetime, time, timedelta
 
+import pandas as pd
 import streamlit as st
-from attrs import asdict
 
 from minitrade.backtest import calculate_trade_stats
 from minitrade.broker import Broker, BrokerAccount
 from minitrade.datasource import QuoteSource
 from minitrade.trader import (BacktestRunLog, BacktestRunner, StrategyManager,
                               TradePlan)
-from minitrade.utils.convert import attrs_to_df, csv_to_df
+from minitrade.utils.convert import csv_to_df
 from minitrade.utils.mtdb import MTDB
 
 st.set_page_config(page_title='Trading', layout='wide')
@@ -25,14 +26,15 @@ def ticker_resolver(account: BrokerAccount, ticker_css: str) -> dict:
     if account and len(ticker_css.replace(' ', '')) > 0:
         broker = Broker.get_broker(account)
         with st.expander('Resolve tickers', expanded=True):
-            if broker.prepare():
-                candidates: dict = broker.resolve_tickers(ticker_css)
+            try:
+                broker.connect()
+                candidates: dict = broker.resolve_tickers(ticker_css.replace(' ', ''))
                 if candidates:
                     vendor_tickers = {}
                     for k, v in candidates.items():
                         vendor_tickers[k] = st.radio(k, v, format_func=lambda _: _['label'])
                     return vendor_tickers
-            else:
+            except ConnectionError:
                 st.error('Need to login to broker account to resolve tickers. Please pay attention to 2FA notification if enabled.')
                 st.button('Retry')
     return None
@@ -56,7 +58,7 @@ def show_create_trade_plan_form() -> TradePlan | None:
     trade_start_date = st.date_input(
         'Pick a trade start date (trade signal before that is surpressed)', min_value=datetime.now().date())
     trade_time_of_day = st.time_input('Pick when backtesting should start (market local time)', value=time(20, 30))
-    account = st.selectbox('Select a broker account', BrokerAccount.list_accounts(), format_func=lambda b: b.alias)
+    account = st.selectbox('Select a broker account', BrokerAccount.list(), format_func=lambda b: b.alias)
     initial_cash = st.number_input('Set the cash amount to invest', value=10000)
     name = st.text_input('Name the trade plan')
     tickers = ticker_resolver(account, ticker_css)
@@ -105,7 +107,7 @@ def display_runlog(plan: TradePlan, log: BacktestRunLog):
         if log.stderr:
             tab3.text(log.stderr)
         if orders:
-            tab4.write(attrs_to_df(orders))
+            tab4.write(pd.DataFrame(orders))
 
 
 def save_plan_and_dryrun(plan: TradePlan) -> None:
@@ -185,12 +187,12 @@ def show_trade_plan_execution_history(plan: TradePlan) -> None:
         broker = Broker.get_broker(account)
         orders = plan.get_orders()
         for order in orders:
-            trade = broker.get_cached_trade_status(order)
-            broker_order = broker.get_cached_order_status(order)
+            trade = broker.find_trades(order)
+            broker_order = broker.find_order(order)
             order_status = '✅' if trade else '🟢' if order.broker_order_id else '🚫'
             with st.expander(f'{order_status} {order.signal_date} **{order.ticker} {order.side} {abs(order.size)}**'):
                 st.caption('Raw order')
-                st.write(asdict(order))
+                st.write(order)
                 if broker_order:
                     st.caption('Broker order')
                     st.write(broker_order)
@@ -200,7 +202,7 @@ def show_trade_plan_execution_history(plan: TradePlan) -> None:
 
     with tab3:
         data = csv_to_df(logs[0].data, index_col=0, header=[0, 1], parse_dates=True)
-        trades = broker.get_cached_trades(orders)
+        trades = broker.format_trades(orders)
         _, trade_df, equity, pnl, commission_rate = calculate_trade_stats(data, plan.initial_cash, trades)
         rr = (equity / equity[0] - 1) * 100
         rr.name = 'Return rate (%)'

@@ -96,31 +96,22 @@ class QuoteSource(ABC):
         ohlcv
             A dataframe with 2-level columns, first level being the tickers, and the second level being columns 'Open', 
             'High', 'Low', 'Close', 'Volume'. The dataframe is indexed by datetime.
-
-        Raises
-        ------
-        RuntimeError
-            If getting data fails for any reason
         '''
-        try:
-            if isinstance(tickers, str):
-                tickers = tickers.split(',')
-            data = {ticker: self._daily_ohlcv(ticker, start, end) for ticker in tickers}
-            ohlc = ['Open', 'High', 'Low', 'Close']
-            for _, df in data.items():
-                df.loc[:, ohlc] = df[ohlc].fillna(method='ffill')
-                df.loc[:, 'Volume'] = df['Volume'].fillna(0)
-            df = pd.concat(data, axis=1)
-            if align:
-                start_index = df[df.notna().all(axis=1)].index[0]
-                df = df.loc[start_index:, :]
-                if normalize:
-                    for s in tickers:
-                        df.loc[:, (s, ohlc)] = df.loc[:, (s, ohlc)] / df[s].loc[start_index, 'Close']
-            return df
-        except Exception as e:
-            raise RuntimeError(f'Reading OHLCV data failed for tickers={tickers}'
-                               f' start={start} end={end} align={align} normalize={normalize}') from e
+        if isinstance(tickers, str):
+            tickers = tickers.split(',')
+        data = {ticker: self._daily_ohlcv(ticker, start, end) for ticker in tickers}
+        ohlc = ['Open', 'High', 'Low', 'Close']
+        for _, df in data.items():
+            df.loc[:, ohlc] = df[ohlc].fillna(method='ffill')
+            df.loc[:, 'Volume'] = df['Volume'].fillna(0)
+        df = pd.concat(data, axis=1)
+        if align:
+            start_index = df[df.notna().all(axis=1)].index[0]
+            df = df.loc[start_index:, :]
+            if normalize:
+                for s in tickers:
+                    df.loc[:, (s, ohlc)] = df.loc[:, (s, ohlc)] / df[s].loc[start_index, 'Close']
+        return df
 
 
 def populate_nasdaq_traded_symbols():
@@ -130,4 +121,4 @@ def populate_nasdaq_traded_symbols():
     # skip header and footer
     tickers = [dict(zip(columns, row.split('|'))) for row in rows[1:-2]]
     tickers = [ticker for ticker in tickers if ticker['test_issue'] == 'N']
-    MTDB.save_objects(tickers, 'nasdaqtraded', on_conflict='update')
+    MTDB.save(tickers, 'nasdaqtraded', on_conflict='update')

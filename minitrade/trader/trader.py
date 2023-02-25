@@ -8,23 +8,21 @@ import os
 import subprocess
 import sys
 import traceback
+from dataclasses import dataclass
 from datetime import datetime, timedelta
-from functools import wraps
 from posixpath import expanduser
 from typing import Any
 from zoneinfo import ZoneInfo
 
-import attrs
 import pandas as pd
 import requests
-from pypika import Order, Query, Table
 
 from minitrade.backtest import Backtest, Strategy
 from minitrade.broker import Broker, BrokerAccount
 from minitrade.datasource import QuoteSource
 from minitrade.utils.config import config
-from minitrade.utils.convert import (attrs_to_str, bytes_to_str, csv_to_df,
-                                     df_to_str, iso_to_datetime, obj_to_str)
+from minitrade.utils.convert import (bytes_to_str, csv_to_df, df_to_str,
+                                     iso_to_datetime, obj_to_str)
 from minitrade.utils.mtdb import MTDB
 from minitrade.utils.providers import mailjet_send_email
 
@@ -32,7 +30,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
-@attrs.define(slots=False, kw_only=True)
+@dataclass(kw_only=True)
 class TradePlan:
     id: str
     name: str
@@ -47,9 +45,9 @@ class TradePlan:
     commission_rate: float = 0.001
     initial_cash: float = 10_000
     enabled: bool = False
-    create_time: datetime = attrs.field(converter=iso_to_datetime)
-    update_time: datetime | None = attrs.field(converter=iso_to_datetime)
-    broker_ticker_map: str | None = attrs.field(converter=obj_to_str)
+    create_time: datetime
+    update_time: datetime | None
+    broker_ticker_map: str | None
 
     def broker_ticker(self, ticker: str):
         ticker_map = json.loads(self.broker_ticker_map)
@@ -69,12 +67,7 @@ class TradePlan:
         RuntimeError
             If listing trade plans fails
         '''
-        try:
-            with MTDB.conn() as conn:
-                rows = conn.execute('SELECT * FROM tradeplan ORDER BY name').fetchall()
-                return [TradePlan.from_row(r) for r in rows]
-        except Exception as e:
-            raise RuntimeError('listing trade plans failed') from e
+        return MTDB.get_all('tradeplan', orderby='name', cls=TradePlan)
 
     @staticmethod
     def get_plan(plan_id: str) -> TradePlan:
@@ -95,18 +88,7 @@ class TradePlan:
         RuntimeError
             If looking up trade plans fails
         '''
-        try:
-            tradeplan = Table('tradeplan')
-            stmt = Query.from_(tradeplan).select('*').where(tradeplan.id == plan_id)
-            with MTDB.conn() as conn:
-                row = conn.execute(str(stmt)).fetchone()
-                return TradePlan.from_row(row)
-        except Exception:
-            raise RuntimeError(f'Looking up trade plan {plan_id} failed')
-
-    @classmethod
-    def from_row(cls, row):
-        return cls(**row)
+        return MTDB.get_one('tradeplan', 'id', plan_id, cls=TradePlan)
 
     def __call_scheduler(self, method: str, path: str, params: dict | None = None) -> Any:
         '''Call the scheduler's REST API
@@ -143,19 +125,9 @@ class TradePlan:
         RuntimeError
             If enabling/disabling trade plan fails
         '''
-        try:
-            self.enabled = enable
-            self.update_time = datetime.utcnow()
-            tradeplan = Table('tradeplan')
-            stmt = Query.update(tradeplan).set(
-                tradeplan.enabled, self.enabled).set(
-                tradeplan.update_time, self.update_time).where(
-                tradeplan.id == self.id)
-            with MTDB.conn() as conn:
-                conn.execute(str(stmt))
-            self.__call_scheduler('PUT', f'/jobs/{self.id}')
-        except Exception as e:
-            raise RuntimeError(f'{"Enable" if enable else "Disable"} trade plan {self.id} {self.name} failed') from e
+        self.enabled = enable
+        self.update_time = datetime.utcnow()
+        MTDB.update('tradeplan', 'id', self.id, values={'enabled': self.enabled, 'update_time': self.update_time})
 
     def jobinfo(self) -> Any:
         '''Get scheduled job info of the trade plan.
@@ -180,11 +152,8 @@ class TradePlan:
         RuntimeError
             If saving trade plan fails
         '''
-        try:
-            MTDB.save_objects(self, 'tradeplan')
-            self.__call_scheduler('PUT', f'/jobs/{self.id}')
-        except Exception as e:
-            raise RuntimeError(f'Saving trade plan {self.id} {self.name} failed') from e
+        MTDB.save(self, 'tradeplan')
+        self.__call_scheduler('PUT', f'/jobs/{self.id}')
 
     def delete(self) -> None:
         '''Unschedule a trade plan and delete it from database.
@@ -194,28 +163,16 @@ class TradePlan:
         RuntimeError
             If deleting trade plan fails
         '''
-        try:
-            with MTDB.conn() as conn:
-                tradeplan = Table('tradeplan')
-                stmt = Query.from_(tradeplan).delete().where(tradeplan.id == self.id)
-                conn.execute(str(stmt))
-            self.__call_scheduler('DELETE', f'/jobs/{self.id}')
-        except Exception as e:
-            raise RuntimeError(f'Deleting trade plan {self.id} {self.name} failed') from e
+        MTDB.delete('tradeplan', 'id', self.id)
+        self.__call_scheduler('DELETE', f'/jobs/{self.id}')
 
     def get_orders(self, runlog_id: str = None) -> list[RawOrder]:
         '''Get intended orders 
         '''
-        try:
-            with MTDB.conn() as conn:
-                raworder = Table('raworder')
-                stmt = Query.from_(raworder).select('*').where(raworder.plan_id == self.id)
-                if runlog_id is not None:
-                    stmt = stmt.where(raworder.runlog_id == runlog_id)
-                rows = conn.execute(str(stmt))
-            return [RawOrder(**row) for row in rows]
-        except Exception as e:
-            raise RuntimeError(f'Getting orders for plan {self.id} {self.name} failed') from e
+        if runlog_id:
+            return MTDB.get_all('raworder', where={'plan_id': self.id, 'runlog_id': runlog_id}, cls=RawOrder)
+        else:
+            return MTDB.get_all('raworder', 'plan_id', self.id, cls=RawOrder)
 
 
 def entry_strategy(strategy):
@@ -319,7 +276,7 @@ class StrategyManager:
         os.remove(strategy_path)
 
 
-@attrs.define(slots=False, kw_only=True)
+@dataclass(kw_only=True)
 class RawOrder:
     id: str
     plan_id: str
@@ -327,13 +284,9 @@ class RawOrder:
     ticker: str
     side: str
     size: int
-    signal_date: datetime = attrs.field(converter=iso_to_datetime)
+    signal_date: datetime
     entry_type: str
     broker_order_id: str | None
-
-    @classmethod
-    def from_row(cls, row):
-        return cls(**row)
 
     def save(self) -> None:
         '''Save an order to database. 
@@ -346,7 +299,7 @@ class RawOrder:
             the order
         '''
         try:
-            MTDB.save_objects(self, 'raworder', on_conflict='update')
+            MTDB.save(self, 'raworder', on_conflict='update')
         except Exception as e:
             raise RuntimeError(f'Saving raw order {self} failed') from e
 
@@ -354,27 +307,23 @@ class RawOrder:
         return f'{self.side} {self.ticker} {abs(self.size)}'
 
 
-@attrs.define(slots=False, kw_only=True)
+@dataclass(kw_only=True)
 class BacktestRunLog:
     id: str
     plan_id: str
     plan_name: str
     plan_strategy: str
-    plan: str = attrs.field(converter=attrs_to_str)
-    data: str | None = attrs.field(default=None, converter=df_to_str)
+    plan: str
+    data: str | None = None
     strategy_code: str | None
-    result: str | None = attrs.field(default=None, converter=df_to_str)
+    result: str | None = None
     exception: str | None = None
-    stdout: str | None = attrs.field(default=None, converter=bytes_to_str)
-    stderr: str | None = attrs.field(default=None, converter=bytes_to_str)
-    log_time: datetime = attrs.field(converter=iso_to_datetime)
+    stdout: str | None = None
+    stderr: str | None = None
+    log_time: datetime
 
     def error(self) -> bool:
         return self.result is None or self.exception is not None or self.stderr is not None
-
-    @classmethod
-    def from_row(cls, row):
-        return cls(**row)
 
 
 class BacktestRunner:
@@ -466,7 +415,7 @@ class BacktestRunner:
             orders['plan_id'] = self.plan.id
             orders['runlog_id'] = runlog_id
             orders['id'] = orders.apply(lambda x: hash(x), axis=1)
-            MTDB.save_objects(orders.to_dict('records'), 'raworder', on_conflict='ignore')
+            MTDB.save(orders.to_dict('records'), 'raworder', on_conflict='ignore')
         except Exception as e:
             raise RuntimeError(f'Saving orders failed for runlog {runlog_id}') from e
 
@@ -548,13 +497,13 @@ class BacktestRunner:
                 plan_id=self.plan.id,
                 plan_name=self.plan.name,
                 plan_strategy=self.plan.strategy_file,
-                plan=self.plan,
-                data=data,
+                plan=obj_to_str(self.plan),
+                data=df_to_str(data),
                 strategy_code=strategy_code,
-                result=result,
+                result=df_to_str(result),
                 exception=exception,
-                stdout=stdout,
-                stderr=stderr,
+                stdout=bytes_to_str(stdout),
+                stderr=bytes_to_str(stderr),
                 log_time=datetime.utcnow()
             )
         else:
@@ -565,7 +514,7 @@ class BacktestRunner:
             log.stdout = log.stdout or stdout
             log.stderr = log.stderr or stderr
         try:
-            MTDB.save_objects(log, 'backtestrunlog', on_conflict='update')
+            MTDB.save(log, 'backtestrunlog', on_conflict='update')
         except Exception as e:
             raise RuntimeError(f'Saving runlog {log.id} failed') from e
         self.send_summary_email(log)
@@ -607,17 +556,11 @@ class BacktestRunner:
         list
             A list of backtest runlogs, or empty list if error or no record found
         '''
-        try:
-            backtestrunlog = Table('backtestrunlog')
-            stmt = Query.from_(backtestrunlog).select('*').where(
-                backtestrunlog.plan_id == self.plan.id).orderby(backtestrunlog.log_time, order=Order.desc).limit(100)
-            with MTDB.conn() as conn:
-                rows = conn.execute(str(stmt)).fetchall()
-            return [BacktestRunLog.from_row(row) for row in rows]
-        except Exception as e:
-            raise RuntimeError(f'listing runlog for plan {self.plan.id} failed') from e
+        return MTDB.get_all(
+            'backtestrunlog', 'plan_id', self.plan.id, orderby=('log_time', False),
+            limit=100, cls=BacktestRunLog)
 
-    def get_backtest_runlog(self, runlog_id: str) -> BacktestRunLog | None:
+    def get_backtest_runlog(self, runlog_id: str) -> BacktestRunLog:
         '''Return log record for a backtest run.
 
         Parameters
@@ -630,10 +573,7 @@ class BacktestRunner:
         runlog
             Log of the backtest, or None if not found
         '''
-        try:
-            return MTDB.get_object('backtestrunlog', 'id', runlog_id, BacktestRunLog)
-        except Exception:
-            return None
+        return MTDB.get_one('backtestrunlog', 'id', runlog_id, cls=BacktestRunLog)
 
     def print_backtest_result(self, result: pd.Series) -> None:
         '''Break out backtest result into performance statistics, profit and loss, trades, and orders.
@@ -659,18 +599,14 @@ class BacktestRunner:
         return stats, pnl, result['_trades'], result['_orders']
 
 
-@attrs.define(slots=False, kw_only=True)
+@dataclass(kw_only=True)
 class ValidatorRunLog:
     id: str
     trace_id: str
-    order: str = attrs.field(converter=attrs_to_str)
-    result: str = attrs.field(converter=obj_to_str)
+    order: str
+    result: str
     exception: str | None = None
-    log_time: datetime = attrs.field(converter=iso_to_datetime)
-
-    @classmethod
-    def from_row(cls, row):
-        return cls(**row)
+    log_time: datetime
 
 
 class OrderValidator:
@@ -699,7 +635,7 @@ class OrderValidator:
         return self.__assert(value < limit, f'{message}: {value=} >= {limit=}')
 
     def _assert_order_is_in_sync_with_db(self, order: RawOrder):
-        order_in_db = MTDB.get_object('raworder', 'id', order.id, RawOrder)
+        order_in_db = MTDB.get_one('raworder', 'id', order.id, cls=RawOrder)
         self.__assert_not_null(order_in_db, 'Order is not in raworder table')
         self.__assert_equal(order, order_in_db, 'Order is not in sync with db')
 
@@ -707,8 +643,8 @@ class OrderValidator:
         self.__assert_equal(order.plan_id, self.plan.id, 'Order has incorrect plan ID')
 
     def _assert_order_has_correct_runlog_id(self, order: RawOrder):
-        self.__assert_not_null(MTDB.get_object('backtestrunlog', 'id', order.runlog_id,
-                                               BacktestRunLog), 'Order has incorrect runlog ID')
+        self.__assert_not_null(MTDB.get_one('backtestrunlog', 'id', order.runlog_id,
+                                            cls=BacktestRunLog), 'Order has incorrect runlog ID')
 
     def _assert_order_has_correct_ticker(self, order: RawOrder):
         self.__assert_is_in(order.ticker, self.plan.ticker_css.split(','), 'Order has incorrect ticker')
@@ -724,7 +660,7 @@ class OrderValidator:
     def _assert_order_in_time_window(self, order: RawOrder):
         plan = TradePlan.get_plan(order.plan_id)
         now = datetime.now(tz=ZoneInfo(plan.market_timezone))
-        usmarket = MTDB.get_object('nasdaqtraded', 'symbol', order.ticker) is not None
+        usmarket = MTDB.get_one('nasdaqtraded', 'symbol', order.ticker) is not None
         self.__assert_equal(usmarket, True, 'Only U.S. market is supported for now')
         if order.entry_type == 'MOO':
             # MOO order submit window is between market close on signal_date and
@@ -746,12 +682,12 @@ class OrderValidator:
         self.__assert_is_null(order.broker_order_id, 'Order already has broker_order_id')
 
     def _assert_order_is_not_in_iborder_table(self, order: RawOrder):
-        iborder = self.broker.get_cached_order_status(order)
+        iborder = self.broker.find_order(order)
         # Okay if no order exists or order exists but not fully submitted
         self.__assert(iborder is None or iborder['status'] == 'Inactive', 'Order exists in iborder table')
 
     def _assert_order_is_not_in_ibtrade_table(self, order: RawOrder):
-        trades = self.broker.get_cached_trade_status(order)
+        trades = self.broker.find_trades(order)
         self.__assert_equal(len(trades), 0, 'Order exists in ibtrade table')
 
     def validate(self, order: RawOrder, trace_id: str = None):
@@ -784,55 +720,29 @@ class OrderValidator:
         log = ValidatorRunLog(
             id=MTDB.uniqueid(),
             trace_id=trace_id,
-            order=order,
-            result=result,
+            order=obj_to_str(order),
+            result=obj_to_str(result),
             exception=exception,
             log_time=datetime.utcnow()
         )
-        MTDB.save_objects(log, 'ordervalidlog', on_conflict='error')
+        MTDB.save(log, 'ordervalidlog', on_conflict='error')
 
 
-@attrs.define(slots=False, kw_only=True)
+@dataclass(kw_only=True)
 class TraderRunLog:
     id: str
     summary: str
-    start_time: datetime = attrs.field(converter=iso_to_datetime)
-    log_time: datetime = attrs.field(converter=iso_to_datetime)
-
-    @classmethod
-    def from_row(cls, row):
-        return cls(**row)
+    start_time: datetime
+    log_time: datetime
 
 
 class Trader:
 
-    def select_completed_orders(self, plan: TradePlan):
-        '''Select orders that have been successfully traded'''
-        try:
-            raworder = Table('raworder')
-            stmt = Query.from_(raworder).select('*').where(raworder.plan_id == plan.id).where(
-                raworder.broker_order_id.notnull()).orderby(raworder.signal_time)
-            with MTDB.conn() as conn:
-                rows = conn.execute(str(stmt)).fetchall()
-            orders = [RawOrder.from_row(row) for row in rows]
-            account = BrokerAccount.get_account(plan)
-            broker = Broker.get_broker(account)
-            trades = broker.get_cached_trades(orders)
-            return trades
-        except Exception as e:
-            raise RuntimeError(f'Looking up orders failed') from e
-
     def select_orders_for_trading(self, plan: TradePlan):
         '''Select orders that should be traded, including retries'''
-        try:
-            raworder = Table('raworder')
-            stmt = Query.from_(raworder).select('*').where(raworder.plan_id == plan.id).where(
-                raworder.broker_order_id.isnull()).orderby(raworder.signal_time)
-            with MTDB.conn() as conn:
-                rows = conn.execute(str(stmt)).fetchall()
-            return [RawOrder.from_row(row) for row in rows]
-        except Exception as e:
-            raise RuntimeError(f'Looking up orders failed') from e
+        return MTDB.get_all(
+            'raworder', where={'plan_id': plan.id, 'broker_order_id': None},
+            orderby='signal_time', cls=RawOrder)
 
     def place_orders(self, plan: TradePlan, orders: list[RawOrder]) -> None:
         '''Place orders.
@@ -843,7 +753,8 @@ class Trader:
         validator = OrderValidator(plan, broker)
         trace_id = MTDB.uniqueid()
         summary = [f'Trace ID {trace_id}', str(plan), f'{len(orders)} orders to be processed']
-        if broker.prepare():
+        try:
+            broker.connect()
             summary.append(f'Broker {broker.account.alias} is ready')
             # download orders and trades before submitting new orders
             broker.download_orders()
@@ -852,7 +763,7 @@ class Trader:
                 try:
                     order_trace_id = f'{trace_id}-{i}'
                     validator.validate(order, trace_id=order_trace_id)
-                    broker_order_id = broker.place_order(plan, order, trace_id=order_trace_id)
+                    broker_order_id = broker.submit_order(plan, order, trace_id=order_trace_id)
                     order.broker_order_id = broker_order_id
                     order.save()
                 except Exception as e:
@@ -865,7 +776,7 @@ class Trader:
             broker.download_orders()
             broker.download_trades()
             self.log_trader_run(trace_id, summary, start_time)
-        else:
+        except ConnectionError as e:
             summary.append(f'Broker {broker.account.alias} is not ready, orders not submitted')
             self.log_trader_run(trace_id, summary, start_time)
 
@@ -889,5 +800,5 @@ class Trader:
             start_time=start_time,
             log_time=datetime.utcnow()
         )
-        MTDB.save_objects(log, 'traderlog', on_conflict='error')
+        MTDB.save(log, 'traderlog', on_conflict='error')
         mailjet_send_email(f'Trader @ {start_time} finished', text)

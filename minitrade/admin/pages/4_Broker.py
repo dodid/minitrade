@@ -6,7 +6,7 @@ st.set_page_config(page_title='Broker', layout='wide')
 
 
 def show_create_broker_account_form():
-    brokers = Broker.get_supported_brokers()
+    brokers = Broker.AVAILABLE_BROKERS
     broker = st.selectbox('Broker', brokers.keys(), format_func=lambda k: brokers[k])
     mode = st.radio('Account type', ['Paper', 'Live'])
     username = st.text_input('Username')
@@ -29,14 +29,15 @@ def test_and_save_broker_account(account: BrokerAccount):
         broker = Broker.get_broker(account)
         st.info(
             f'Logging in account {account.username}. Please pay attention to 2FA notification if enabled.')
-        if broker.prepare():
+        try:
+            broker.connect()
             st.success('Login succeeded')
-        else:
+        except ConnectionError:
             st.error('Login failed')
 
 
 def show_broker_account_selector():
-    acc_lst = BrokerAccount.list_accounts()
+    acc_lst = BrokerAccount.list()
     acc_idx = st.sidebar.radio('Broker account', list(range(len(acc_lst))),
                                format_func=lambda i: acc_lst[i].alias)
     account = acc_lst[int(acc_idx)] if acc_idx is not None else None
@@ -57,9 +58,10 @@ def show_broker_account_header_and_controls(account: BrokerAccount):
     c2.button('Refresh')
     if c3.button('Login'):
         broker = Broker.get_broker(account)
-        if broker.prepare():
+        try:
+            broker.connect()
             st.success('Login succeeded')
-        else:
+        except ConnectionError:
             st.error('Login failed')
     if c4.button('Delete', type='primary'):
         confirm_delete_broker_account(account)
@@ -68,8 +70,8 @@ def show_broker_account_header_and_controls(account: BrokerAccount):
 def show_broker_account_portfolio_and_trades(account: BrokerAccount):
     tab1, tab2, tab3, tab4 = st.tabs(['Portfolio', 'Recent trades', 'Orders', 'Account info'])
     broker = Broker.get_broker(account)
-    if broker.is_broker_ready():
-        tab4.write(broker.get_metainfo())
+    if broker.is_ready():
+        tab4.write(broker.get_account_info())
         tab1.write(broker.get_portfolio())
         tab2.write(broker.download_trades())
         tab3.write(broker.download_orders())

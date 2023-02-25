@@ -5,12 +5,7 @@ import json
 from datetime import datetime
 from io import StringIO
 
-import attrs
 from pandas import DataFrame, Series, read_csv
-
-
-def attrs_to_str(attrs_obj) -> str:
-    return attrs_obj if isinstance(attrs_obj, str) else json.dumps(attrs.asdict(attrs_obj), default=str)
 
 
 def df_to_str(val: DataFrame | Series | str | None) -> str | None:
@@ -31,10 +26,6 @@ def iso_to_datetime(dt: datetime | str | None) -> datetime | None:
 
 def obj_to_str(dic) -> str | None:
     return dic if isinstance(dic, str) else json.dumps(dic, default=str)
-
-
-def attrs_to_df(lst: list) -> DataFrame:
-    return DataFrame([attrs.asdict(x) for x in lst])
 
 
 def csv_to_df(csv: str, **kwargs) -> DataFrame | Series:
