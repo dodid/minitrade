@@ -4,7 +4,7 @@ from datetime import datetime, time
 from apscheduler.executors.pool import ProcessPoolExecutor
 from apscheduler.job import Job
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
-from fastapi import FastAPI, HTTPException, Response
+from fastapi import Depends, FastAPI, HTTPException, Response
 from pydantic import BaseModel
 
 from minitrade.trader import BacktestRunner, TradePlan, Trader
@@ -42,10 +42,7 @@ def schedule_trade_plan(plan: TradePlan) -> Job | None:
         )
         return job
     else:
-        try:
-            app.scheduler.remove_job(plan.id)
-        except Exception:
-            pass
+        app.scheduler.remove_job(plan.id)
 
 
 def load_trade_plans() -> list[Job]:
@@ -97,6 +94,14 @@ async def shutdown_scheduler():
     app.scheduler.shutdown()
 
 
+def get_plan(plan_id: str) -> TradePlan:
+    plan = TradePlan.get_plan(plan_id)
+    if plan:
+        return plan
+    else:
+        raise HTTPException(404, f'TradePlan {plan_id} not found')
+
+
 @app.get('/jobs', response_model=list[JobInfo])
 async def get_jobs():
     ''' Return the currently scheduled jobs '''
@@ -107,10 +112,7 @@ async def get_jobs():
 async def get_jobs_by_id(plan_id: str):
     ''' Return the specific job '''
     job = app.scheduler.get_job(job_id=plan_id)
-    if job is not None:
-        return job_info(job)
-    else:
-        raise HTTPException(status_code=404)
+    return job_info(job) if job else Response(status_code=204)
 
 
 @app.post('/jobs', response_model=list[JobInfo])
@@ -120,17 +122,10 @@ async def post_jobs():
 
 
 @app.put('/jobs/{plan_id}', response_model=JobInfo)
-async def put_jobs(plan_id: str):
+async def put_jobs(plan=Depends(get_plan)):
     ''' Reschedule a single trade plan '''
-    plan = TradePlan.get_plan(plan_id)
-    if plan is not None:
-        job = schedule_trade_plan(plan)
-        if job is not None:
-            return job_info(job)
-        else:
-            return Response(status_code=204)
-    else:
-        raise HTTPException(status_code=404)
+    job = schedule_trade_plan(plan)
+    return job_info(job) if job else Response(status_code=204)
 
 
 @app.delete('/jobs/{plan_id}')

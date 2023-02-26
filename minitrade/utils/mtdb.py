@@ -9,6 +9,8 @@ from typing import Any
 from nanoid import generate
 from pypika import Order, Query, Table
 
+from minitrade.utils.convert import serialize_to_db
+
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
@@ -71,7 +73,7 @@ class MTDB:
         table = Table(tablename)
         stmt = Query.update(table).where(table[where_key] == where_value)
         for k, v in values.items():
-            stmt.set(table[k], v)
+            stmt = stmt.set(table[k], v)
         with MTDB.conn() as conn:
             conn.execute(str(stmt))
 
@@ -88,6 +90,7 @@ class MTDB:
                 if diff:
                     logger.warning(f'Unknonw attributes {diff} detected in {data}, not saved to {tablename}')
                 data = whitelisted
+            data = {k: serialize_to_db(v) for k, v in data.items()}
             table = Table(tablename)
             if on_conflict == 'error':
                 stmt = Query.into(table).columns(*data.keys()).insert(*data.values())

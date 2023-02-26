@@ -2,6 +2,7 @@
 
 import os
 import pkgutil
+import platform
 import sqlite3
 import subprocess
 import sys
@@ -207,15 +208,16 @@ def check_selenium():
 
 @mtcli.command()
 def init():
-    click.secho('Checking prerequisites:')
-    prerequisites = [
-        check_program_version('java'),
-        check_program_version('google-chrome'),
-        check_selenium()
-    ]
-    if not all(prerequisites):
-        click.secho('Please install the required dependencies.', fg='red')
-        sys.exit(1)
+    if platform.system() == 'Linux':
+        click.secho('Checking prerequisites:')
+        prerequisites = [
+            check_program_version('java'),
+            check_program_version('google-chrome'),
+            check_selenium()
+        ]
+        if not all(prerequisites):
+            click.secho('Please install the required dependencies.', fg='red')
+            sys.exit(1)
 
     if os.path.exists(expanduser('~/.minitrade')):
         click.secho('Error: ~/.minitrade directory already exists. Initialization aborted.', fg='red')
@@ -226,7 +228,7 @@ def init():
 
     minitrade_root = expanduser('~/.minitrade')
     # init dirs
-    click.secho(f'Initializing Minitrade directory ...')
+    click.secho(f'Setting up directories ...')
     os.makedirs(os.path.join(minitrade_root, 'database'), mode=0o700, exist_ok=True)
     os.makedirs(os.path.join(minitrade_root, 'strategy'), mode=0o700, exist_ok=True)
     os.makedirs(os.path.join(minitrade_root, 'ibgateway'), mode=0o700, exist_ok=True)
@@ -235,7 +237,7 @@ def init():
     GlobalConfig().save()
     # init db
     db_loc = os.path.join(minitrade_root, 'database/minitrade.db')
-    click.secho(f'Initializing Minitrade database ...')
+    click.secho(f'Setting up database ...')
     sql = pkgutil.get_data(__name__, 'minitrade.db.sql').decode('utf-8')
     with sqlite3.connect(db_loc) as conn:
         conn.executescript(sql)

@@ -22,12 +22,24 @@ from minitrade.broker import Broker, BrokerAccount
 from minitrade.datasource import QuoteSource
 from minitrade.utils.config import config
 from minitrade.utils.convert import (bytes_to_str, csv_to_df, df_to_str,
-                                     iso_to_datetime, obj_to_str)
+                                     obj_to_str)
 from minitrade.utils.mtdb import MTDB
 from minitrade.utils.providers import mailjet_send_email
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+__all__ = [
+    'TradePlan',
+    'entry_strategy',
+    'StrategyManager',
+    'RawOrder',
+    'BacktestRunLog',
+    'BacktestRunner',
+    'ValidatorRunLog',
+    'TraderRunLog',
+    'Trader',
+]
 
 
 @dataclass(kw_only=True)
@@ -111,6 +123,8 @@ class TradePlan:
         resp = requests.request(method=method, url=url, params=params)
         if resp.status_code == 200:
             return resp.json()
+        elif resp.status_code >= 400:
+            raise RuntimeError(f'Scheduler {method} {url} {params} returns {resp.status_code} {resp.text}')
 
     def enable(self, enable: bool) -> None:
         '''Enable and schedule a plan, or disable and unschedule a plan.
@@ -128,6 +142,7 @@ class TradePlan:
         self.enabled = enable
         self.update_time = datetime.utcnow()
         MTDB.update('tradeplan', 'id', self.id, values={'enabled': self.enabled, 'update_time': self.update_time})
+        self.__call_scheduler('PUT', f'/jobs/{self.id}')
 
     def jobinfo(self) -> Any:
         '''Get scheduled job info of the trade plan.
@@ -137,10 +152,7 @@ class TradePlan:
         RuntimeError
             If getting job info fails
         '''
-        try:
-            return self.__call_scheduler('GET', f'/jobs/{self.id}')
-        except Exception as e:
-            raise RuntimeError(f'Getting trade plan job info {self.id} {self.name} failed') from e
+        return self.__call_scheduler('GET', f'/jobs/{self.id}')
 
     def save(self) -> None:
         '''Schedule the trade plan and save it to database.
@@ -176,7 +188,7 @@ class TradePlan:
 
 
 def entry_strategy(strategy):
-    ''' Decorator to help specify the entry strategy if multiple strategy classes exists in a strategy file'''
+    ''' Decorator to help specify the entry strategy when multiple strategy classes exists in a strategy file'''
     strategy.__entry_strategy__ = True
     return strategy
 
@@ -298,10 +310,7 @@ class RawOrder:
         order : RawOrder
             the order
         '''
-        try:
-            MTDB.save(self, 'raworder', on_conflict='update')
-        except Exception as e:
-            raise RuntimeError(f'Saving raw order {self} failed') from e
+        MTDB.save(self, 'raworder', on_conflict='update')
 
     def tag(self):
         return f'{self.side} {self.ticker} {abs(self.size)}'
@@ -346,18 +355,9 @@ class BacktestRunner:
             A dataframe, indexed by date, with two level columns where level 0 is the
             ticker, and level 1 is OHLCV
 
-        Raises
-        ------
-        DataLoadingError
-            If data aren't loaded successfully for any reason
         '''
-        try:
-            source = QuoteSource.get_source(self.plan.data_source)
-            return source.daily_ohlcv(
-                tickers=self.plan.ticker_css.split(','),
-                start=self.plan.backtest_start_date)
-        except Exception as e:
-            raise RuntimeError('Getting price data failed') from e
+        source = QuoteSource.get_source(self.plan.data_source)
+        return source.daily_ohlcv(tickers=self.plan.ticker_css, start=self.plan.backtest_start_date)
 
     def get_strategy(self) -> tuple[Strategy, str]:
         '''Load strategy'''
@@ -397,7 +397,7 @@ class BacktestRunner:
         except Exception:
             ex = traceback.format_exc()
         finally:
-            self.log_backtest_run(runlog_id, data=data, strategy_code=code, result=result, exception=ex)
+            self.__log_backtest_run(runlog_id, data=data, strategy_code=code, result=result, exception=ex)
 
     def record_orders(self, runlog_id: str, result: pd.Series) -> None:
         '''Record raw orders generated from a backtest run to database'''
@@ -407,17 +407,14 @@ class BacktestRunner:
                                'entry_type']].to_json(date_format='iso').encode('utf-8')
             return hashlib.md5(signature).hexdigest()
 
-        try:
-            # record orders from the backtest result to database
-            orders: pd.DataFrame = result['_orders'].reset_index()
-            orders.rename(columns={'SignalDate': 'signal_date', 'Ticker': 'ticker',
-                                   'Side': 'side', 'Size': 'size', 'EntryType': 'entry_type'}, inplace=True)
-            orders['plan_id'] = self.plan.id
-            orders['runlog_id'] = runlog_id
-            orders['id'] = orders.apply(lambda x: hash(x), axis=1)
-            MTDB.save(orders.to_dict('records'), 'raworder', on_conflict='ignore')
-        except Exception as e:
-            raise RuntimeError(f'Saving orders failed for runlog {runlog_id}') from e
+        # record orders from the backtest result to database
+        orders: pd.DataFrame = result['_orders'].reset_index()
+        orders.rename(columns={'SignalDate': 'signal_date', 'Ticker': 'ticker',
+                               'Side': 'side', 'Size': 'size', 'EntryType': 'entry_type'}, inplace=True)
+        orders['plan_id'] = self.plan.id
+        orders['runlog_id'] = runlog_id
+        orders['id'] = orders.apply(lambda x: hash(x), axis=1)
+        MTDB.save(orders.to_dict('records'), 'raworder', on_conflict='ignore')
 
     def execute(self, dryrun: bool = False) -> BacktestRunLog | None:
         '''Run backtest in an isolated process.
@@ -443,19 +440,21 @@ class BacktestRunner:
                 capture_output=True,
                 cwd=os.getcwd(),
                 timeout=600)
-            self.log_backtest_run(runlog_id,
-                                  stdout=proc.stdout if proc.stdout else None,
-                                  stderr=proc.stderr if proc.stderr else None)
-            return self.get_backtest_runlog(runlog_id)
-        except subprocess.TimeoutExpired as e:
-            self.log_backtest_run(runlog_id,
-                                  stdout=e.stdout if e.stdout else None,
-                                  stderr=e.stderr if e.stderr else None)
-            raise RuntimeError(f'Backtest for {self.plan} runlog {runlog_id} took too long to finish, killed') from e
+            self.__log_backtest_run(runlog_id,
+                                    stdout=proc.stdout if proc.stdout else None,
+                                    stderr=proc.stderr if proc.stderr else None)
+            return self.get_runlog(runlog_id)
         except Exception as e:
+            ex = traceback.format_exc()
+            self.__log_backtest_run(runlog_id,
+                                    exception=ex,
+                                    stdout=e.stdout if e.stdout else None,
+                                    stderr=e.stderr if e.stderr else None)
             raise RuntimeError(f'Backtest for {self.plan} runlog {runlog_id} failed') from e
+        finally:
+            self.__send_summary_email(runlog_id)
 
-    def log_backtest_run(
+    def __log_backtest_run(
             self,
             runlog_id: str,
             data: pd.DataFrame | None = None,
@@ -490,7 +489,7 @@ class BacktestRunner:
         BacktestRunSavingError
             If the backtest log is not saved successfully for any reason
         '''
-        log = self.get_backtest_runlog(runlog_id)
+        log = self.get_runlog(runlog_id)
         if log is None:
             log = BacktestRunLog(
                 id=runlog_id,
@@ -504,44 +503,41 @@ class BacktestRunner:
                 exception=exception,
                 stdout=bytes_to_str(stdout),
                 stderr=bytes_to_str(stderr),
-                log_time=datetime.utcnow()
+                log_time=str(datetime.utcnow())
             )
+            MTDB.save(log, 'backtestrunlog', on_conflict='error')
         else:
-            log.data = log.data or data
-            log.strategy_code = log.strategy_code or strategy_code
-            log.result = log.result or result
-            log.exception = log.exception or exception
-            log.stdout = log.stdout or stdout
-            log.stderr = log.stderr or stderr
-        try:
-            MTDB.save(log, 'backtestrunlog', on_conflict='update')
-        except Exception as e:
-            raise RuntimeError(f'Saving runlog {log.id} failed') from e
-        self.send_summary_email(log)
+            MTDB.update('backtestrunlog', 'id', log.id, values={
+                'exception': f'{log.exception}\n\n{exception}',
+                'stdout': stdout,
+                'stderr': stderr,
+            })
 
-    def send_summary_email(self, log: BacktestRunLog):
+    def __send_summary_email(self, runlog_id: str):
         ''' Send backtest summary email '''
-        orders = self.plan.get_orders(log.id)
-        ts = log.log_time.strftime("%Y-%m-%d %H:%M:%S")
-        status = "failed" if log.error() else "succeeded"
-        subject = f'Plan {log.plan_name} {status} @ {ts}' + (f' {len(orders)} new orders' if orders else '')
-        data = csv_to_df(log.data, index_col=0, header=[0, 1], parse_dates=True).xs('Close', 1, 1).tail(2).T
-        if log.result:
-            result = csv_to_df(log.result, index_col=0)
-            result = result[~result.index.str.startswith('_')]['0'].to_string()
-        else:
-            result = None
-        message = [
-            f'Plan {log.plan_name} @ {ts} {status}',
-            '\n'.join([o.tag() for o in orders]) if orders else 'No new orders',
-            f'Data\n{data.to_string()}',
-            f'Result\n{result}' if result else 'No backtest result',
-            f'Exception\n{log.exception}' if log.exception else 'No exception',
-            f'Stdout\n{log.stdout}' if log.stdout else 'No stdout',
-            f'Stderr\n{log.stderr}' if log.stderr else 'No stderr'
-        ]
-        message = '\n\n'.join(message)
-        mailjet_send_email(subject, message)
+        log = self.get_runlog(runlog_id)
+        if log:
+            orders = self.plan.get_orders(log.id)
+            ts = log.log_time
+            status = "failed" if log.error() else "succeeded"
+            subject = f'Plan {log.plan_name} {status} @ {ts}' + (f' {len(orders)} new orders' if orders else '')
+            data = csv_to_df(log.data, index_col=0, header=[0, 1], parse_dates=True).xs('Close', 1, 1).tail(2).T
+            if log.result:
+                result = csv_to_df(log.result, index_col=0)
+                result = result[~result.index.str.startswith('_')]['0'].to_string()
+            else:
+                result = None
+            message = [
+                f'Plan {log.plan_name} @ {ts} {status}',
+                '\n'.join([o.tag() for o in orders]) if orders else 'No new orders',
+                f'Data\n{data.to_string()}',
+                f'Result\n{result}' if result else 'No backtest result',
+                f'Exception\n{log.exception}' if log.exception else 'No exception',
+                f'Stdout\n{log.stdout}' if log.stdout else 'No stdout',
+                f'Stderr\n{log.stderr}' if log.stderr else 'No stderr'
+            ]
+            message = '\n\n'.join(message)
+            mailjet_send_email(subject, message)
 
     def list_runlogs(self) -> list[BacktestRunLog]:
         '''Return all backtest history for a trade plan.
@@ -560,7 +556,7 @@ class BacktestRunner:
             'backtestrunlog', 'plan_id', self.plan.id, orderby=('log_time', False),
             limit=100, cls=BacktestRunLog)
 
-    def get_backtest_runlog(self, runlog_id: str) -> BacktestRunLog:
+    def get_runlog(self, runlog_id: str) -> BacktestRunLog:
         '''Return log record for a backtest run.
 
         Parameters
@@ -681,14 +677,14 @@ class OrderValidator:
     def _assert_order_has_no_broker_order_id(self, order: RawOrder):
         self.__assert_is_null(order.broker_order_id, 'Order already has broker_order_id')
 
-    def _assert_order_is_not_in_iborder_table(self, order: RawOrder):
-        iborder = self.broker.find_order(order)
+    def _assert_order_not_in_open_orders(self, order: RawOrder):
+        broker_order = self.broker.find_order(order)
         # Okay if no order exists or order exists but not fully submitted
-        self.__assert(iborder is None or iborder['status'] == 'Inactive', 'Order exists in iborder table')
+        self.__assert(broker_order is None or broker_order['status'] == 'Inactive', 'Order exists in iborder table')
 
-    def _assert_order_is_not_in_ibtrade_table(self, order: RawOrder):
-        trades = self.broker.find_trades(order)
-        self.__assert_equal(len(trades), 0, 'Order exists in ibtrade table')
+    def _assert_order_not_in_finished_trades(self, order: RawOrder):
+        broker_trades = self.broker.find_trades(order)
+        self.__assert_equal(len(broker_trades), 0, 'Order exists in ibtrade table')
 
     def validate(self, order: RawOrder, trace_id: str = None):
         tests = [
@@ -700,8 +696,8 @@ class OrderValidator:
             self._assert_order_size_is_within_limit,
             self._assert_order_in_time_window,
             self._assert_order_has_no_broker_order_id,
-            self._assert_order_is_not_in_iborder_table,
-            self._assert_order_is_not_in_ibtrade_table,
+            self._assert_order_not_in_open_orders,
+            self._assert_order_not_in_finished_trades,
         ]
         result, ex = {}, None
         try:
@@ -712,9 +708,9 @@ class OrderValidator:
             ex = traceback.format_exc()
             raise RuntimeError(f'Order {order.id} failed {t.__name__}') from e
         finally:
-            self.log_validator_run(trace_id, order, result, ex)
+            self.__log_validator_run(trace_id, order, result, ex)
 
-    def log_validator_run(self, trace_id: str, order: RawOrder, result: dict, exception: str) -> None:
+    def __log_validator_run(self, trace_id: str, order: RawOrder, result: dict, exception: str) -> None:
         '''Log the input and output of a trader run to database.
         '''
         log = ValidatorRunLog(
@@ -738,21 +734,23 @@ class TraderRunLog:
 
 class Trader:
 
-    def select_orders_for_trading(self, plan: TradePlan):
-        '''Select orders that should be traded, including retries'''
-        return MTDB.get_all(
+    def submit_pending_orders(self, plan: TradePlan) -> None:
+        '''Place orders.
+        '''
+        orders = MTDB.get_all(
             'raworder', where={'plan_id': plan.id, 'broker_order_id': None},
             orderby='signal_time', cls=RawOrder)
 
-    def place_orders(self, plan: TradePlan, orders: list[RawOrder]) -> None:
-        '''Place orders.
-        '''
+        if not orders:
+            return
+
         start_time = datetime.utcnow()
         account = BrokerAccount.get_account(plan)
         broker = Broker.get_broker(account)
         validator = OrderValidator(plan, broker)
         trace_id = MTDB.uniqueid()
         summary = [f'Trace ID {trace_id}', str(plan), f'{len(orders)} orders to be processed']
+
         try:
             broker.connect()
             summary.append(f'Broker {broker.account.alias} is ready')
@@ -775,22 +773,18 @@ class Trader:
             # download orders and trades after submitting new orders
             broker.download_orders()
             broker.download_trades()
-            self.log_trader_run(trace_id, summary, start_time)
-        except ConnectionError as e:
-            summary.append(f'Broker {broker.account.alias} is not ready, orders not submitted')
-            self.log_trader_run(trace_id, summary, start_time)
+        except Exception:
+            ex = traceback.format_exc()
+            summary.append(ex)
+        finally:
+            self.__log_trader_run(trace_id, summary, start_time)
 
     def execute(self):
         for plan in TradePlan.list_plans():
             if plan.enabled:
-                try:
-                    orders = self.select_orders_for_trading(plan)
-                    if orders:
-                        self.place_orders(plan, orders)
-                except Exception:
-                    logger.exception(f'Submitting orders for {plan} failed')
+                self.submit_pending_orders(plan)
 
-    def log_trader_run(self, trace_id: str, summary: list[str], start_time: datetime) -> None:
+    def __log_trader_run(self, trace_id: str, summary: list[str], start_time: datetime) -> None:
         '''Log the input and output of a trader run to database.
         '''
         text = '\n\n'.join(summary)

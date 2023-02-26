@@ -30,3 +30,16 @@ def obj_to_str(dic) -> str | None:
 
 def csv_to_df(csv: str, **kwargs) -> DataFrame | Series:
     return read_csv(StringIO(csv), **kwargs)
+
+
+def serialize_to_db(val):
+    if val is None:
+        return None
+    elif isinstance(val, (int, float, bool, str, datetime)):
+        return val
+    elif isinstance(val, (DataFrame, Series)):
+        return df_to_str(val)
+    elif isinstance(val, bytes):
+        return bytes_to_str(val)
+    else:
+        return obj_to_str(val)
