@@ -39,7 +39,7 @@ class MTDB:
         stmt = Query.from_(table).select('*').where(table[where_key] == where_value)
         with MTDB.conn() as conn:
             row = conn.execute(str(stmt)).fetchone()
-        return row if cls is None else cls(**row)
+        return row if cls is None or row is None else cls(**row)
 
     @staticmethod
     def get_all(tablename: str, where_key: str = None, where_value: Any = None, *, where: dict = None, orderby: str |
