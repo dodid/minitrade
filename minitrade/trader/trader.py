@@ -332,7 +332,7 @@ class BacktestRunLog:
     log_time: datetime
 
     def error(self) -> bool:
-        return self.result is None or self.exception is not None or self.stderr is not None
+        return not self.result or self.exception or self.stderr
 
 
 class BacktestRunner:
@@ -508,7 +508,7 @@ class BacktestRunner:
             MTDB.save(log, 'backtestrunlog', on_conflict='error')
         else:
             MTDB.update('backtestrunlog', 'id', log.id, values={
-                'exception': f'{log.exception}\n\n{exception}',
+                'exception': '\n\n'.join([x for x in (log.exception, exception) if x]) or None,
                 'stdout': stdout,
                 'stderr': stderr,
             })

@@ -42,7 +42,11 @@ def schedule_trade_plan(plan: TradePlan) -> Job | None:
         )
         return job
     else:
-        app.scheduler.remove_job(plan.id)
+        try:
+            # this throws apscheduler.jobstores.base.JobLookupError if id is not found
+            app.scheduler.remove_job(plan.id)
+        except Exception:
+            pass
 
 
 def load_trade_plans() -> list[Job]:
@@ -80,7 +84,7 @@ def create_scheduler() -> AsyncIOScheduler:
 
 
 @app.on_event('startup')
-async def start_scheduler():
+def start_scheduler():
     ''' Load trade plan '''
     app.scheduler = create_scheduler()
     app.scheduler.start()
@@ -89,7 +93,7 @@ async def start_scheduler():
 
 
 @app.on_event('shutdown')
-async def shutdown_scheduler():
+def shutdown_scheduler():
     ''' shutdown the scheduler '''
     app.scheduler.shutdown()
 
@@ -103,33 +107,33 @@ def get_plan(plan_id: str) -> TradePlan:
 
 
 @app.get('/jobs', response_model=list[JobInfo])
-async def get_jobs():
+def get_jobs():
     ''' Return the currently scheduled jobs '''
     return [job_info(job) for job in app.scheduler.get_jobs()]
 
 
 @app.get('/jobs/{plan_id}', response_model=JobInfo)
-async def get_jobs_by_id(plan_id: str):
+def get_jobs_by_id(plan_id: str):
     ''' Return the specific job '''
     job = app.scheduler.get_job(job_id=plan_id)
     return job_info(job) if job else Response(status_code=204)
 
 
 @app.post('/jobs', response_model=list[JobInfo])
-async def post_jobs():
+def post_jobs():
     ''' Reschedule all trade plans '''
     return [job_info(job) for job in load_trade_plans()]
 
 
 @app.put('/jobs/{plan_id}', response_model=JobInfo)
-async def put_jobs(plan=Depends(get_plan)):
+def put_jobs(plan=Depends(get_plan)):
     ''' Reschedule a single trade plan '''
     job = schedule_trade_plan(plan)
     return job_info(job) if job else Response(status_code=204)
 
 
 @app.delete('/jobs/{plan_id}')
-async def delete_jobs(plan_id: str):
+def delete_jobs(plan_id: str):
     ''' Unschedule a single trade plan '''
     try:
         app.scheduler.remove_job(plan_id)
