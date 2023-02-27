@@ -28,7 +28,7 @@ from bokeh.layouts import gridplot
 from bokeh.palettes import Category10
 from bokeh.transform import factor_cmap
 
-from ._util import _as_list, _data_period
+from ._util import _as_list, _data_period, _Indicator
 
 with open(os.path.join(os.path.dirname(__file__), 'autoscale_cb.js'),
           encoding='utf-8') as _f:
@@ -153,7 +153,7 @@ def _maybe_resample_data(resample_rule, df, indicators, equity_data, trades):
 
 def plot(*, results: pd.Series,
          data: pd.DataFrame,
-         df: pd.DataFrame,
+         baseline: pd.DataFrame,
          indicators: List[Union[pd.DataFrame, pd.Series]],
          filename='', plot_width=None,
          plot_equity=True, plot_return=False, plot_pl=True,
@@ -175,31 +175,31 @@ def plot(*, results: pd.Series,
     COLORS = [BEAR_COLOR, BULL_COLOR]
     BAR_WIDTH = .8
 
-    assert df.index.equals(results['_equity_curve'].index)
+    assert baseline.index.equals(results['_equity_curve'].index)
     equity_data = results['_equity_curve'].copy(deep=False)
     trades = results['_trades']
 
-    plot_volume = plot_volume and not df.Volume.isnull().all()
+    plot_volume = plot_volume and not baseline.Volume.isnull().all()
     plot_equity = plot_equity and not trades.empty
     plot_return = plot_return and not trades.empty
     plot_pl = plot_pl and not trades.empty
-    is_datetime_index = isinstance(df.index, pd.DatetimeIndex)
+    is_datetime_index = isinstance(baseline.index, pd.DatetimeIndex)
 
     from .lib import OHLCV_AGG
 
     # ohlc df may contain many columns. We're only interested in, and pass on to Bokeh, these
-    df = df[list(OHLCV_AGG.keys())].copy(deep=False)
+    baseline = baseline[list(OHLCV_AGG.keys())].copy(deep=False)
 
     # Limit data to max_candles
     if is_datetime_index:
-        df, indicators, equity_data, trades = _maybe_resample_data(
-            resample, df, indicators, equity_data, trades)
+        baseline, indicators, equity_data, trades = _maybe_resample_data(
+            resample, baseline, indicators, equity_data, trades)
 
-    df.index.name = None  # Provides source name @index
-    df['datetime'] = df.index  # Save original, maybe datetime index
-    df = df.reset_index(drop=True)
+    baseline.index.name = None  # Provides source name @index
+    baseline['datetime'] = baseline.index  # Save original, maybe datetime index
+    baseline = baseline.reset_index(drop=True)
     equity_data = equity_data.reset_index(drop=True)
-    index = df.index
+    index = baseline.index
 
     new_bokeh_figure = partial(
         _figure,
@@ -219,8 +219,8 @@ def plot(*, results: pd.Series,
     fig_ohlc = new_bokeh_figure(**_kwargs)
     figs_above_ohlc, figs_below_ohlc = [], []
 
-    source = ColumnDataSource(df)
-    source.add((df.Close >= df.Open).values.astype(np.uint8).astype(str), 'inc')
+    source = ColumnDataSource(baseline)
+    source.add((baseline.Close >= baseline.Open).values.astype(np.uint8).astype(str), 'inc')
 
     trade_source = ColumnDataSource(dict(
         index=trades['ExitBar'],
@@ -251,7 +251,7 @@ return this.labels[index] || "";
         ''')
 
     NBSP = '\N{NBSP}' * 4  # noqa: E999
-    ohlc_extreme_values = df[['High', 'Low']].copy(deep=False)
+    ohlc_extreme_values = baseline[['High', 'Low']].copy(deep=False)
     ohlc_tooltips = [
         ('x, y', NBSP.join(('$index',
                             '$y{0,0.0[0000]}'))),
@@ -367,7 +367,7 @@ return this.labels[index] || "";
             fig.scatter(argmax, equity[argmax],
                         legend_label='Max Drawdown (-{:.1f}%)'.format(100 * drawdown[argmax]),
                         color='red', size=8)
-        dd_timedelta_label = df['datetime'].iloc[int(round(dd_end))] - df['datetime'].iloc[dd_start]
+        dd_timedelta_label = baseline['datetime'].iloc[int(round(dd_end))] - baseline['datetime'].iloc[dd_start]
         fig.line([dd_start, dd_end], equity.iloc[dd_start],
                  line_color='red', line_width=2,
                  legend_label=f'Max Dd Dur. ({dd_timedelta_label})'
@@ -431,7 +431,7 @@ return this.labels[index] || "";
 
     def _plot_superimposed_ohlc():
         """Superimposed, downsampled vbars"""
-        time_resolution = pd.DatetimeIndex(df['datetime']).resolution
+        time_resolution = pd.DatetimeIndex(baseline['datetime']).resolution
         resample_rule = (superimpose if isinstance(superimpose, str) else
                          dict(day='M',
                               hour='D',
@@ -445,12 +445,12 @@ return this.labels[index] || "";
                 stacklevel=4)
             return
 
-        df2 = (df.assign(_width=1).set_index('datetime')
+        df2 = (baseline.assign(_width=1).set_index('datetime')
                .resample(resample_rule, label='left')
                .agg(dict(OHLCV_AGG, _width='count')))
 
         # Check if resampling was downsampling; error on upsampling
-        orig_freq = _data_period(df['datetime'])
+        orig_freq = _data_period(baseline['datetime'])
         resample_freq = _data_period(df2.index)
         if resample_freq < orig_freq:
             raise ValueError('Invalid value for `superimpose`: Upsampling not supported.')
@@ -628,7 +628,8 @@ return this.labels[index] || "";
     ohlc_bars = _plot_ohlc()
     if plot_trades:
         _plot_ohlc_trades()
-    _plot_ohlc_universe()
+    if len(data.columns.levels[0]) > 1:
+        _plot_ohlc_universe()
     indicator_figs = _plot_indicators()
     if reverse_indicators:
         indicator_figs = indicator_figs[::-1]

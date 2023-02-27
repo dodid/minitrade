@@ -135,7 +135,7 @@ class Strategy(metaclass=ABCMeta):
         else:
             value = funcval
 
-        if any([isinstance(value, pd.DataFrame), isinstance(value, pd.Series)]):
+        if isinstance(value, (pd.DataFrame, pd.Series)):
             if not value.index.equals(self._data.index.df):
                 raise ValueError(
                     'Indicators of pd.DataFrame or pd.Series must have the same index as'
@@ -1769,7 +1769,7 @@ class Backtest:
         return plot(
             results=results,
             data=self._data,
-            df=self._ohlc_ref_data,
+            baseline=self._ohlc_ref_data,
             indicators=results._strategy._indicators,
             filename=filename,
             plot_width=plot_width,

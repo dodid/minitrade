@@ -62,6 +62,13 @@ class _Array(np.ndarray):
             self.__df = self.__df()
         return self.__df
 
+    @property
+    def s(self) -> pd.Series:
+        if isinstance(self.df, pd.Series):
+            return self.df
+        else:
+            raise ValueError(f'Value is not a pd.Series. Shape {self.df.shape}')
+
 
 class _Indicator(_Array):
     pass
