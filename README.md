@@ -1,10 +1,10 @@
 # Minitrade
 
-Minitrade is a personal automated trading system that integrates with and extends [Backtesting.py](https://github.com/kernc/backtesting.py) as the backtesting engine.
+Minitrade is a personal trading system that supports both strategy backtesting and automated order execution.
 
-It can be either used as a standalone backtesting engine that:
-- is fully compatible with Backtesting.py strategies with minor adaptions.
-- supports multi-asset portfolio and rebalancing strategies.
+It integrates with `Backtesting.py` under the hood, and:
+- Is fully compatible with Backtesting.py strategies with minor adaptions.
+- Supports multi-asset portfolio and rebalancing strategies.
 
 Or it can be used as a full trading system that:
 - Automatically executes trading strategies and submits orders.
@@ -20,7 +20,7 @@ Limitations (for now) as a trading system:
 - Support only long positions
 - Support only Interactive Brokers
 
-On the other hand, Minitrade is intended to be easily adaptable to individual's needs.
+On the other hand, Minitrade is intended to be easily hackable to fit individual's needs.
 
 ## Installation
 
@@ -43,7 +43,7 @@ Minitrade uses [Backtesting.py](https://github.com/kernc/backtesting.py) as the 
 
 ### Single asset strattegy
 
-For single asset strategies, those written for Backtesting.py can be easily adapted to work with Mintrade. The following SMA cross strategy illustrates what changes are necessary:
+For single asset strategies, those written for Backtesting.py can be easily adapted to work with Minitrade. The following illustrates what changes are necessary:
 
 ```python
 from minitrade.backtest import Backtest, Strategy
@@ -79,7 +79,7 @@ bt.plot()
 
 That's it. 
 
-[![plot of single-asset strategy](https://imgur.com/N3E2d6m)]
+![plot of single-asset strategy](https://imgur.com/N3E2d6m.jpg)
 
 Also note that some original utility functions and strategy classes only make sense for single asset strategy. Don't use those in multi-asset strategies.
 
@@ -104,9 +104,9 @@ Date
 
 Like in `Backtesting.py`, `self.data` is `_Data` type that supports progressively revealing of data, and the raw DataFrame can be accessed by `self.data.df`. 
 
-To facilitate indicator calculation, Multitrade has built-in integration with [pandas_ta](https://github.com/twopirllc/pandas-ta) a TA library. `pandas_ta` is accessible using `.ta` property of any DataFrame. Check out [here](https://github.com/twopirllc/pandas-ta#pandas-ta-dataframe-extension) for usage. `.ta` is also enhanced to support 2-level DataFrames. 
+To facilitate indicator calculation, Minitrade has built-in integration with [pandas_ta](https://github.com/twopirllc/pandas-ta) a TA library. `pandas_ta` is accessible using `.ta` property of any DataFrame. Check out [here](https://github.com/twopirllc/pandas-ta#pandas-ta-dataframe-extension) for usage. `.ta` is also enhanced to support 2-level DataFrames. 
 
-Using the earlier example, computing the 3-day SMA is simply:
+For example,
 
 ```
 $ print(self.data.df.ta.sma(3))
@@ -120,20 +120,23 @@ Date
 2018-01-08 00:00:00-05:00   41.331144  54.926167
 ```
 
-`self.I()` can take both DataFrame/Series and functions as parametes to define an indicator. If DataFrame/Series is given as input, it's expected to have exactly the same index as `self.data`. For example,
+Even simpler, `self.data.ta.sma(3)` works the same on `self.data`.
+
+
+`self.I()` can take both DataFrame/Series and functions as arguments to define an indicator. If DataFrame/Series is given as input, it's expected to have exactly the same index as `self.data`. For example,
 
 ```
-self.sma = self.I(self.data.df.ta.sma(3), name='SMA_3)
+self.sma = self.I(self.data.df.ta.sma(3), name='SMA_3')
 ```
 
 Within `Strategy.next()`, indicators are returned as type `_Array`, essentially `numpy.ndarray`, same as in `Backtesting.py`. The `.df` accessor returns either `DataFrame` or `Series` of the corresponding value. It's the caller's responsibility to know which exact type should be returned. `.s` accessor is also available but only as a syntax suger to return a `Series`. If the actual data is a DataFrame, `.s` throws a `ValueError`. 
 
 A key addition to support multi-asset strategy is a `Strategy.alloc` attribute, which combined with `Strategy.rebalance()` API, allows to specify how cash value should be allocate among the different assets. 
 
-Let's look at an example:
+Here is an example:
 
 ```
-# this strategy evenly allocates cash into the assets
+# This strategy evenly allocates cash into the assets
 # that have the top 2 highest rate-of-change every day, 
 # on condition that the ROC is possitive.
 
@@ -157,13 +160,13 @@ class TopPositiveRoc(Strategy):
 
 At the beginning of each `Strategy.next()` call, `self.alloc` starts empty. 
 
-You call `alloc.add()` to add assets to a candidate pool. `alloc.add()` takes either an index or a boolean Series as input. If it's an index, all asset in the index are added to the pool. If it's a boolean Series, index items having a `True` value are added to the pool. When multiple conditions are specified in the same call, the conditions are joined by logical `AND` and the resulted assets are added the the pool. You can also call `alloc.and()` multiple times which means logical `OR` in term of adding assets to the pool. 
+Use `alloc.add()` to add assets to a candidate pool. `alloc.add()` takes either an index or a boolean Series as input. If it's an index, all asset in the index are added to the pool. If it's a boolean Series, index items having a `True` value are added to the pool. When multiple conditions are specified in the same call, the conditions are joined by logical `AND` and the resulted assets are added the the pool. `alloc.and()` can be called multiple times which means a logical `OR` relation and add all assets involved to the pool. 
 
-Once you finish selecting what assets to buy, you call `alloc.equal_weight()` to indicate you want to allocate the total value of your equity equally to each selected asset.
+Once candidate assets are determined, Call `alloc.equal_weight()` to assign equal weight in term of value to each selected asset.
 
-And finally, you call `Strategy.rebalance()`, which will look at your current equity value, calculate the target value for each asset, calculate how many shares to buy or sell based on your current long/short positions, and generate orders that will bring the portfolio to the target allocation.
+And finally, call `Strategy.rebalance()`, which will look at the current equity value, calculate the target value for each asset, calculate how many shares to buy or sell based on the current long/short positions, and generate orders that will bring the portfolio to the target allocation.
 
 Run the above strategy on some DJIA components: 
 
-[![plot of multi-asset strategy](https://imgur.com/a/RV9S9tj)]
+![plot of multi-asset strategy](https://imgur.com/ecy6yTm.jpg)
 
