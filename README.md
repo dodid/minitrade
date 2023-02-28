@@ -1,6 +1,17 @@
-# Minitrade
+## Minitrade
 
-Minitrade is a personal trading system that supports both strategy backtesting and automated order execution.
+- [Minitrade](#minitrade)
+- [Installation](#installation)
+- [Backtesting](#backtesting)
+  - [Single asset strattegy](#single-asset-strattegy)
+  - [Multi-asset strategy](#multi-asset-strategy)
+- [Trading](#trading)
+  - [Launch](#launch)
+  - [Configure](#configure)
+  - [IB gateway](#ib-gateway)
+
+
+**Minitrade** is a personal trading system that supports both strategy backtesting and automated order execution.
 
 It integrates with `Backtesting.py` under the hood, and:
 - Is fully compatible with Backtesting.py strategies with minor adaptions.
@@ -12,7 +23,7 @@ Or it can be used as a full trading system that:
 - Runs on very low cost machines. 
 
 Limitations as a backtesting engine:
-- Multi-asset strategy only supports market order. 
+- Multi-asset strategy only supports long positions and market order. 
 
 Limitations (for now) as a trading system:
 - Tested only on Linux
@@ -170,3 +181,92 @@ Run the above strategy on some DJIA components:
 
 ![plot of multi-asset strategy](https://imgur.com/ecy6yTm.jpg)
 
+## Trading
+
+Trading a strategy manually is demanding. Running backtest, submitting orders, sticking to the plan despite ups and downs, and tracking performance takes not only effort, but also discipline. Minitrade makes it easy by automating the entire process.
+
+Minitrade's trading system consists of 3 modules:
+1. A scheduler, that runs strategies periodically and triggers order submission.
+2. A broker gateway, that interfaces with the broker system (IB in this case) and handles the communication.
+3. A web UI, that allows managing trading plans and monitoring the executions.
+
+### Launch
+
+To start trading, run the following:
+
+```
+# start scheduler
+minitrade scheduler start
+
+# start ibgateway
+minitrade ib start 
+
+# start web UI
+minitrade web
+```
+
+Use `nohup` or other tools to keep the processes running after quiting the shell.
+
+The web UI can be accessed at: ```http://127.0.0.1:8501```
+
+![Minitrade web UI - trading](https://imgur.com/1oOPcU7.jpg)
+
+![Minitrade web UI - performance ](https://imgur.com/ofc9k4i.jpg)
+
+### Configure 
+
+Configuring the system takes a few steps:
+
+1. Data source
+
+    Test the data source and make sure it works. Currently only Yahoo is supported. If a proxy is needed to visit Yahoo, configure it in the UI.
+
+2. Broker
+
+    Put in the username and password, and give the account an alias. Note the **Account type** selected is only a hint to help remember. Whether it's paper or live depends on the account itself, rather than on what's chosen here. 
+
+    A test connection to the broker is made before the account is saved. It verifies if the credentials are correct and a connection can be established successfully. For IB, if two-factor authentication is enabled, a notification will be sent to the mobile phone. Confirming on the mobile to finish login.
+
+    The credentials are saved in a local database. Be sure to secure the access to the server. 
+
+    ![Minitrade web UI - performance ](https://imgur.com/Y0lPTQx.jpg)
+    
+3. Email provider
+
+    Configure a **[Mailjet](https://mailjet.com)** account to receive email notifcations about backtesting and trading results. A free-tier account should be enough. Configure authorized senders in Mailjet, otherwise sending will fail. Try use different domains for senders and receivers if free email services like Hotmail, Gmail are used, otherwise, e.g., an email sending from a Hotmail address, through 3rd part servers, to the same or another Hotmail address is likely to be treated as spam and not delivered. Sending from Hotmail address to Gmail address or vice versa increases the chance of going through. On saving the configuration, a test email will be sent. Setup is successful if the email can be received.
+
+4. Strategy
+
+    Strategies are just Python files containing a strategy class implementation inherited from the `Strategy` class. The files can be uploaded via the UI and be made available for defining a trade plan. If a strategy class can't be found, it will show an error. If multiple strategy classes exist in a file, the one to be run should be decorated with `@entry_strategy`. To update a strategy, upload a differnt file with the same filename.
+
+5. Trade plan
+
+    A trade plan provides all necessary information to trade a strategy, including:
+    - which strategy to run
+    - the universe of assets as a list of tickers
+    - which data source to get price data from
+    - which timezone are the assets traded
+    - which date should a backtest starts
+    - which date should a trade order be generated from
+    - at what time of day should a backtest run 
+    - which broker account should orders be submitted through
+    - how much initial cash should be invested
+
+    The generic tickers need to be resolved to broker specific instrument IDs. Therefore a connection to broker will be made, which may trigger 2FA authentication. Pay attention to 2FA push on mobile phone if necessary.
+
+    Once everything is defined, a test backtest dryrun will start. It should finish without error, though it will not generate any actual orders. 
+
+    If the test run is successful, the trade plan is scheduled to run every Mon-Fri at the specified time. The time should be between market close and next market open and after when EOD market data becomes available from the selected data source. 
+
+    Backtests can be triggered at any time without duplicate orders or any other side effects. 
+
+    Backtesting and trading can be enabled or disabled via the UI.
+
+    ![Minitrade web UI - trade plan ](https://imgur.com/Zhrakz5.jpg)
+
+
+### IB gateway
+
+Minitrade uses [IB's client portal API](https://www.interactivebrokers.com/en/trading/ib-api.php#client-portal-api) to submit orders. The gateway client will be automatically downloaded and configured when `minitrade init` is run. It handles automatically login via Chrome and Selenium webdriver. 
+
+IB automatically disconnects a session after 24 hours or so. Minitrade checks connection status and reinitializes a connection, if dead, when it needs to interact with IB, i.e. when an order should be submitted or account info is retrieved via web UI. Therefore, 2FA push notification may be sent to mobile phone at random times. If one is missed, try to answer another, which is likely to come on every full 10 minutes in a hour. 

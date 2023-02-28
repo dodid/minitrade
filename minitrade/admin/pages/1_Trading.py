@@ -226,7 +226,7 @@ def show_trade_plan_execution_history(plan: TradePlan) -> None:
 action = st.sidebar.radio('Action', ['Browse existing', 'Create new'])
 
 if action == 'Create new':
-    st.subheader('Create new workflow')
+    st.subheader('Create new trade plan')
     plan = show_create_trade_plan_form()
     if plan:
         save_plan_and_dryrun(plan)
