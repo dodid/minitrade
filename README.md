@@ -1,5 +1,7 @@
 ## Minitrade
 
+> :warning: **Work in progress, package is not released to PyPI yet. Install from source to give it a try and feedback is welcome.**
+
 - [Minitrade](#minitrade)
 - [Installation](#installation)
 - [Backtesting](#backtesting)
