@@ -1,4 +1,22 @@
-# Install on Ubuntu 20.04
+# Hardware requirements
+
+Minitrade intends to run on very low cost machines such as AWS Lightsail instances with 1 GB RAM, 1 vCPU, 40 GB SSD, that cost $5 per month.
+
+# Security recommendations
+
+Securing the access to the server instance is super important since the broker credentials are saved locally. Try:
+
+- Use a dedicated server for Minitrade and don't use the same instance for other purposes.
+- Instal OpenVPN for remote access to the server
+- Set up firewall rules to only allow SSH and OpenVPN
+
+Minitrade web UI and IB gateway listen on all interfaces, therefore, accessible by public IP. It's important to use the firewall rules to block all ports but SSH and OpenVPN, and access the web UI via internal IP after OpenVPN is connected.
+
+[Create a dedicated IB user](https://www.interactivebrokers.com/en/software/singlefunds/topics/fundsaddusers.htm) for Minitrade. Only trading access should be provided, others, especially funding access, should be disallowed. This avoids access conflict when logging in from multiple devices and restricts the account permissions to the minimally required.
+
+# Install on Ubuntu 20.04 
+
+TODO: add instructions for setting up openvpn
 
 1. Install pyenv and python 3.10
 

@@ -1,6 +1,6 @@
 ## Minitrade
 
-> :warning: **Work in progress, package is not released to PyPI yet. Install from source to give it a try and feedback is welcome.**
+> :warning: **Work in progress, package is not released to PyPI yet. Install from source to give it a try and feedback is welcome. Expect frequent changes before things stablize.**
 
 - [Minitrade](#minitrade)
 - [Installation](#installation)
@@ -15,7 +15,7 @@
 
 **Minitrade** is a personal trading system that supports both strategy backtesting and automated order execution.
 
-It integrates with `Backtesting.py` under the hood, and:
+It integrates with [Backtesting.py](https://github.com/kernc/backtesting.py) under the hood, and:
 - Is fully compatible with Backtesting.py strategies with minor adaptions.
 - Supports multi-asset portfolio and rebalancing strategies.
 
@@ -48,7 +48,7 @@ If used as a trading system, continue with the following:
 
     $ minitrade init
 
-For a detailed setup guide on Ubuntu, check out [Installation](install.md).
+For a detailed setup guide on Ubuntu, check out [Installation](INSTALL.md).
 
 ## Backtesting
 
@@ -148,7 +148,7 @@ A key addition to support multi-asset strategy is a `Strategy.alloc` attribute, 
 
 Here is an example:
 
-```
+```python
 # This strategy evenly allocates cash into the assets
 # that have the top 2 highest rate-of-change every day, 
 # on condition that the ROC is possitive.
@@ -173,7 +173,7 @@ class TopPositiveRoc(Strategy):
 
 At the beginning of each `Strategy.next()` call, `self.alloc` starts empty. 
 
-Use `alloc.add()` to add assets to a candidate pool. `alloc.add()` takes either an index or a boolean Series as input. If it's an index, all asset in the index are added to the pool. If it's a boolean Series, index items having a `True` value are added to the pool. When multiple conditions are specified in the same call, the conditions are joined by logical `AND` and the resulted assets are added the the pool. `alloc.and()` can be called multiple times which means a logical `OR` relation and add all assets involved to the pool. 
+Use `alloc.add()` to add assets to a candidate pool. `alloc.add()` takes either an index or a boolean Series as input. If it's an index, all asset in the index are added to the pool. If it's a boolean Series, index items having a `True` value are added to the pool. When multiple conditions are specified in the same call, the conditions are joined by logical `AND` and the resulted assets are added the the pool. `alloc.add()` can be called multiple times which means a logical `OR` relation and add all assets involved to the pool. 
 
 Once candidate assets are determined, Call `alloc.equal_weight()` to assign equal weight in term of value to each selected asset.
 
