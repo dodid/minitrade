@@ -18,7 +18,7 @@ watch:
   - "minitrade/trader"
 
 nav:
-  - introduction.md
+  - index.md
   - "API Reference":
       - backtest.md
       - datasource.md
