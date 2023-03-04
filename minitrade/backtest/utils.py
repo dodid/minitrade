@@ -1,8 +1,11 @@
+'''
+`minitrade.backtest.utils` provides some helper functions for strategy research.
+'''
 
 import itertools
-import multiprocessing as mp
 import random
 from math import copysign
+from typing import Any
 
 import matplotlib
 import matplotlib.pyplot as plt
@@ -17,12 +20,6 @@ plt.rcParams["figure.figsize"] = (20, 3)
 plt.rcParams['axes.grid'] = True
 
 matplotlib.rcParams['font.family'] = ['Heiti TC']
-
-
-try:
-    mp.set_start_method('fork')
-except RuntimeError:
-    pass
 
 try:
     from IPython.display import display
@@ -47,9 +44,16 @@ __all__ = [
 ]
 
 
-def generate_random_portfolios(universe: list[str], k: int, limit: int = None):
-    '''
-    Generate randome portfolios with each containing k assets.
+def generate_random_portfolios(universe: list[str], k: int, limit: int = None) -> list[tuple]:
+    '''Generate randome portfolios with each containing k assets.
+
+    Args:
+        universe: A list of tickers
+        k: The desired number of assets in portfolio
+        limit: The maximum number of samples to generate. If None, generate all possible combinations. 
+
+    Returns:
+        A list of tuples, each being a portfolio of k assets.
     '''
     assert len(universe) > k
     if limit:
@@ -61,12 +65,17 @@ def generate_random_portfolios(universe: list[str], k: int, limit: int = None):
         return list(itertools.combinations(universe, k))
 
 
-def backtest_strategy_parameters(data, strategy: Strategy,
-                                 goals=['Return [%]', 'Max. Drawdown [%]', 'Calmar Ratio', 'SQN'],
-                                 **kwargs):
-    """
-    Visualize strategy performance vs. strategy parameters.
-    """
+def backtest_strategy_parameters(data: pd.DataFrame, strategy: Strategy,
+                                 goals: list[str] = ['Return [%]', 'Max. Drawdown [%]', 'Calmar Ratio', 'SQN'],
+                                 **kwargs: dict[str, Any]):
+    '''Plot the strategy performance vs. a range of strategy parameters for visual inspection.
+
+    Args:
+        data: Price data used in `Backtest`
+        strategy: A `Strategy` class under study
+        goals: A list of goals as required by `Backtest.optimize()`. A plot is generated for each.
+        **kwargs: Parameters to be passed to `Backtest.optimize()`, which should specify value range for strategy parameters.
+    '''
     bt = Backtest(data, strategy=strategy, fail_fast=False)
     for goal in goals:
         stats, heatmap = bt.optimize(maximize=goal, return_heatmap=True, **kwargs)
@@ -82,9 +91,19 @@ def backtest_strategy_parameters(data, strategy: Strategy,
     return
 
 
-def backtest_strategy_on_portfolios(data_lst, strategy: Strategy, goal='Return [%]', **kwargs):
-    '''
-    Run test over random assets and collect the performance data
+def backtest_strategy_on_portfolios(
+        data_lst: list[pd.DataFrame], strategy: Strategy, goal: str = 'Return [%]', **kwargs: dict[str, Any]) -> tuple[pd.DataFrame, pd.DataFrame]:
+    '''Run strategy over a list of portfolios and collect their best performance after optimized strategy parameters.
+
+    Args:
+        data_lst: A list of price data used in `Backtest`, which implicitly define the portfolio and time range of backtesting.
+        strategy: A `Strategy` class under study
+        goal: Goal to be optimized for, as required by `Backtest.optimize()`
+        **kwargs: Parameters to be passed to `Backtest.optimize()`, which should specify value range for strategy parameters.
+
+    Returns:
+        stats: best performance for each portfolio
+        heatmap: a heatmap of portfolio performance vs. strategy parameters
     '''
     label_data = {','.join(data.columns.levels[0]): data for data in data_lst}
     _stats, _heatmap = {}, {}
@@ -100,9 +119,12 @@ def backtest_strategy_on_portfolios(data_lst, strategy: Strategy, goal='Return [
     return stats, heatmap
 
 
-def plot_heatmap(heatmap: pd.DataFrame, smooth=None):
-    '''
-    Plot the heatmap for visual inspection
+def plot_heatmap(heatmap: pd.DataFrame, smooth: int | None = None):
+    '''Plot a grid of heatmaps.
+
+    Args:
+        heatmap: A DataFrame as returned by `minitrade.backtest.utils.backtest_strategy_on_portfolios`
+        smooth: If smooth is not None, use the lowest performance across a small window centered at a value as the performance for the parameter at the value
     '''
     # If smooth is given, use the lowest performance across a small window centered
     # at a value as the performance for the parameter at the value
@@ -121,9 +143,20 @@ def plot_heatmap(heatmap: pd.DataFrame, smooth=None):
         plt.show()
 
 
-def calculate_trade_stats(data: pd.DataFrame, init_cash: int, orders: list[dict]):
-    '''
-    Create day by day portolio report based on initial cash and order executed.
+def calculate_trade_stats(data: pd.DataFrame, cash: int, orders: list[dict]):
+    '''Create a day-by-day portolio report based on initial cash and order executed.
+
+    Args:
+        data: Price data used in `Backtest`
+        cash: The initial cash to start with
+        orders: A list of orders executed. Each order is a dictionary like 
+            {
+                'ticker': ...,
+                'entry_time': ...,
+                'size': ...,
+                'entry_price': ...,
+                'commission': ...
+            }
     '''
 
     def close_trade_helper(open_orders: list, order):
@@ -222,7 +255,7 @@ def calculate_trade_stats(data: pd.DataFrame, init_cash: int, orders: list[dict]
         positions = issued_orders.groupby('ticker')['size'].sum()
         positions = pd.Series(positions, index=close_prices.iloc[i].index).fillna(0)  # align the index
         position_value = positions.dot(close_prices.iloc[i])
-        equity.iloc[i] = init_cash + pnl - commission + position_value
+        equity.iloc[i] = cash + pnl - commission + position_value
 
     # calculate ticker performance
     position_size = trade_df[trade_df['exit_time'].isna()].groupby('ticker')['size'].sum().rename('Position Size')

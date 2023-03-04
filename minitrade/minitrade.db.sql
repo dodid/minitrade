@@ -1,8 +1,8 @@
 BEGIN TRANSACTION;
 
-DROP TABLE IF EXISTS "brokeraccount";
+DROP TABLE IF EXISTS "BrokerAccount";
 
-CREATE TABLE IF NOT EXISTS "brokeraccount" (
+CREATE TABLE IF NOT EXISTS "BrokerAccount" (
 	"alias" TEXT NOT NULL,
 	"broker" TEXT NOT NULL,
 	"mode" TEXT NOT NULL,
@@ -11,9 +11,9 @@ CREATE TABLE IF NOT EXISTS "brokeraccount" (
 	PRIMARY KEY("alias")
 );
 
-DROP TABLE IF EXISTS "ibtrade";
+DROP TABLE IF EXISTS "IbTrade";
 
-CREATE TABLE IF NOT EXISTS "ibtrade" (
+CREATE TABLE IF NOT EXISTS "IbTrade" (
 	"execution_id" TEXT NOT NULL,
 	"symbol" TEXT,
 	"supports_tax_opt" TEXT,
@@ -44,12 +44,12 @@ CREATE TABLE IF NOT EXISTS "ibtrade" (
 	PRIMARY KEY("execution_id")
 );
 
-DROP TABLE IF EXISTS "raworder";
+DROP TABLE IF EXISTS "RawOrder";
 
-CREATE TABLE IF NOT EXISTS "raworder" (
+CREATE TABLE IF NOT EXISTS "RawOrder" (
 	"id" TEXT NOT NULL,
 	"plan_id" TEXT NOT NULL,
-	"runlog_id" TEXT NOT NULL,
+	"run_id" TEXT NOT NULL,
 	"ticker" TEXT NOT NULL,
 	"side" TEXT NOT NULL,
 	"size" BIGINT NOT NULL,
@@ -59,17 +59,9 @@ CREATE TABLE IF NOT EXISTS "raworder" (
 	PRIMARY KEY("id")
 );
 
-DROP TABLE IF EXISTS "tickertimezone";
+DROP TABLE IF EXISTS "TradePlan";
 
-CREATE TABLE IF NOT EXISTS "tickertimezone" (
-	"ticker" TEXT NOT NULL,
-	"timezone" TEXT NOT NULL,
-	PRIMARY KEY("ticker")
-);
-
-DROP TABLE IF EXISTS "tradeplan";
-
-CREATE TABLE IF NOT EXISTS "tradeplan" (
+CREATE TABLE IF NOT EXISTS "TradePlan" (
 	"id" TEXT NOT NULL,
 	"name" TEXT NOT NULL,
 	"strategy_file" TEXT NOT NULL,
@@ -90,9 +82,9 @@ CREATE TABLE IF NOT EXISTS "tradeplan" (
 	PRIMARY KEY("id")
 );
 
-DROP TABLE IF EXISTS "backtestrunlog";
+DROP TABLE IF EXISTS "BacktestLog";
 
-CREATE TABLE IF NOT EXISTS "backtestrunlog" (
+CREATE TABLE IF NOT EXISTS "BacktestLog" (
 	"id" TEXT NOT NULL,
 	"plan_id" TEXT NOT NULL,
 	"plan_name" TEXT NOT NULL,
@@ -108,9 +100,9 @@ CREATE TABLE IF NOT EXISTS "backtestrunlog" (
 	PRIMARY KEY("id")
 );
 
-DROP TABLE IF EXISTS "traderlog";
+DROP TABLE IF EXISTS "TraderLog";
 
-CREATE TABLE IF NOT EXISTS "traderlog" (
+CREATE TABLE IF NOT EXISTS "TraderLog" (
 	"id" TEXT NOT NULL,
 	"summary" TEXT,
 	"start_time" DATETIME,
@@ -118,11 +110,11 @@ CREATE TABLE IF NOT EXISTS "traderlog" (
 	PRIMARY KEY("id")
 );
 
-DROP TABLE IF EXISTS "ordervalidlog";
+DROP TABLE IF EXISTS "OrderValidatorLog";
 
-CREATE TABLE IF NOT EXISTS "ordervalidlog" (
+CREATE TABLE IF NOT EXISTS "OrderValidatorLog" (
 	"id" TEXT NOT NULL,
-	"trace_id" TEXT NOT NULL,
+	"order_id" TEXT NOT NULL,
 	"order" TEXT NOT NULL,
 	"result" TEXT NOT NULL,
 	"exception" TEXT,
@@ -130,14 +122,14 @@ CREATE TABLE IF NOT EXISTS "ordervalidlog" (
 	PRIMARY KEY("id")
 );
 
-DROP TABLE IF EXISTS "iborderlog";
+DROP TABLE IF EXISTS "IbOrderLog";
 
-CREATE TABLE IF NOT EXISTS "iborderlog" (
+CREATE TABLE IF NOT EXISTS "IbOrderLog" (
 	"id" TEXT NOT NULL,
-	"trace_id" TEXT NOT NULL,
+	"order_id" TEXT NOT NULL,
 	"account_id" TEXT NOT NULL,
 	"plan" TEXT NOT NULL,
-	"raworder" TEXT NOT NULL,
+	"order" TEXT NOT NULL,
 	"iborder" TEXT,
 	"result" TEXT,
 	"exception" TEXT,
@@ -146,9 +138,9 @@ CREATE TABLE IF NOT EXISTS "iborderlog" (
 	PRIMARY KEY("id")
 );
 
-DROP TABLE IF EXISTS "iborder";
+DROP TABLE IF EXISTS "IbOrder";
 
-CREATE TABLE IF NOT EXISTS "iborder" (
+CREATE TABLE IF NOT EXISTS "IbOrder" (
 	"acct" TEXT,
 	"conidex" TEXT,
 	"conid" BIGINT,
@@ -181,9 +173,9 @@ CREATE TABLE IF NOT EXISTS "iborder" (
 	PRIMARY KEY("orderId")
 );
 
-DROP TABLE IF EXISTS "nasdaqtraded";
+DROP TABLE IF EXISTS "NasdaqTraded";
 
-CREATE TABLE IF NOT EXISTS "nasdaqtraded" (
+CREATE TABLE IF NOT EXISTS "NasdaqTraded" (
 	"nasdaq_traded" TEXT,
 	"symbol" TEXT NOT NULL,
 	"security_name" TEXT NOT NULL,

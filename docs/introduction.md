@@ -1,17 +1,4 @@
-## Minitrade
-
-> :warning: **Work in progress, package is not released to PyPI yet. Install from source to give it a try and feedback is welcome. Expect frequent changes before things stablize.**
-
-- [Minitrade](#minitrade)
-- [Installation](#installation)
-- [Backtesting](#backtesting)
-  - [Single asset strattegy](#single-asset-strattegy)
-  - [Multi-asset strategy](#multi-asset-strategy)
-- [Trading](#trading)
-  - [Launch](#launch)
-  - [Configure](#configure)
-  - [IB gateway](#ib-gateway)
-
+# Introduction
 
 **Minitrade** is a personal trading system that supports both strategy backtesting and automated order execution.
 

@@ -20,78 +20,80 @@ __all__ = [
 
 @dataclass(kw_only=True)
 class BrokerAccount:
+    '''
+    BrokerAccount describes a broker account, such as name, type, and login credentials.
+    '''
+
     alias: str
+    '''Account alias'''
+
     broker: str
+    '''Broker alias as in `Broker.AVAILABLE_BROKERS`'''
+
     mode: str
+    '''"Live" or "Paper". Note this is only a hint to help remember. Whether an account
+    is live or paper depends on the account itself rather than this field.'''
+
     username: str
+    '''Account username'''
+
     password: str
+    '''Account password'''
 
     @staticmethod
-    def get_account(plan: TradePlan | str) -> BrokerAccount:
-        '''Look up a broker account from a trade plan
+    def get_account(plan_or_alias: TradePlan | str) -> BrokerAccount:
+        '''Look up a broker account from a broker account `alias` or the alias 
+        as specified in a `TradePlan`.
 
-        Parameters
-        ----------
-        plan : TradePlan | str
-            Trade plan or a trade plan alias
+        Args:
+            plan_or_alias: A trade plan or a broker account alias
 
-        Returns
-        -------
-        account
-            Broker account if found, otherwise None
+        Returns:
+            A broker account, or None if the alias is invalid
         '''
-        alias = plan if isinstance(plan, str) else plan.broker_account
-        return MTDB.get_one('brokeraccount', 'alias', alias, cls=BrokerAccount)
+        alias = plan_or_alias if isinstance(plan_or_alias, str) else plan_or_alias.broker_account
+        return MTDB.get_one('BrokerAccount', 'alias', alias, cls=BrokerAccount)
 
     @staticmethod
     def list() -> list[BrokerAccount]:
-        '''Return the list of available broker accounts
+        '''Return the list of available broker accounts.
 
-        Returns
-        -------
-        list
-            A list of broker accounts
+        Returns:
+            A list of zero or more broker accounts
         '''
-        return MTDB.get_all('brokeraccount', cls=BrokerAccount, orderby='alias')
+        return MTDB.get_all('BrokerAccount', cls=BrokerAccount, orderby='alias')
 
     def save(self) -> None:
-        '''Save broker account to database. 
-        '''
-        MTDB.save(self, 'brokeraccount', on_conflict='error')
+        '''Save a broker account to database.'''
+        MTDB.save(self, 'BrokerAccount', on_conflict='error')
 
     def delete(self) -> None:
-        '''Delete broker account from database. 
-
-        Raises
-        ------
-        RuntimeError
-            If deleting broker account failed
-        '''
-        MTDB.delete('brokeraccount', 'alias', self.alias)
+        '''Delete broker account from database.'''
+        MTDB.delete('BrokerAccount', 'alias', self.alias)
 
 
 class Broker(ABC):
+    '''
+    Broker is a base class that manages the connection to a broker system. Extend this class 
+    to add a concrete implementation to talk to a particular broker.
+    '''
 
     AVAILABLE_BROKERS = {'IB': 'Interactive Brokers'}
+    '''A dict mapping from broker alias to broker user-friendly name for supported brokers.'''
 
     @staticmethod
     def get_broker(account: BrokerAccount) -> Broker:
-        ''' Create a broker connection for the specific `account`
+        '''Create a broker connector for a `account` that specifies the type of broker
+        and the login credentials.
 
-        Parameters
-        ----------
-        account : BrokerAccount
-            Broker account that contains broker type and credential
+        Args:
+            account: A `BrokerAccount` instance
 
-        Returns
-        -------
-        broker
-            Broker connection instance
+        Returns: 
+            A `Broker` instance
 
-        Raises
-        ------
-        NotImplementedError
-            If the broker is not supported
+        Raises:
+            AttributeError: If the type of broker is not supported
         '''
         if account.broker == 'IB':
             from .ib import InteractiveBrokers
@@ -100,53 +102,44 @@ class Broker(ABC):
             raise AttributeError(f'Broker {account.broker} is not supported')
 
     def __init__(self, account: BrokerAccount):
-        ''' Create a broker connection with the supplied `account` info. 
+        ''' Create a broker connector with the supplied `account` info. 
 
-        Parameters
-        ----------
-        account : BrokerAccount
-            Account info
+        Args:
+            account: a `BrokerAccount` instance
         '''
         self.account = account
 
     @abstractmethod
     def is_ready(self) -> bool:
-        '''Return True if the broker account is connected and ready to receive orders
+        '''Check if the broker connector has a working connection with the broker.
 
-        Returns
-        -------
-        ready
-            True if ready, otherwise False
+        All calls interacting with the broker system should only be sent after
+        `is_ready` return True. 
+
+        Returns: 
+            True if a connection to broker is ready, otherwise False
         '''
         raise NotImplementedError()
 
     @abstractmethod
     def connect(self):
-        '''Set up a working connection to the broker account.
+        '''Set up a working connection to the broker.
 
-        Raises
-        -------
-        ConnectionError
-            Raise ConnectionError if a working connection can't be established.
+        Raises:
+            ConnectionError: If a working connection can't be established.
         '''
         raise NotImplementedError()
 
     @abstractmethod
-    def submit_order(self, plan: TradePlan, order: RawOrder, trace_id: str = None) -> str:
-        '''Submit an order via broker interface
+    def submit_order(self, plan: TradePlan, order: RawOrder) -> str:
+        '''Submit an order to the broker.
 
-        Parameters
-        ----------
-        plan: TradePlan
-            The trade plan
-        order : RawOrder
-            Order to be placed
-        trace_id: str
-            ID to trace order as part of a workflow
+        Args:
+            plan: A trade plan
+            order: A `RawOrder` to be submitted
+            trace_id: An arbitrary string that can be used to trace order as part of a workflow
 
-        Returns
-        -------
-        order_id
+        Returns:
             Broker assigned order ID if order is submitted successfully, otherwise None
         '''
         raise NotImplementedError()
@@ -155,9 +148,7 @@ class Broker(ABC):
     def get_account_info(self) -> dict:
         '''Get broker account meta info
 
-        Returns
-        -------
-        info
+        Returns:
             A dict that contains broker specific account information
         '''
         raise NotImplementedError()
@@ -166,88 +157,92 @@ class Broker(ABC):
     def get_portfolio(self) -> pd.DataFrame:
         '''Get account portfolio
 
-        Returns
-        -------
-        portfolio
+        Returns:
             A dataframe that contains broker specific portfolio infomation
         '''
         raise NotImplementedError()
 
     @abstractmethod
     def download_trades(self) -> pd.DataFrame:
-        '''Get recent trades
+        '''Get recent trades at broker. Trades are completed orders.
 
-        The number of trades returned depends on the data availability of each broker.
+        This function is called immediately before and after order submission to get the most 
+        recent trade information on the broker side. The trades returned should be persisted
+        to database and can be used for display, order validation, statistics, and record keeping.
+        Trade info is usually final.
 
-        Returns
-        -------
-        trades
+        The number of trades returned depends on the data availability of particular broker.
+
+        Returns:
             A dataframe that contains recently finished trades
         '''
         raise NotImplementedError()
 
     @abstractmethod
     def download_orders(self) -> pd.DataFrame:
-        '''Get recent orders
+        '''Get recent orders at broker. RawOrder submitted creates a correspoing order
+        on the broker side, which can have different status such as open, cancelled, error, etc.
+
+        This function is called immediately before and after order submission to get the most 
+        recent order information on the broker side. The orders returned should be persisted
+        to database and can be used for display, order validation, statistics, and record keeping.
+        Since order status can change over time, new status should overwrite past one.
 
         The number of orders returned depends on the data availability of each broker.
 
-        Returns
-        -------
-        orders
-            A dataframe that contains recent orders which can be submitted, filled, or cancelled
+        Returns:
+            A dataframe that contains recent order information
         '''
         raise NotImplementedError()
 
     @abstractmethod
     def disconnect(self) -> None:
-        '''Disconnect from broker and release any resources.
-        '''
+        '''Disconnect from broker and release any resources.'''
         raise NotImplementedError()
 
     @abstractmethod
     def resolve_tickers(self, ticker_css: str) -> dict[str, list]:
         '''Resolve generic tickers to broker specific ticker IDs.
 
-        Parameters
-        ----------
-        ticker_css : str
-            A list of tickers formatted as a comma separated string
+        Args:
+            ticker_css: A list of tickers formatted as a comma separated string
 
-        Returns
-        -------
-        map
+        Returns:
             A dict mapping each generic ticker name to a list of broker ticker options.
-            The format is like 
-            {
-                TK1: [
-                    {'id': id1, 'label': label1}, 
-                    {'id': id2, 'label': label2}
-                ], 
-                TK2: [
-                    {'id': id1, 'label': label1}
-                ],
-                TK3: []
-            }
-            where id is the broker specific ticker ID, label is a human readable string
-            to help disambiguate the options.
+                The format is like 
+                {
+                    TK1: [
+                        {'id': id1, 'label': label1}, 
+                        {'id': id2, 'label': label2}
+                    ], 
+                    TK2: [
+                        {'id': id1, 'label': label1}
+                    ],
+                    TK3: []
+                }
+                where id is the broker specific ticker ID, label is a human readable string
+                to help disambiguate the options.
         '''
         raise NotImplementedError()
 
     @abstractmethod
     def find_trades(self, order: RawOrder) -> dict:
-        '''Get trade information associated with the raw order.
+        '''Get trade information associated with the raw `order`.
 
-        Parameters
-        ----------
-        order : RawOrder
-            A raw order
+        A 'RawOrder' can be filled in multiple trades at different time and prices, therefore
+        a list of trades may be returned.
 
-        Returns
-        -------
-        trade
+        A subclass implementing this function only needs to look up trades from the database,
+        instead of querying the broker directly, which can be slow. In scenarios where stale
+        information can't be tolerated, `download_trades()` is always called before this 
+        function is invoked.
+
+        Args:
+            order: A `RawOrder`
+
+        Returns:
             A dict that contains broker specific trade infomation associated with the order, 
-            or None if no trade is found or 
+            or None if no broker trade is found.
         '''
         raise NotImplementedError()
 
@@ -255,22 +250,24 @@ class Broker(ABC):
     def find_order(self, order: RawOrder) -> dict:
         '''Get last known order status, not necessarily latest.
 
-        Parameters
-        ----------
-        order : RawOrder
-            A raw order
+        A subclass implementing this function only needs to look up orders from the database,
+        instead of querying the broker directly, which can be slow. In scenarios where stale
+        information can't be tolerated, `download_orders()` is always called before this 
+        function is invoked.
 
-        Returns
-        -------
-        order
+        Args:
+            order: A `RawOrder`
+
+        Returns:
             A dict that contains broker specific order infomation associated with the order, 
-            or None if no broker order is found or 
+            or None if no broker order is found.
         '''
         raise NotImplementedError()
 
     @abstractmethod
     def format_trades(self, orders: list[RawOrder]) -> list[dict]:
-        '''Get trade status corresponding to the list of orders and format as the following
+        '''Get broker specific trade status corresponding to the list of orders and format
+            in dict like:
             {
                 'ticker': ...,
                 'entry_time': ...,
@@ -279,14 +276,10 @@ class Broker(ABC):
                 'commission': ...
             }
 
-        Parameters
-        ----------
-        order : list[RawOrder]
-            A list of raw orders
+        Args:
+            order: A list of `RawOrder`
 
-        Returns
-        -------
-        trades
+        Returns:
             A list of completed trades with relevant information
         '''
         raise NotImplementedError()

@@ -4,11 +4,15 @@ Note all config items should have default values so that an initial configuratio
 be generated on installation.
 """
 
+import logging
 import sys
 from posixpath import expanduser
 
 import yaml
 from pydantic import BaseModel
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 
 class SourceConfigYahoo(BaseModel):
@@ -73,5 +77,5 @@ class GlobalConfig(BaseModel):
 
 try:
     config = GlobalConfig.load() if 'pytest' not in sys.modules else GlobalConfig.load('~/.minitrade/config.pytest.yaml')
-except Exception:
-    pass
+except Exception as e:
+    logger.exception(e)

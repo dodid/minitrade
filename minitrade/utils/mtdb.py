@@ -109,11 +109,8 @@ class MTDB:
         '''Delete rows matching the query'''
         table = Table(tablename)
         stmt = Query.from_(table).delete().where(table[key] == value)
-        try:
-            with MTDB.conn() as conn:
-                conn.execute(str(stmt))
-        except Exception as e:
-            raise RuntimeError(f'Deleting from table {tablename} failed: key {key}, value {value}') from e
+        with MTDB.conn() as conn:
+            conn.execute(str(stmt))
 
     @staticmethod
     def uniqueid():

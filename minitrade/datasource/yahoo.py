@@ -24,7 +24,7 @@ class YahooQuoteSource(QuoteSource):
         else:
             self.proxy = None
 
-    def _daily_ohlcv(self, ticker, start, end) -> pd.DataFrame:
+    def _daily_bar(self, ticker, start, end) -> pd.DataFrame:
         df: pd.DataFrame = yf.Ticker(ticker).history(start=start, end=end, interval='1d',
                                                      auto_adjust=True, proxy=self.proxy, timeout=10)
         df = df[['Open', 'High', 'Low', 'Close', 'Volume']]

@@ -161,10 +161,10 @@ def scheduler_unschedule(plan_id):
 
 @mtcli.command
 @click.argument('plan_id')
-@click.option('--execid', default=None, help='Specify the execution ID manually')
+@click.option('--run_id', default=None, help='Specify the execution ID manually')
 @click.option('--dryrun', is_flag=True, help='Dry run only, don\'t place orders')
 @click.option('--pytest', is_flag=True, help='Run in test mode')
-def execute(plan_id, execid, dryrun, pytest):
+def execute(plan_id, run_id, dryrun, pytest):
     from minitrade.trader.trader import BacktestRunner
     if pytest:
         # import pytest which will trigger running in test mode using test db
@@ -174,7 +174,7 @@ def execute(plan_id, execid, dryrun, pytest):
     try:
         plan = TradePlan.get_plan(plan_id)
         runner = BacktestRunner(plan)
-        runner.run_backtest(runlog_id=execid, dryrun=dryrun)
+        runner.run_backtest(run_id=run_id, dryrun=dryrun)
     except Exception as e:
         raise e
 

@@ -1,0 +1,26 @@
+site_name: Minitrade
+
+theme:
+  name: material
+  features:
+    - navigation.expand
+
+plugins:
+  - search
+  - mkdocstrings
+
+markdown_extensions:
+  - mkdocs-click
+
+dev_addr: "127.0.0.1:8888"
+
+watch:
+  - "minitrade/trader"
+
+nav:
+  - introduction.md
+  - "API Reference":
+      - backtest.md
+      - datasource.md
+      - broker.md
+      - trader.md

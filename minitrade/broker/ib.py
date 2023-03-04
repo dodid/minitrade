@@ -26,10 +26,10 @@ logger = logging.getLogger(__name__)
 @dataclass(kw_only=True)
 class IbOrderLog:
     id: str
-    trace_id: str
+    order_id: str
     account_id: str
     plan: str
-    raworder: str
+    order: str
     iborder: str
     result: str
     exception: str
@@ -164,7 +164,7 @@ class InteractiveBrokers(Broker):
             'company_name', 'contract_description_1', 'sec_type', 'listing_exchange', 'conid', 'conidEx',
             'directed_exchange', 'clearing_id', 'clearing_name', 'liquidation_trade', 'is_event_trading', 'order_ref']
         trades = self.__call_ibgateway('GET', '/iserver/account/trades')
-        MTDB.save(trades, 'ibtrade', on_conflict='update', whitelist=whitelist)
+        MTDB.save(trades, 'IbTrade', on_conflict='update', whitelist=whitelist)
         return pd.DataFrame(trades)
 
     def download_orders(self) -> pd.DataFrame | None:
@@ -176,15 +176,15 @@ class InteractiveBrokers(Broker):
             'timeInForce', 'lastExecutionTime_r', 'side', 'order_cancellation_by_system_reason', 'outsideRTH', 'price']
         orders = self.__call_ibgateway('GET', '/iserver/account/orders')
         if orders and orders['orders']:
-            MTDB.save(orders['orders'], 'iborder', on_conflict='update', whitelist=whitelist)
+            MTDB.save(orders['orders'], 'IbOrder', on_conflict='update', whitelist=whitelist)
             return pd.DataFrame(orders['orders'])
 
-    def submit_order(self, plan: TradePlan, order: RawOrder, trace_id: str = None) -> str | None:
+    def submit_order(self, plan: TradePlan, order: RawOrder) -> str | None:
         ib_order = result = ex = broker_order_id = None
         try:
             ib_order = {
                 'acctId': self._account_id,
-                'conid': plan.broker_ticker(order.ticker),
+                'conid': plan.broker_instrument_id(order.ticker),
                 'cOID': order.id,
                 'orderType': 'MKT',
                 'listingExchange': 'SMART',
@@ -209,24 +209,24 @@ class InteractiveBrokers(Broker):
             ex = traceback.format_exc()
             raise RuntimeError(f'Placing order failed for {self.account.alias} order {order}') from e
         finally:
-            self.__log_order(trace_id, self._account_id, plan, order, ib_order, result, ex, broker_order_id)
+            self.__log_order(self._account_id, plan, order, ib_order, result, ex, broker_order_id)
 
-    def __log_order(self, trace_id: str, account_id: str, plan: TradePlan, raworder: RawOrder, iborder: dict,
+    def __log_order(self, account_id: str, plan: TradePlan, order: RawOrder, iborder: dict,
                     result: Any, exception: str, broker_order_id: str):
         '''Log the input and output of order submission to database.'''
         log = IbOrderLog(
             id=MTDB.uniqueid(),
-            trace_id=trace_id,
+            order_id=order.id,
             account_id=account_id,
             plan=obj_to_str(plan),
-            raworder=obj_to_str(raworder),
+            order=obj_to_str(order),
             iborder=obj_to_str(iborder),
             result=obj_to_str(result),
             exception=exception,
             broker_order_id=broker_order_id,
             log_time=datetime.utcnow()
         )
-        MTDB.save(log, 'iborderlog', on_conflict='error')
+        MTDB.save(log, 'IbOrderLog', on_conflict='error')
 
     def resolve_tickers(self, ticker_css) -> dict[str, list]:
         result = self.__call_ibgateway('GET', '/trsrv/stocks', {'symbols': ticker_css})
@@ -242,10 +242,10 @@ class InteractiveBrokers(Broker):
         return result
 
     def find_trades(self, order: RawOrder) -> list(dict) | None:
-        return MTDB.get_all('ibtrade', 'order_ref', order.id)
+        return MTDB.get_all('IbTrade', 'order_ref', order.id)
 
     def find_order(self, order: RawOrder) -> dict | None:
-        return MTDB.get_one('iborder', 'order_ref', order.id)
+        return MTDB.get_one('IbOrder', 'order_ref', order.id)
 
     def format_trades(self, orders: list[RawOrder]) -> list[dict]:
         trades = []

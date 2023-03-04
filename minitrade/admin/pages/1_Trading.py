@@ -8,7 +8,7 @@ import streamlit as st
 from minitrade.backtest import calculate_trade_stats
 from minitrade.broker import Broker, BrokerAccount
 from minitrade.datasource import QuoteSource
-from minitrade.trader import (BacktestRunLog, BacktestRunner, StrategyManager,
+from minitrade.trader import (BacktestLog, BacktestRunner, StrategyManager,
                               TradePlan)
 from minitrade.utils.convert import csv_to_df
 from minitrade.utils.mtdb import MTDB
@@ -49,7 +49,7 @@ def get_broker_ticker_map(tickers: dict | None) -> dict | None:
 
 
 def show_create_trade_plan_form() -> TradePlan | None:
-    strategy_file = st.selectbox('Pick a strategy', StrategyManager.list_strategies())
+    strategy_file = st.selectbox('Pick a strategy', StrategyManager.list())
     ticker_css = st.text_input('Define the asset space')
     data_source = st.selectbox('Select a data source', QuoteSource.AVAILABLE_SOURCES)
     market_timezone = market_timezone_selectbox()
@@ -89,9 +89,9 @@ def show_create_trade_plan_form() -> TradePlan | None:
             )
 
 
-def display_runlog(plan: TradePlan, log: BacktestRunLog):
+def display_run(plan: TradePlan, log: BacktestLog):
     orders = plan.get_orders(log.id)
-    log_status = '❌' if log.error() else '✅' if orders else '🟢'
+    log_status = '❌' if log.error else '✅' if orders else '🟢'
     label = f'{log_status} {log.log_time} [{log.id}]' + (f' **{len(orders)} orders**' if orders else '')
     with st.expander(label):
         tab1, tab2, tab3, tab4 = st.tabs(['Result', 'Error', 'Log', 'Orders'])
@@ -114,8 +114,8 @@ def save_plan_and_dryrun(plan: TradePlan) -> None:
     plan.save()
     runner = BacktestRunner(plan)
     log = runner.execute(dryrun=True)
-    display_runlog(plan, log)
-    if log.error():
+    display_run(plan, log)
+    if log.error:
         st.error('Trade plan dryrun failed, plan disabled')
     else:
         plan.enable(True)
@@ -133,7 +133,7 @@ def show_trade_plan_selector() -> TradePlan | None:
 def run_trade_plan_once(plan: TradePlan) -> None:
     runner = BacktestRunner(plan)
     log = runner.execute()
-    if log is not None and not log.error():
+    if log is not None and not log.error:
         st.success(f'Backtest {log.id} finished successfully')
     else:
         st.error(f'Backtest failed')
@@ -175,12 +175,11 @@ def show_trade_plan_status(plan: TradePlan) -> None:
 
 def show_trade_plan_execution_history(plan: TradePlan) -> None:
     tab1, tab2, tab3, tab4 = st.tabs(['Run history', 'Orders', 'Performance', 'Settings'])
-    runner = BacktestRunner(plan)
-    logs = runner.list_runlogs()
+    logs = plan.list_logs()
     with tab1:
         show_trade_plan_status(plan)
         for log in logs:
-            display_runlog(plan, log)
+            display_run(plan, log)
 
     with tab2:
         account = BrokerAccount.get_account(plan)
@@ -201,23 +200,26 @@ def show_trade_plan_execution_history(plan: TradePlan) -> None:
                     st.write(trade)
 
     with tab3:
-        data = csv_to_df(logs[0].data, index_col=0, header=[0, 1], parse_dates=True)
-        trades = broker.format_trades(orders)
-        _, trade_df, equity, pnl, commission_rate = calculate_trade_stats(data, plan.initial_cash, trades)
-        rr = (equity / equity[0] - 1) * 100
-        rr.name = 'Return rate (%)'
-        c1, c2, c3, c4 = st.columns(4)
-        c1.metric(label='Portfolio Value',
-                  value=f'{equity.iloc[-1]:,.0f}', delta=f'{int(equity.iloc[-1]-equity.iloc[-2]):,}')
-        c2.metric(label='PnL', value=f'{(equity.iloc[-1]-plan.initial_cash):,.0f}')
-        c3.metric(label='Return', value=f'{rr.iloc[-1]:.2f}%')
-        c4.metric(label='Commission Rate', value=f'{commission_rate:.3%}')
-        st.caption('Return rate (%)')
-        st.line_chart(rr, height=200)
-        st.caption('Profit and loss')
-        st.write(pnl.style.format('{:,.0f}', na_rep=' '))
-        st.caption('Trades')
-        st.write(trade_df.style.format(na_rep=' '))
+        try:
+            data = csv_to_df(logs[0].data, index_col=0, header=[0, 1], parse_dates=True)
+            trades = broker.format_trades(orders)
+            _, trade_df, equity, pnl, commission_rate = calculate_trade_stats(data, plan.initial_cash, trades)
+            rr = (equity / equity[0] - 1) * 100
+            rr.name = 'Return rate (%)'
+            c1, c2, c3, c4 = st.columns(4)
+            c1.metric(label='Portfolio Value',
+                      value=f'{equity.iloc[-1]:,.0f}', delta=f'{int(equity.iloc[-1]-equity.iloc[-2]):,}')
+            c2.metric(label='PnL', value=f'{(equity.iloc[-1]-plan.initial_cash):,.0f}')
+            c3.metric(label='Return', value=f'{rr.iloc[-1]:.2f}%')
+            c4.metric(label='Commission Rate', value=f'{commission_rate:.3%}')
+            st.caption('Return rate (%)')
+            st.line_chart(rr, height=200)
+            st.caption('Profit and loss')
+            st.write(pnl.style.format('{:,.0f}', na_rep=' '))
+            st.caption('Trades')
+            st.write(trade_df.style.format(na_rep=' '))
+        except Exception as e:
+            st.write(e)
 
     with tab4:
         st.write(asdict(plan))

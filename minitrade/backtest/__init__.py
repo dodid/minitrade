@@ -1,2 +1,2 @@
-from .backtest import *
 from .core import Backtest, Strategy
+from .utils import *

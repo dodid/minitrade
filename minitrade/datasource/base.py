@@ -3,6 +3,7 @@ from __future__ import annotations
 import logging
 import urllib.request
 from abc import ABC, abstractmethod
+from typing import Any
 
 import pandas as pd
 
@@ -18,29 +19,27 @@ __all__ = [
 
 
 class QuoteSource(ABC):
+    '''
+    QuoteSource is a base class that returns quote data for instruments. Extend this class 
+    to add a concrete implementation to get data from particular data source.
+    '''
 
     AVAILABLE_SOURCES = ['Yahoo']
+    '''A list of names for supported quote sources as input to `QuoteSource.get_source()`.'''
 
     @staticmethod
-    def get_source(name: str, **kwargs) -> QuoteSource:
-        ''' Get data source by name
+    def get_source(name: str, **kwargs: dict[str, Any]) -> QuoteSource:
+        '''Get quote source by name
 
-        Parameters
-        ----------
-        name : str
-            Data source name
-        kwargs : Dict
-            keyword arguments to be passed to the data source
+        Args:
+            name: Quote source name
+            kwargs: Keyword arguments to be passed to the quote source constructor
 
-        Returns
-        -------
-        source : QuoteSource
-            The data source
+        Returns:
+            A QuoteSource instance
 
-        Raises
-        ------
-        RuntimeError
-            If the asked data source is not supported
+        Raises:
+            AttributeError: If the asked data source is not supported
         '''
         if name == 'Yahoo':
             from .yahoo import YahooQuoteSource
@@ -49,57 +48,34 @@ class QuoteSource(ABC):
             raise AttributeError(f'Quote source {name} is not supported')
 
     @abstractmethod
-    def _daily_ohlcv(self, ticker: str, start: str, end: str = None) -> pd.DataFrame:
-        '''Read end-of-day OHLCV data for `ticker` starting from `start` date and ending on `end` date (both inclusive).
+    def _daily_bar(self, ticker: str, start: str, end: str = None) -> pd.DataFrame:
+        '''Same as `daily_bar()` for only one ticker.
 
-        Parameters
-        ----------
-        ticker : str
-            The stock symbol
-        start : str
-            Start date in string format 'YYYY-MM-DD'
-        end : str
-            End date in string format 'YYYY-MM-DD'
+        This should be overridden in subclass to provide an implemention.
 
-        Returns
-        -------
-        ohlcv
+        Returns:
             A dataframe with columns 'Open', 'High', 'Low', 'Close', 'Volume' indexed by datetime 
-
-        Raises
-        ------
-        RuntimeError
-            If getting data fails for any reason
         '''
         raise NotImplementedError()
 
-    def daily_ohlcv(
+    def daily_bar(
             self, tickers: list[str] | str,
             start: str = '2020-01-01', end: str = None, align: bool = True, normalize: bool = False) -> pd.DataFrame:
-        '''Read end-of-day OHLCV data for a list of tickers starting from `start` date and ending on `end` date (both inclusive).
+        '''Read end-of-day OHLCV data for a list of `tickers` starting from `start` date and ending on `end` date (both inclusive).
 
-        Parameters
-        ----------
-        tickers : list[str] | str
-            Tickers as a list of string or as one comma separated string
-        start : str
-            Start date in string format 'YYYY-MM-DD'
-        end : str
-            End date in string format 'YYYY-MM-DD'
-        align : bool
-            True to align data to start on the same date, i.e. drop leading days when not all tickers have quote available.
-        normalize : bool
-            True to normalize the close price on the start date to 1 for all tickers and scale all price data accordingly.
+        Args:
+            tickers: Tickers as a list of string or a comma separated string without space
+            start: Start date in string format 'YYYY-MM-DD'
+            end: End date in string format 'YYYY-MM-DD'
+            align: True to align data to start on the same date, i.e. drop leading days when not all tickers have data available.
+            normalize: True to normalize the close price on the start date to 1 for all tickers and scale all price data accordingly.
 
-        Returns
-        -------
-        ohlcv
-            A dataframe with 2-level columns, first level being the tickers, and the second level being columns 'Open', 
-            'High', 'Low', 'Close', 'Volume'. The dataframe is indexed by datetime.
+        Returns:
+            A dataframe with 2-level columns, first level being the tickers, and the second level being columns 'Open', 'High', 'Low', 'Close', 'Volume'. The dataframe is indexed by datetime.
         '''
         if isinstance(tickers, str):
             tickers = tickers.split(',')
-        data = {ticker: self._daily_ohlcv(ticker, start, end) for ticker in tickers}
+        data = {ticker: self._daily_bar(ticker, start, end) for ticker in tickers}
         ohlc = ['Open', 'High', 'Low', 'Close']
         for _, df in data.items():
             df.loc[:, ohlc] = df[ohlc].fillna(method='ffill')
@@ -121,4 +97,4 @@ def populate_nasdaq_traded_symbols():
     # skip header and footer
     tickers = [dict(zip(columns, row.split('|'))) for row in rows[1:-2]]
     tickers = [ticker for ticker in tickers if ticker['test_issue'] == 'N']
-    MTDB.save(tickers, 'nasdaqtraded', on_conflict='update')
+    MTDB.save(tickers, 'NasdaqTraded', on_conflict='update')
