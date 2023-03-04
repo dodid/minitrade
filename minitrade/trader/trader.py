@@ -550,8 +550,8 @@ class BacktestRunner:
         else:
             MTDB.update('BacktestLog', 'id', log.id, values={
                 'exception': '\n\n'.join([x for x in (log.exception, exception) if x]) or None,
-                'stdout': stdout,
-                'stderr': stderr,
+                'stdout': bytes_to_str(stdout),
+                'stderr': bytes_to_str(stderr),
             })
 
     def _send_summary_email(self):

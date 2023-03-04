@@ -75,7 +75,7 @@ class QuoteSource(ABC):
         '''
         if isinstance(tickers, str):
             tickers = tickers.split(',')
-        data = {ticker: self._daily_bar(ticker, start, end) for ticker in tickers}
+        data = {ticker: self._daily_bar(ticker, start, end).copy() for ticker in tickers}
         ohlc = ['Open', 'High', 'Low', 'Close']
         for _, df in data.items():
             df.loc[:, ohlc] = df[ohlc].fillna(method='ffill')

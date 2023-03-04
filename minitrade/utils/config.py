@@ -77,5 +77,5 @@ class GlobalConfig(BaseModel):
 
 try:
     config = GlobalConfig.load() if 'pytest' not in sys.modules else GlobalConfig.load('~/.minitrade/config.pytest.yaml')
-except Exception as e:
-    logger.exception(e)
+except Exception:
+    pass
