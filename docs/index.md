@@ -35,7 +35,7 @@ If used as a trading system, continue with the following:
 
     $ minitrade init
 
-For a detailed setup guide on Ubuntu, check out [Installation](INSTALL.md).
+For a detailed setup guide on Ubuntu, check out [Installation](install).
 
 ## Backtesting
 

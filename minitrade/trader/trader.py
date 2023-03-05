@@ -496,7 +496,7 @@ class BacktestRunner:
         orders['id'] = orders.apply(lambda x: hash(x), axis=1)
         MTDB.save(orders.to_dict('records'), 'RawOrder', on_conflict='ignore')
 
-    def execute(self, dryrun: bool = False):
+    def execute(self, dryrun: bool = False) -> BacktestLog:
         '''Run backtest in an isolated process.
 
         Args:
@@ -508,7 +508,7 @@ class BacktestRunner:
         try:
             self.run_id = MTDB.uniqueid()
             proc = subprocess.run(
-                [sys.executable, '-m', 'minitrade.cli', 'execute', '--run_id', self.run_id, self.plan.id] +
+                [sys.executable, '-m', 'minitrade.cli', 'backtest', '--run_id', self.run_id, self.plan.id] +
                 (['--dryrun'] if dryrun else []) + (['--pytest'] if 'pytest' in sys.modules else []),
                 capture_output=True,
                 cwd=os.getcwd(),

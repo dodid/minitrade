@@ -9,8 +9,7 @@ import pandas as pd
 from minitrade.utils.mtdb import MTDB
 
 if typing.TYPE_CHECKING:
-    from minitrade.backtest import RawOrder
-    from minitrade.trader import TradePlan
+    from minitrade.trader import RawOrder, TradePlan
 
 __all__ = [
     'BrokerAccount',
@@ -137,7 +136,6 @@ class Broker(ABC):
         Args:
             plan: A trade plan
             order: A `RawOrder` to be submitted
-            trace_id: An arbitrary string that can be used to trace order as part of a workflow
 
         Returns:
             Broker assigned order ID if order is submitted successfully, otherwise None
@@ -277,7 +275,7 @@ class Broker(ABC):
             }
 
         Args:
-            order: A list of `RawOrder`
+            orders: A list of `RawOrder`
 
         Returns:
             A list of completed trades with relevant information

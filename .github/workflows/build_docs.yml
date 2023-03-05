@@ -1,4 +1,4 @@
-name: ci
+name: build_docs
 on:
   push:
     branches:
@@ -18,7 +18,8 @@ jobs:
         with:
           key: ${{ github.ref }}
           path: .cache
-      - run: pip install mkdocs-material
+      - run: pip install mkdocs-material=8.5.11
       - run: pip install "mkdocstrings[python]"
       - run: pip install mkdocs-click
-      - run: mkdocs gh-deploy --force
+      - run: pip install mkdocs-jupyter=0.22.0
+      - run: mkdocs gh-deploy --force --no-history

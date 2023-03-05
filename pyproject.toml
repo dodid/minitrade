@@ -47,8 +47,9 @@ notebook = "^6.5.2"
 vprof = "^0.38"
 mkdocs = "^1.4.2"
 mkdocstrings = {extras = ["python"], version = "^0.20.0"}
-mkdocs-material = "^9.0.15"
+mkdocs-material = "^8.5.11"
 mkdocs-click = "^0.8.0"
+mkdocs-jupyter = "^0.22.0"
 
 
 [tool.poetry.scripts]

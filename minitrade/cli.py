@@ -1,5 +1,3 @@
-
-
 import os
 import pkgutil
 import platform
@@ -49,6 +47,7 @@ def mtcli(ctx):
 
 @mtcli.group()
 def ib():
+    '''Control the execution of IB gateway'''
     pass
 
 
@@ -73,7 +72,7 @@ def ib_status():
 
 @ib.command('login')
 @click.option('-a', '--alias', prompt='Alias', help='IB account alias')
-def ib_status(alias):
+def ib_login(alias):
     status = __call_ibgateway_admin('PUT', f'/ibgateway/{alias}')
     click.echo(status)
 
@@ -88,6 +87,7 @@ def ib_logout():
 
 @mtcli.command()
 def web():
+    '''Launch web UI'''
     from streamlit.web.cli import main
     cd = os.path.dirname(os.path.realpath(__file__))
     home = os.path.join(cd, 'admin/Home.py')
@@ -99,6 +99,7 @@ def web():
 
 @mtcli.group()
 def scheduler():
+    '''Manage scheduler and scheduled jobs'''
     pass
 
 
@@ -161,10 +162,11 @@ def scheduler_unschedule(plan_id):
 
 @mtcli.command
 @click.argument('plan_id')
-@click.option('--run_id', default=None, help='Specify the execution ID manually')
+@click.option('--run_id', default=None, help='Specify an unique run ID manually')
 @click.option('--dryrun', is_flag=True, help='Dry run only, don\'t place orders')
 @click.option('--pytest', is_flag=True, help='Run in test mode')
-def execute(plan_id, run_id, dryrun, pytest):
+def backtest(plan_id, run_id, dryrun, pytest):
+    '''Run backtest for particular plan'''
     from minitrade.trader.trader import BacktestRunner
     if pytest:
         # import pytest which will trigger running in test mode using test db
@@ -208,6 +210,7 @@ def check_selenium():
 
 @mtcli.command()
 def init():
+    '''Initialize Minitrade for trading'''
     if platform.system() == 'Linux':
         click.secho('Checking prerequisites:')
         prerequisites = [
