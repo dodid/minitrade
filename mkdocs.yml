@@ -1,9 +1,27 @@
 site_name: Minitrade
+repo_url: https://github.com/dodid/minitrade
 
 theme:
   name: material
-  # features:
-  #   - navigation.expand
+  features:
+    - navigation.instant
+    - navigation.tracking
+    - navigation.tabs
+    - navigation.sections
+    - navigation.indexes
+    - toc.follow
+    - navigation.top
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
 
 plugins:
   - search
@@ -12,25 +30,32 @@ plugins:
 
 markdown_extensions:
   - mkdocs-click
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.superfences
 
 dev_addr: "127.0.0.1:8888"
 
-watch:
-  - "minitrade/trader"
+extra:
+  analytics:
+    provider: google
+    property: G-HK9C9K1N4Q
 
 nav:
-  - index.md
-  - install.md
-  - cli.md
+  - Home:
+      - index.md
+      - install.md
+      - cli.md
   - "API Reference":
       - backtest.md
       - datasource.md
       - broker.md
       - trader.md
-  - "Examples from Backtesting.py":
-      - examples/README.md
-      - examples/Quick Start User Guide.ipynb
-      - examples/Strategies Library.ipynb
-      - examples/Multiple Time Frames.ipynb
-      - examples/Parameter Heatmap & Optimization.ipynb
-      - examples/Trading with Machine Learning.ipynb
+  - "Examples":
+      - "Original from Backtesting.py":
+          - examples/README.md
+          - examples/Quick Start User Guide.ipynb
+          - examples/Strategies Library.ipynb
+          - examples/Multiple Time Frames.ipynb
+          - examples/Parameter Heatmap & Optimization.ipynb
+          - examples/Trading with Machine Learning.ipynb
