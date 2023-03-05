@@ -12,33 +12,20 @@ Securing the access to the server instance is super important since the broker c
 - Instal OpenVPN for remote access to the server
 - Set up firewall rules to only allow SSH and OpenVPN
 
-Minitrade web UI and IB gateway listen on all interfaces, therefore, accessible by public IP. It's important to use the firewall rules to block all ports but SSH and OpenVPN, and access the web UI via internal IP after OpenVPN is connected.
+Minitrade web UI and IB gateway listen on all interfaces, therefore, accessible by public IP. It's important to use the firewall rules to block all ports but SSH and OpenVPN, and access the web UI via private IP after OpenVPN is connected.
 
 [Create a dedicated IB user](https://www.interactivebrokers.com/en/software/singlefunds/topics/fundsaddusers.htm) for Minitrade. Only trading access should be provided, others, especially funding access, should be disallowed. This avoids access conflict when logging in from multiple devices and restricts the account permissions to the minimally required.
 
 ## Install on Ubuntu 20.04 
 
-TODO: add instructions for setting up openvpn
+1. Install OpenVPN, following the instructions [here](https://www.cyberciti.biz/faq/ubuntu-20-04-lts-set-up-openvpn-server-in-5-minutes/). Make sure firewall is open for the port that OpenVPN listens on.
 
-1. Install pyenv and python 3.10
-
-        sudo apt update
-
-        sudo apt install make build-essential libssl-dev zlib1g-dev libbz2-dev libreadline-dev libsqlite3-dev wget curl llvm libncursesw5-dev xz-utils tk-dev libxml2-dev libxmlsec1-dev libffi-dev liblzma-dev
-
-        curl https://pyenv.run | bash
-
-        exec $SHELL
-
+2. Install pyenv, following the instructions [here](https://brain2life.hashnode.dev/how-to-install-pyenv-python-version-manager-on-ubuntu-2004). Then install python 3.10:
+   
         pyenv install 3.10.10
-
         pyenv global 3.10.10
 
-        echo "export PATH=\"$HOME/.pyenv/bin:$PATH\"" >> .bashrc
-        echo "eval \"$(pyenv init --path)\"" >> .bashrc
-        echo "eval \"$(pyenv virtualenv-init -)\"" >> .bashrc
-
-2. Install dependencies
+3. Install dependencies
 
         sudo apt install -y default-jre
         
@@ -47,7 +34,7 @@ TODO: add instructions for setting up openvpn
         sudo apt update
         sudo apt install -y google-chrome-stable
 
-3. Install Minitrade
+4. Install Minitrade
 
         pip install minitrade
         minitrade init
@@ -55,7 +42,9 @@ TODO: add instructions for setting up openvpn
 
 ## Install on Ubuntu 22.04
 
-1. Install python 3.10
+1. Install OpenVPN, following the instructions [here](https://www.cyberciti.biz/faq/ubuntu-22-04-lts-set-up-openvpn-server-in-5-minutes/). Make sure firewall is open for the port that OpenVPN listens on.
+
+2. Install python 3.10
 
         sudo apt update
         sudo apt install -y python3.10 wget gnupg
@@ -63,7 +52,7 @@ TODO: add instructions for setting up openvpn
         wget https://bootstrap.pypa.io/get-pip.py
         sudo python get-pip.py
 
-2. Install dependencies
+3. Install dependencies
 
         sudo apt install -y default-jre
         
@@ -72,7 +61,7 @@ TODO: add instructions for setting up openvpn
         sudo apt update
         sudo apt install -y google-chrome-stable
 
-3. Install Minitrade
+4. Install Minitrade
 
         pip install minitrade
         minitrade init

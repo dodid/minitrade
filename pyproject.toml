@@ -1,18 +1,17 @@
 [tool.poetry]
 name = "minitrade"
-version = "0.1.21"
-description = "A personal trading system"
+version = "0.1.1"
+description = "A personal automated trading system"
 authors = ["Wei Wu <dodid@outlook.com>"]
 readme = "README.md"
 license = "AGPL-3.0-or-later"
 repository = "https://github.com/dodid/minitrade"
-homepage = "https://minitrade.github.io/"
-documentation = "https://minitrade.github.io/docs/"
-keywords = ["trading", "algorithmic-trading", "backtesting", "interactive-brokers"]
+homepage = "https://dodid.github.io/minitrade/"
+keywords = ["finance", "investing", "trading", "algorithmic-trading", "backtesting", "backtesting-frameworks", "interactive-brokers"]
 
 
 [tool.poetry.dependencies]
-python = "3.10.*"
+python = "~3.10"
 streamlit = "^1.15.2"
 pandas = "^1.5.2"
 numpy = "^1.23.5"
@@ -35,8 +34,8 @@ pypika = "^0.48.9"
 click = "^8.1.3"
 mailjet-rest = "^1.3.4"
 scikit-learn = "^1.2.1"
-scipy = "^1.10.0"
-scikit-optimize = { git = "https://github.com/dodid/scikit-optimize.git", branch = "master" }
+scipy = "^1.10.1"
+minitrade-scikit-optimize = "^0.9.1"
 
 
 [tool.poetry.group.dev.dependencies]
