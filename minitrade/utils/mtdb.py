@@ -38,7 +38,12 @@ class MTDB:
     def get_one(tablename: str, where_key: str, where_value: Any, *, cls=None):
         '''Return single row matching the query or None if no rows are available.'''
         table = Table(tablename)
-        stmt = Query.from_(table).select('*').where(table[where_key] == where_value)
+        stmt = Query.from_(table).select('*')
+        if where_key is not None:
+            if where_value is None:
+                stmt = stmt.where(table[where_key].isnull())
+            else:
+                stmt = stmt.where(table[where_key] == where_value)
         with MTDB.conn() as conn:
             row = conn.execute(str(stmt)).fetchone()
         return row if cls is None or row is None else cls(**row)
@@ -50,10 +55,16 @@ class MTDB:
         table = Table(tablename)
         stmt = Query.from_(table).select('*')
         if where_key is not None:
-            stmt = stmt.where(table[where_key] == where_value)
+            if where_value is None:
+                stmt = stmt.where(table[where_key].isnull())
+            else:
+                stmt = stmt.where(table[where_key] == where_value)
         if where:
             for k, v in where.items():
-                stmt = stmt.where(table[k] == v)
+                if v is None:
+                    stmt = stmt.where(table[k].isnull())
+                else:
+                    stmt = stmt.where(table[k] == v)
         if orderby is not None:
             try:
                 field, ascending = orderby
@@ -71,7 +82,12 @@ class MTDB:
     def update(tablename: str, where_key: str, where_value: Any, *, values: dict):
         '''Update rows matching the query'''
         table = Table(tablename)
-        stmt = Query.update(table).where(table[where_key] == where_value)
+        stmt = Query.update(table)
+        if where_key is not None:
+            if where_value is None:
+                stmt = stmt.where(table[where_key].isnull())
+            else:
+                stmt = stmt.where(table[where_key] == where_value)
         for k, v in values.items():
             stmt = stmt.set(table[k], v)
         with MTDB.conn() as conn:
@@ -105,10 +121,15 @@ class MTDB:
                 conn.execute(str(stmt))
 
     @staticmethod
-    def delete(tablename: str, key: str, value: Any):
+    def delete(tablename: str, where_key: str, where_value: Any):
         '''Delete rows matching the query'''
         table = Table(tablename)
-        stmt = Query.from_(table).delete().where(table[key] == value)
+        stmt = Query.from_(table).delete()
+        if where_key is not None:
+            if where_value is None:
+                stmt = stmt.where(table[where_key].isnull())
+            else:
+                stmt = stmt.where(table[where_key] == where_value)
         with MTDB.conn() as conn:
             conn.execute(str(stmt))
 
