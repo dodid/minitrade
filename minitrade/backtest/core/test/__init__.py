@@ -16,8 +16,8 @@ EURUSD = _read_file('EURUSD.csv')
 """DataFrame of hourly EUR/USD forex data from April 2017 to February 2018."""
 
 
-def SMA(arr: pd.Series, n: int):
+def SMA(arr: pd.Series, n: int) -> pd.Series:
     """
     Returns `n`-period simple moving average of array `arr`.
     """
-    return pd.Series(arr).rolling(n).mean().to_numpy()
+    return arr.rolling(n).mean()

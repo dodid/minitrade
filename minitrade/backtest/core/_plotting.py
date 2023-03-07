@@ -115,13 +115,9 @@ def _maybe_resample_data(resample_rule, df, indicators, equity_data, trades):
     from .lib import _EQUITY_AGG, OHLCV_AGG, TRADES_AGG
     df = df.resample(freq, label='right').agg(OHLCV_AGG).dropna()
 
-    indicators = [_Indicator(i.df.resample(freq, label='right').mean()
-                             .dropna().reindex(df.index).values.T,
-                             **dict(i._opts, name=i.name,
-                                    # Replace saved index with the resampled one
-                                    index=df.index))
+    indicators = [i.resample(freq, label='right').mean().dropna().reindex(df.index)
                   for i in indicators]
-    assert not indicators or indicators[0].df.index.equals(df.index)
+    assert not indicators or indicators[0].index.equals(df.index)
 
     equity_data = equity_data.resample(freq, label='right').agg(_EQUITY_AGG).dropna(how='all')
     assert equity_data.index.equals(df.index)

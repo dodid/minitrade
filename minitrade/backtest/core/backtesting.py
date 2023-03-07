@@ -82,7 +82,7 @@ class Strategy(metaclass=ABCMeta):
     def I(self,  # noqa: E743
           funcval: Union[pd.DataFrame, pd.Series, Callable], *args,
           name=None, plot=True, overlay=None, color=None, scatter=False,
-          ** kwargs) -> Union[pd.DataFrame, pd.Series, _Indicator]:
+          ** kwargs) -> Union[pd.DataFrame, pd.Series]:
         """
         Declare an indicator. An indicator is just an array of values,
         but one that is revealed gradually in
@@ -135,7 +135,7 @@ class Strategy(metaclass=ABCMeta):
             value = funcval
 
         if isinstance(value, (pd.DataFrame, pd.Series)):
-            if not value.index.equals(self._data.index.df):
+            if not value.index.equals(self._data.index):
                 raise ValueError(
                     'Indicators of pd.DataFrame or pd.Series must have the same index as'
                     f' `data` (data shape: {len(self._data)}; indicator shape: {len(value)}.\n'

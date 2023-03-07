@@ -20,7 +20,7 @@ def _as_str(value) -> str:
     if isinstance(value, (Number, str)):
         return str(value)
     if isinstance(value, pd.DataFrame):
-        return 'df'
+        return value.attrs.get('name', None) or 'df'
     name = str(getattr(value, 'name', '') or '')
     if name in ('Open', 'High', 'Low', 'Close', 'Volume'):
         return name[:1]
@@ -55,6 +55,15 @@ class _Array(np.ndarray):
         if obj is None:
             return
         self.__df = getattr(obj, '__df', None)
+
+    # Make sure __df are carried over when (un-)pickling.
+    def __reduce__(self):
+        value = super().__reduce__()
+        return value[:2] + (value[2] + (self.__dict__,),)
+
+    def __setstate__(self, state):
+        self.__dict__.update(state[-1])
+        super().__setstate__(state[:-1])
 
     @property
     def df(self) -> Union[pd.DataFrame, pd.Series]:
@@ -123,7 +132,7 @@ class _Data:
 
     def __repr__(self):
         i = min(self.__i, len(self.__df)) - 1
-        index = self.__arrays['__index'][i]
+        index = self.__arrays['__index'][0][i]
         items = ', '.join(f'{k}={v}' for k, v in self.__df.iloc[i].items())
         return f'<Data i={i} ({index}) {items}>'
 
@@ -132,14 +141,14 @@ class _Data:
 
     @property
     def df(self) -> pd.DataFrame:
-        __df = self.__df[self.the_ticker] if len(self.tickers) == 1 else self.__df
-        return __df.iloc[:self.__i] if self.__i < len(__df) else __df
+        df_ = self.__df[self.the_ticker] if len(self.tickers) == 1 else self.__df
+        return df_.iloc[:self.__i] if self.__i < len(df_) else df_
 
     @property
     def pip(self) -> float:
         if self.__pip is None:
             self.__pip = float(10**-np.median([len(s.partition('.')[-1])
-                                               for s in self.__arrays['Close'].astype(str)]))
+                                               for s in self.__arrays['Close'][0].ravel().astype(str)]))
         return self.__pip
 
     def __get_array(self, key) -> _Array:
@@ -174,7 +183,7 @@ class _Data:
 
     @property
     def index(self) -> pd.DatetimeIndex:
-        return self.__get_array('__index')
+        return self.__get_array('__index').df   # return pd.DatetimeIndex
 
     # Make pickling in Backtest.optimize() work with our catch-all __getattr__
     def __getstate__(self):

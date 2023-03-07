@@ -34,7 +34,7 @@ def geometric_mean(returns: pd.Series) -> float:
 
 
 def compute_stats(
-        orders: List['Order'],
+        orders: Union[List['Order'], pd.DataFrame],
         trades: Union[List['Trade'], pd.DataFrame],
         equity: np.ndarray,
         ohlc_data: pd.DataFrame,
@@ -47,13 +47,16 @@ def compute_stats(
     dd = 1 - equity / np.maximum.accumulate(equity)
     dd_dur, dd_peaks = compute_drawdown_duration_peaks(pd.Series(dd, index=index))
 
-    orders_df = pd.DataFrame({
-        'SignalDate': [t.entry_time for t in orders],
-        'Ticker': [t.ticker for t in orders],
-        'Side': ['Buy' if t.size > 0 else 'Sell' for t in orders],
-        'Size': [int(t.size) for t in orders],
-        'EntryType': [t.entry_type for t in orders],
-    }).set_index('SignalDate')
+    if isinstance(orders, pd.DataFrame):
+        orders_df = orders
+    else:
+        orders_df = pd.DataFrame({
+            'SignalDate': [t.entry_time for t in orders],
+            'Ticker': [t.ticker for t in orders],
+            'Side': ['Buy' if t.size > 0 else 'Sell' for t in orders],
+            'Size': [int(t.size) for t in orders],
+            'EntryType': [t.entry_type for t in orders],
+        }).set_index('SignalDate')
 
     equity_df = pd.DataFrame({
         'Equity': equity,

@@ -54,7 +54,7 @@ from minitrade.backtest.core.test import SMA, GOOG
 
 class SmaCross(Strategy):
     def init(self):
-        price = self.data.Close
+        price = self.data.Close.df
         self.ma1 = self.I(SMA, price, 10, overlay=True)
         self.ma2 = self.I(SMA, price, 20, overlay=True)
 
@@ -77,7 +77,7 @@ bt.plot()
 3. Minitrade doesn't try to guess where to plot the indicators. So if you want to overlay the indicators on the main chart, set `overlay=True` explicitly.
 4. `Strategy.position` is no longer a property but a function. Any occurrence of `self.position` should be changed to `self.position()`. 
 
-That's it. 
+That's it. Check out [compatibility](compatibility.md) for more details.
 
 ![plot of single-asset strategy](https://imgur.com/N3E2d6m.jpg)
 

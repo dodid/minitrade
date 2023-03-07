@@ -46,6 +46,7 @@ nav:
       - index.md
       - install.md
       - cli.md
+      - Compatibility: compatibility.md
   - "API Reference":
       - backtest.md
       - datasource.md
