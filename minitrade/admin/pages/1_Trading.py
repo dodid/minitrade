@@ -191,7 +191,7 @@ def show_trade_plan_execution_history(plan: TradePlan) -> None:
             order_status = '✅' if trade else '🟢' if order.broker_order_id else '🚫'
             with st.expander(f'{order_status} {order.signal_time} **{order.ticker} {order.side} {abs(order.size)}**'):
                 st.caption('Raw order')
-                st.write(order)
+                st.write(asdict(order))
                 if broker_order:
                     st.caption('Broker order')
                     st.write(broker_order)

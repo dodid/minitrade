@@ -242,10 +242,10 @@ class InteractiveBrokers(Broker):
         return result
 
     def find_trades(self, order: RawOrder) -> list(dict) | None:
-        return MTDB.get_all('IbTrade', 'order_ref', order.id)
+        return MTDB.get_all('IbTrade', 'order_ref', order.id, cls=dict)
 
     def find_order(self, order: RawOrder) -> dict | None:
-        return MTDB.get_one('IbOrder', 'order_ref', order.id)
+        return MTDB.get_one('IbOrder', 'order_ref', order.id, cls=dict)
 
     def format_trades(self, orders: list[RawOrder]) -> list[dict]:
         trades = []

@@ -71,10 +71,11 @@ def show_broker_account_portfolio_and_trades(account: BrokerAccount):
     tab1, tab2, tab3, tab4 = st.tabs(['Portfolio', 'Recent trades', 'Orders', 'Account info'])
     broker = Broker.get_broker(account)
     if broker.is_ready():
-        tab4.write(broker.get_account_info())
+        info = broker.get_account_info()
         tab1.write(broker.get_portfolio())
         tab2.write(broker.download_trades())
         tab3.write(broker.download_orders())
+        tab4.write(info)
     else:
         st.info('Login to see account info')
 
