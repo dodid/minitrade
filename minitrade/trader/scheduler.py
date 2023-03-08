@@ -137,6 +137,6 @@ def delete_jobs(plan_id: str):
     ''' Unschedule a single trade plan '''
     try:
         app.scheduler.remove_job(plan_id)
-        return Response(status_code=204)
     except Exception:
-        raise HTTPException(status_code=404)
+        pass
+    return Response(status_code=204)

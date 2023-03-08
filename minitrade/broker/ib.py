@@ -127,9 +127,9 @@ class InteractiveBrokers(Broker):
                 time.sleep(5)   # wait a few seconds for gateway to be authenticated
                 if not self.is_ready():
                     raise ConnectionError('Broker is not connected')
-                self.get_account_info()
             except Exception as e:
                 raise ConnectionError(f'Broker is not connected for account {self.account.alias}') from e
+        self.get_account_info()
 
     def disconnect(self):
         try:

@@ -17,7 +17,7 @@ from selenium.webdriver.support.ui import WebDriverWait
 
 from minitrade.broker import BrokerAccount
 
-logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 __ib_loc = expanduser('~/.minitrade/ibgateway')
@@ -201,6 +201,8 @@ def login_ibgateway(instance: GatewayInstance, account: BrokerAccount) -> None:
 
     with webdriver.Chrome(options=options) as driver:
         driver.get(root_url)
+        logger.debug('Screenshot as base64:')
+        logger.debug(driver.get_screenshot_as_base64())
         driver.find_element(value='user_name').send_keys(account.username)
         driver.find_element(value='password').send_keys(account.password)
         driver.find_element(value='submitForm').click()

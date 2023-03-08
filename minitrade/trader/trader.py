@@ -129,16 +129,18 @@ class TradePlan:
         return MTDB.get_all('TradePlan', orderby='name', cls=TradePlan)
 
     @staticmethod
-    def get_plan(plan_id: str) -> TradePlan:
-        '''Look up a trade plan by plan ID
+    def get_plan(plan_id_or_name: str) -> TradePlan:
+        '''Look up a trade plan by plan ID or plan name
 
         Args:
-            plan_id: Trade plan ID
+            plan_id_or_name: Trade plan ID or name
 
         Returns:
             Trade plan if found or None
         '''
-        return MTDB.get_one('TradePlan', 'id', plan_id, cls=TradePlan)
+        return MTDB.get_one(
+            'TradePlan', 'id', plan_id_or_name, cls=TradePlan) or MTDB.get_one(
+            'TradePlan', 'name', plan_id_or_name, cls=TradePlan)
 
     def __call_scheduler(self, method: str, path: str, params: dict | None = None) -> Any:
         url = f'http://{config.scheduler.host}:{config.scheduler.port}{path}'
