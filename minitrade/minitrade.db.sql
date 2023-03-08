@@ -31,10 +31,12 @@ CREATE TABLE IF NOT EXISTS "IbTrade" (
 	"accountCode" TEXT,
 	"company_name" TEXT,
 	"contract_description_1" TEXT,
+	"contract_description_2" TEXT,
 	"sec_type" TEXT,
 	"listing_exchange" TEXT,
 	"conid" BIGINT,
 	"conidEx" TEXT,
+	"open_close" TEXT,
 	"directed_exchange" TEXT,
 	"clearing_id" TEXT,
 	"clearing_name" TEXT,
@@ -53,7 +55,7 @@ CREATE TABLE IF NOT EXISTS "RawOrder" (
 	"ticker" TEXT NOT NULL,
 	"side" TEXT NOT NULL,
 	"size" BIGINT NOT NULL,
-	"signal_date" DATETIME NOT NULL,
+	"signal_time" DATETIME NOT NULL,
 	"entry_type" TEXT NOT NULL,
 	"broker_order_id" TEXT,
 	PRIMARY KEY("id")
@@ -142,6 +144,7 @@ DROP TABLE IF EXISTS "IbOrder";
 
 CREATE TABLE IF NOT EXISTS "IbOrder" (
 	"acct" TEXT,
+	"exchange" TEXT,
 	"conidex" TEXT,
 	"conid" BIGINT,
 	"orderId" BIGINT NOT NULL,
@@ -149,6 +152,7 @@ CREATE TABLE IF NOT EXISTS "IbOrder" (
 	"sizeAndFills" TEXT,
 	"orderDesc" TEXT,
 	"description1" TEXT,
+	"description2" TEXT,
 	"ticker" TEXT,
 	"secType" TEXT,
 	"listingExchange" TEXT,

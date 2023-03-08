@@ -51,12 +51,12 @@ def compute_stats(
         orders_df = orders
     else:
         orders_df = pd.DataFrame({
-            'SignalDate': [t.entry_time for t in orders],
+            'SignalTime': [t.entry_time for t in orders],
             'Ticker': [t.ticker for t in orders],
             'Side': ['Buy' if t.size > 0 else 'Sell' for t in orders],
             'Size': [int(t.size) for t in orders],
             'EntryType': [t.entry_type for t in orders],
-        }).set_index('SignalDate')
+        }).set_index('SignalTime')
 
     equity_df = pd.DataFrame({
         'Equity': equity,

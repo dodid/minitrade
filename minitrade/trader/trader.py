@@ -346,7 +346,7 @@ class RawOrder:
     size: int
     '''Number of shares to buy or sell, positive for long and negative for short.'''
 
-    signal_date: datetime
+    signal_time: datetime
     '''Date on which the order signal is generated.'''
 
     entry_type: str
@@ -483,13 +483,13 @@ class BacktestRunner:
 
         def hash(s: pd.Series):
             # include fields that can uniquely identify an order
-            signature = s.loc[['plan_id', 'ticker', 'size', 'signal_date',
+            signature = s.loc[['plan_id', 'ticker', 'size', 'signal_time',
                                'entry_type']].to_json(date_format='iso').encode('utf-8')
             return hashlib.md5(signature).hexdigest()
 
         # record orders from the backtest result to database
         orders: pd.DataFrame = self.result['_orders'].reset_index()
-        orders.rename(columns={'SignalDate': 'signal_date', 'Ticker': 'ticker',
+        orders.rename(columns={'SignalTime': 'signal_time', 'Ticker': 'ticker',
                                'Side': 'side', 'Size': 'size', 'EntryType': 'entry_type'}, inplace=True)
         orders['plan_id'] = self.plan.id
         orders['run_id'] = self.run_id
@@ -544,7 +544,7 @@ class BacktestRunner:
                 exception=exception,
                 stdout=bytes_to_str(stdout),
                 stderr=bytes_to_str(stderr),
-                log_time=str(datetime.utcnow())
+                log_time=datetime.utcnow()
             )
             MTDB.save(log, 'BacktestLog', on_conflict='error')
         else:
@@ -660,17 +660,17 @@ class OrderValidator:
         usmarket = MTDB.get_one('NasdaqTraded', 'symbol', order.ticker) is not None
         self.__assert_equal(usmarket, True, 'Only U.S. market is supported for now')
         if order.entry_type == 'MOO':
-            # MOO order submit window is between market close on signal_date and
+            # MOO order submit window is between market close on signal_time and
             # before next market open, considering weekends but not holidays
             market_open, market_close = timedelta(hours=9, minutes=30), timedelta(hours=16)
-            self.__assert_less_than(order.signal_date + market_close, now,
+            self.__assert_less_than(order.signal_time + market_close, now,
                                     'MOO order must be submitted after market close')
             self.__assert_less_than(
-                now, order.signal_date + market_open + timedelta(days=1 if order.signal_date.weekday() < 4 else 3),
+                now, order.signal_time + market_open + timedelta(days=1 if order.signal_time.weekday() < 4 else 3),
                 'MOO order must be submitted before next market open')
         elif order.entry_type == 'MOC':
-            # MOC order submit window is before market close on signal_date
-            self.__assert_less_than(now, order.signal_date + market_close,
+            # MOC order submit window is before market close on signal_time
+            self.__assert_less_than(now, order.signal_time + market_close,
                                     'MOC order must be submitted before market close')
         else:
             self.__assert(False, f'Unknown order entry type: {order.entry_type}')

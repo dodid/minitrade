@@ -158,22 +158,22 @@ class InteractiveBrokers(Broker):
 
     def download_trades(self) -> pd.DataFrame:
         # the list may be incomplete, no definitive document is available
-        whitelist = [
-            'execution_id', 'symbol', 'supports_tax_opt', 'side', 'order_description', 'trade_time', 'trade_time_r',
-            'size', 'price', 'submitter', 'exchange', 'commission', 'net_amount', 'account', 'accountCode',
-            'company_name', 'contract_description_1', 'sec_type', 'listing_exchange', 'conid', 'conidEx',
-            'directed_exchange', 'clearing_id', 'clearing_name', 'liquidation_trade', 'is_event_trading', 'order_ref']
+        whitelist = ['execution_id', 'symbol', 'supports_tax_opt', 'side', 'order_description', 'trade_time',
+                     'trade_time_r', 'size', 'price', 'submitter', 'exchange', 'commission', 'net_amount', 'account',
+                     'accountCode', 'company_name', 'contract_description_1', 'contract_description_2', 'sec_type',
+                     'listing_exchange', 'conid', 'conidEx', 'open_close', 'directed_exchange', 'clearing_id',
+                     'clearing_name', 'liquidation_trade', 'is_event_trading', 'order_ref']
         trades = self.__call_ibgateway('GET', '/iserver/account/trades')
         MTDB.save(trades, 'IbTrade', on_conflict='update', whitelist=whitelist)
         return pd.DataFrame(trades)
 
     def download_orders(self) -> pd.DataFrame | None:
         # the list may be incomplete, no definitive document is available
-        whitelist = [
-            'acct', 'conidex', 'conid', 'orderId', 'cashCcy', 'sizeAndFills', 'orderDesc', 'description1', 'ticker',
-            'secType', 'listingExchange', 'remainingQuantity', 'filledQuantity', 'companyName', 'status',
-            'origOrderType', 'supportsTaxOpt', 'lastExecutionTime', 'orderType', 'bgColor', 'fgColor', 'order_ref',
-            'timeInForce', 'lastExecutionTime_r', 'side', 'order_cancellation_by_system_reason', 'outsideRTH', 'price']
+        whitelist = ['acct', 'exchange', 'conidex', 'conid', 'orderId', 'cashCcy', 'sizeAndFills', 'orderDesc',
+                     'description1', 'description2', 'ticker', 'secType', 'listingExchange', 'remainingQuantity',
+                     'filledQuantity', 'companyName', 'status', 'origOrderType', 'supportsTaxOpt', 'lastExecutionTime',
+                     'orderType', 'bgColor', 'fgColor', 'order_ref', 'timeInForce', 'lastExecutionTime_r', 'side',
+                     'order_cancellation_by_system_reason', 'outsideRTH', 'price']
         orders = self.__call_ibgateway('GET', '/iserver/account/orders')
         if orders and orders['orders']:
             MTDB.save(orders['orders'], 'IbOrder', on_conflict='update', whitelist=whitelist)
