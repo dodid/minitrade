@@ -5,6 +5,7 @@ be generated on installation.
 """
 
 import logging
+import os
 import sys
 from posixpath import expanduser
 
@@ -75,7 +76,11 @@ class GlobalConfig(BaseModel):
             f.write(yaml.safe_dump(self.dict()))
 
 
-try:
-    config = GlobalConfig.load() if 'pytest' not in sys.modules else GlobalConfig.load('~/.minitrade/config.pytest.yaml')
-except Exception:
-    pass
+if 'pytest' not in sys.modules:
+    try:
+        config = GlobalConfig.load()
+    except Exception:
+        pass
+else:
+    assert os.path.exists(expanduser('~/.minitrade/config.pytest.yaml'))
+    config = GlobalConfig.load('~/.minitrade/config.pytest.yaml')

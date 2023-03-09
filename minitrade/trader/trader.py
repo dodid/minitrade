@@ -21,8 +21,6 @@ from minitrade.backtest import Backtest, Strategy
 from minitrade.broker import Broker, BrokerAccount
 from minitrade.datasource import QuoteSource
 from minitrade.utils.config import config
-from minitrade.utils.convert import (bytes_to_str, csv_to_df, df_to_str,
-                                     obj_to_str)
 from minitrade.utils.mtdb import MTDB
 from minitrade.utils.providers import mailjet_send_email
 
@@ -78,7 +76,7 @@ class TradePlan:
     backtest_start_date: str
     '''Since when backtest should start in string format "YYYY-MM-DD".'''
 
-    trade_start_date: str
+    trade_start_date: str | None
     '''Since when orders should be generated in string format "YYYY-MM-DD".
     Orders generated before the date are ignored.'''
 
@@ -389,13 +387,13 @@ class BacktestLog:
     plan: str
     '''Trade plan seralized in Json'''
 
-    data: str | None = None
+    data: pd.DataFrame | None = None
     '''Quote data used in backtest'''
 
     strategy_code: str | None
     '''Strategy code snapshot'''
 
-    result: str | None = None
+    result: pd.Series | None = None
     '''Backtest result'''
 
     exception: str | None = None
@@ -421,7 +419,7 @@ class BacktestLog:
         Returns:
             True for error, False for success
         '''
-        return bool(not self.result or self.exception or self.stderr)
+        return bool(self.result is None or self.exception or self.stderr)
 
 
 class BacktestRunner:
@@ -539,21 +537,21 @@ class BacktestRunner:
                 plan_id=self.plan.id,
                 plan_name=self.plan.name,
                 plan_strategy=self.plan.strategy_file,
-                plan=obj_to_str(self.plan),
-                data=df_to_str(self.data),
+                plan=self.plan,
+                data=self.data,
                 strategy_code=self.code,
-                result=df_to_str(self.result),
+                result=self.result,
                 exception=exception,
-                stdout=bytes_to_str(stdout),
-                stderr=bytes_to_str(stderr),
+                stdout=stdout,
+                stderr=stderr,
                 log_time=datetime.utcnow()
             )
             MTDB.save(log, 'BacktestLog', on_conflict='error')
         else:
             MTDB.update('BacktestLog', 'id', log.id, values={
                 'exception': '\n\n'.join([x for x in (log.exception, exception) if x]) or None,
-                'stdout': bytes_to_str(stdout),
-                'stderr': bytes_to_str(stderr),
+                'stdout': stdout,
+                'stderr': stderr,
             })
 
     def _send_summary_email(self):
@@ -564,9 +562,9 @@ class BacktestRunner:
             ts = log.log_time
             status = "failed" if log.error else "succeeded"
             subject = f'Plan {log.plan_name} {status} @ {ts}' + (f' {len(orders)} new orders' if orders else '')
-            data = csv_to_df(log.data, index_col=0, header=[0, 1], parse_dates=True).xs('Close', 1, 1).tail(2).T
-            if log.result:
-                result = csv_to_df(log.result, index_col=0)
+            data = log.data.xs('Close', 1, 1).tail(2).T
+            if log.result is not None:
+                result = log.result
                 result = result[~result.index.str.startswith('_')]['0'].to_string()
             else:
                 result = None
@@ -727,8 +725,8 @@ class OrderValidator:
         log = OrderValidatorLog(
             id=MTDB.uniqueid(),
             order_id=order.id,
-            order=obj_to_str(order),
-            result=obj_to_str(result),
+            order=order,
+            result=result,
             exception=exception,
             log_time=datetime.utcnow()
         )

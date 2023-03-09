@@ -10,7 +10,6 @@ from minitrade.broker import Broker, BrokerAccount
 from minitrade.datasource import QuoteSource
 from minitrade.trader import (BacktestLog, BacktestRunner, StrategyManager,
                               TradePlan)
-from minitrade.utils.convert import csv_to_df
 from minitrade.utils.mtdb import MTDB
 
 st.set_page_config(page_title='Trading', layout='wide')
@@ -95,8 +94,8 @@ def display_run(plan: TradePlan, log: BacktestLog):
     label = f'{log_status} {log.log_time} [{log.id}]' + (f' **{len(orders)} orders**' if orders else '')
     with st.expander(label):
         tab1, tab2, tab3, tab4 = st.tabs(['Result', 'Error', 'Log', 'Orders'])
-        if log.result:
-            df = csv_to_df(log.result, index_col=0)
+        if log.result is not None:
+            df = log.result
             df = df[~df.index.str.startswith('_')]['0'].to_dict()
             tab1.write(df)
         tab2.code(log.exception)
@@ -201,7 +200,7 @@ def show_trade_plan_execution_history(plan: TradePlan) -> None:
 
     with tab3:
         try:
-            data = csv_to_df(logs[0].data, index_col=0, header=[0, 1], parse_dates=True)
+            data = logs[0].data
             trades = broker.format_trades(orders)
             _, trade_df, equity, pnl, commission_rate = calculate_trade_stats(data, plan.initial_cash, trades)
             rr = (equity / equity[0] - 1) * 100

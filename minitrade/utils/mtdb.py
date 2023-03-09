@@ -1,34 +1,33 @@
 import datetime
+import json
 import logging
 import sqlite3
 import sys
 import threading
 from dataclasses import asdict
+from io import StringIO
 from posixpath import expanduser
 from typing import Any
 
+import pandas as pd
 from nanoid import generate
 from pypika import Order, Query, Table
-
-from minitrade.utils.convert import serialize_to_db
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
-def adapt_date_iso(val):
-    """Adapt datetime.date to ISO 8601 date."""
-    return val.isoformat()
+def adapt_json(val):
+    """Adapt object to Json string."""
+    return json.dumps(val, default=str) if val is not None else None
 
 
-def adapt_datetime_iso(val):
-    """Adapt datetime.datetime to timezone-naive ISO 8601 date."""
-    return val.isoformat()
+def adapt_dataframe(val: pd.DataFrame | pd.Series | None) -> str | None:
+    return val.to_csv() if val is not None else None
 
 
-def adapt_datetime_epoch(val):
-    """Adapt datetime.datetime to Unix timestamp."""
-    return int(val.timestamp())
+def adapt_bytes(val) -> str | None:
+    return val.decode() if val is not None else None
 
 
 def convert_date(val):
@@ -46,12 +45,38 @@ def convert_timestamp(val):
     return datetime.datetime.fromtimestamp(int(val))
 
 
-sqlite3.register_adapter(datetime.date, adapt_date_iso)
-sqlite3.register_adapter(datetime.datetime, adapt_datetime_iso)
-sqlite3.register_adapter(datetime.datetime, adapt_datetime_epoch)
+def convert_dataframe(csv: bytes) -> pd.DataFrame | pd.Series:
+    return pd.read_csv(StringIO(csv.decode()), index_col=0)
+
+
+def convert_dataframe2l(csv: bytes) -> pd.DataFrame:
+    return pd.read_csv(StringIO(csv.decode()), index_col=0, header=[0, 1], parse_dates=True)
+
+
+def convert_json(val):
+    """Convert json string to object."""
+    return json.loads(val.decode()) if val is not None else None
+
+
 sqlite3.register_converter("date", convert_date)
 sqlite3.register_converter("datetime", convert_datetime)
 sqlite3.register_converter("timestamp", convert_timestamp)
+sqlite3.register_converter("json", convert_json)
+sqlite3.register_converter("text_series", convert_dataframe)
+sqlite3.register_converter("text_quotedata", convert_dataframe2l)
+
+
+def serialize_to_db(val):
+    if val is None:
+        return None
+    elif isinstance(val, (int, float, bool, str, datetime.datetime)):
+        return val
+    elif isinstance(val, (pd.DataFrame, pd.Series)):
+        return adapt_dataframe(val)
+    elif isinstance(val, bytes):
+        return adapt_bytes(val)
+    else:
+        return adapt_json(val)
 
 
 class MTDB:

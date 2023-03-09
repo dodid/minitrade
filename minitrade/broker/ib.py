@@ -13,7 +13,6 @@ import requests
 from minitrade.broker import Broker, BrokerAccount
 from minitrade.trader import TradePlan
 from minitrade.utils.config import config
-from minitrade.utils.convert import iso_to_datetime, obj_to_str
 from minitrade.utils.mtdb import MTDB
 
 if TYPE_CHECKING:
@@ -218,10 +217,10 @@ class InteractiveBrokers(Broker):
             id=MTDB.uniqueid(),
             order_id=order.id,
             account_id=account_id,
-            plan=obj_to_str(plan),
-            order=obj_to_str(order),
-            iborder=obj_to_str(iborder),
-            result=obj_to_str(result),
+            plan=plan,
+            order=order,
+            iborder=iborder,
+            result=result,
             exception=exception,
             broker_order_id=broker_order_id,
             log_time=datetime.utcnow()
