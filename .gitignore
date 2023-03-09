@@ -237,3 +237,4 @@ cython_debug/
 *.sqlite
 *.db
 .python-version
+scratch/

@@ -12,7 +12,7 @@ def test_get_data_source():
 def test_get_nasdaq_traded(clean_db):
     # @pytest.mark.skip(reason="take too long to test, only run manually")
     populate_nasdaq_traded_symbols()
-    assert MTDB.get_one('nasdaqtraded', 'symbol', 'SPY') is not None
+    assert MTDB.get_one('NasdaqTraded', 'symbol', 'SPY') is not None
 
 
 def test_yahoo_get_single_ticker():

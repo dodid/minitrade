@@ -41,26 +41,17 @@ app = FastAPI(title='IB gateway admin')
 def __call_ibgateway(instance: GatewayInstance, method: str, path: str, params: dict | None = None, timeout: int = 10) -> Any:
     '''Call the ibgateway's REST API
 
-    Parameters
-    ----------
-    method : str
-        The HTTP method, i.e. GET, POST, PUT, DELETE, etc.
-    path : str
-        The REST API endpoint, see https://www.interactivebrokers.com/api/doc.html
-    params : dict, optional
-        Extra parameters to be sent along with the REST API call
-    timeout : int
-        Timeout in second, default 10
+    Args:
+        method: The HTTP method, i.e. GET, POST, PUT, DELETE, etc.
+        path: The REST API endpoint, see https://www.interactivebrokers.com/api/doc.html
+        params: Extra parameters to be sent along with the REST API call
+        timeout: Timeout in second, default 10
 
-    Returns
-    -------
-    json
-        result json if API returns 200, None if it returns other 2xx code
+    Returns:
+        Json result if API returns 200, None if it returns other 2xx code
 
-    Raises
-    ------
-    HTTPException
-        If API returns 4xx or 5xx status code
+    Raises:
+        HTTPException: If API returns 4xx or 5xx status code
     '''
     url = f'http://localhost:{instance.port}/v1/api{path}'
     resp = requests.request(method=method, url=url, params=params, timeout=timeout)
@@ -84,10 +75,8 @@ def kill_all_ibgateway():
 def test_ibgateway():
     ''' Test if IB gateway can be launched successfully
 
-    Raises
-    -------
-    Exception
-        If IB gateway can't be launched successfully
+    Raises:
+        RuntimeError: If IB gateway can't be launched successfully
     '''
     pid, _ = launch_ibgateway()
     psutil.Process(pid).terminate()
@@ -96,15 +85,11 @@ def test_ibgateway():
 def launch_ibgateway() -> GatewayInstance:
     ''' Launch IB gateway to listen on a random port
 
-    Returns
-    -------
-    instance: GatewayInstance
-        Return process id and port number if the gateway is succefully launched
+    Returns:
+        instance: Return process id and port number if the gateway is succefully launched
 
-    Raises
-    ------
-    RuntimeError
-        If launching gateway failed
+    Raises:
+        RuntimeError: If launching gateway failed
     '''
     def get_random_port():
         sock = socket.socket()
@@ -128,32 +113,20 @@ def launch_ibgateway() -> GatewayInstance:
 def ping_ibgateway(username: str, instance: GatewayInstance) -> dict:
     ''' Get gateway connection status and kill gateway instance if corrupted
 
-    Parameters
-    ----------
-    instance : GatewayInstance
-        The gateway instance info
+    Args:
+        instance: The gateway instance
 
-    Returns
-    -------
-    pid : int
-        Gateway process ID
-    port : bool
-        Gateway listening port number
-    account : str
-        IB account username
-    account_id : int
-        IB account ID
-    authenticated: bool
-        If user is authenticated
-    connected: bool
-        If broker connection is established
-    timestamp: str
-        Timestamp of status check
+    Returns:
+        pid: Gateway process ID
+        port: Gateway listening port number
+        account: IB account username
+        account_id: IB account ID
+        authenticated: If user is authenticated
+        connected: If broker connection is established
+        timestamp: Timestamp of status check
 
-    Raises
-    ------
-    HTTPException
-        If getting gateway status failed
+    Raises:
+        HTTPException: 503 - If getting gateway status failed
     '''
     try:
         tickle = __call_ibgateway(instance, 'GET', '/tickle', timeout=5)
@@ -168,29 +141,17 @@ def ping_ibgateway(username: str, instance: GatewayInstance) -> dict:
                 'connected': tickle['iserver']['authStatus']['connected'],
                 'timestamp': datetime.now().isoformat(),
             }
-    except requests.exceptions.Timeout:
-        logger.error(f'Ping gateway {username} {instance} timeout. Killing instance')
+    except Exception as e:
         kill_ibgateway(username, instance)
-        raise HTTPException(404, f'Ping gateway {username} {instance} timeout')
-    except HTTPException as e:
-        kill_ibgateway(username, instance)
-        raise e
+        raise HTTPException(503, f'Ping gateway {username} error') from e
 
 
 def login_ibgateway(instance: GatewayInstance, account: BrokerAccount) -> None:
     ''' Login gateway `instance` to broker `account`
 
-    Parameters
-    ----------
-    instance: GatewayInstance
-        The gateway instance to login
-    account: BrokerAccount
-        Account to be logged in
-
-    Raises
-    ------
-    RuntimeError
-        If logging in gateway failed
+    Args:
+        instance: The gateway instance to login
+        account: Account to log in
     '''
     root_url = f'http://localhost:{instance.port}'
     redirect_url = f'http://localhost:{instance.port}/sso/Dispatcher'
@@ -208,10 +169,13 @@ def login_ibgateway(instance: GatewayInstance, account: BrokerAccount) -> None:
         driver.find_element(value='submitForm').click()
         logger.debug(f'2FA sent')
         WebDriverWait(driver, timeout=60).until(lambda d: d.current_url.startswith(redirect_url))
+        # Explicitly call close as context manager seems not working sometimes.
+        driver.close()
+        driver.quit()
 
 
 async def ibgateway_keepalive() -> None:
-    ''' Keep gateway connections live '''
+    ''' Keep gateway connections live, ping broker every 1 minute '''
     loop = asyncio.get_event_loop()
     while True:
         for username, instance in app.registry.copy().items():
@@ -226,10 +190,8 @@ async def ibgateway_keepalive() -> None:
 def kill_ibgateway(username: str, instance: GatewayInstance) -> None:
     ''' Kill gateway instance
 
-    Parameters
-    ----------
-    instance: GatewayInstance
-        The gateway instance to kill
+    Args:
+        instance: The gateway instance to kill
     '''
     app.registry.pop(username, None)
     psutil.Process(instance.pid).terminate()
@@ -271,47 +233,36 @@ def get_gateway_status():
 def get_account_status(account=Depends(get_account)):
     ''' Return the current gateway status associated with account `alias`
 
-    Parameters
-    ----------
-    alias: str
-        Broker account alias
+    Args:
+        alias: Broker account alias
 
-    Returns
-    -------
-    pid : int
-        Gateway process ID
-    port : bool
-        Gateway listening port number
-    account : str
-        IB account username
-    account_id : int
-        IB account ID
-    authenticated: bool
-        If user is authenticated
-    connected: bool
-        If broker connection is established
-    timestamp: str
-        Timestamp of status check
+    Returns:
+        200 with:
+            pid: Gateway process ID
+            port: Gateway listening port number
+            account: IB account username
+            account_id: IB account ID
+            authenticated: If user is authenticated
+            connected: If broker connection is established
+            timestamp: Timestamp of status check
+        or 204 if no gateway running.
     '''
     instance = app.registry.get(account.username, None)
     if instance:
         return ping_ibgateway(account.username, instance)
     else:
-        raise HTTPException(404, f'No gateway instance running for {account.username}')
+        return Response(status_code=204)
 
 
 @app.put('/ibgateway/{alias}')
 def login_gateway_with_account(account=Depends(get_account)):
     ''' Launch a gateway instance and login with account `alias`
 
-    Parameters
-    ----------
-    alias: str
-        Broker account alias
+    Args:
+        alias: Broker account alias
 
-    Returns
-    -------
-    204 if login succeeds, otherwise 503.
+    Returns:
+        204 if login succeeds, otherwise 503.
     '''
     instance = app.registry.get(account.username, None)
     if instance:
@@ -324,27 +275,23 @@ def login_gateway_with_account(account=Depends(get_account)):
         instance = launch_ibgateway()
         app.registry[account.username] = instance
         login_ibgateway(instance, account)
+        return ping_ibgateway(account.username, instance)
     except Exception:
         logger.exception(f'Launching gateway failed for alias: {account.alias}')
-    finally:
         if instance:
-            return ping_ibgateway(account.username, instance)
-        else:
-            raise HTTPException(503, 'Launching gateway failed')
+            kill_ibgateway(account.username, instance)
+        raise HTTPException(503, 'Launching gateway failed')
 
 
 @app.delete('/ibgateway/{alias}')
 def exit_gateway(account=Depends(get_account)):
     ''' Exit a gateway instance that associates with account `alias`
 
-    Parameters
-    ----------
-    alias: str
-        Broker account alias
+    Args:
+        alias: Broker account alias
 
-    Returns
-    -------
-    204 if exit succeeds, otherwise 404.
+    Returns:
+        204
     '''
     instance = app.registry.get(account.username, None)
     if instance:
