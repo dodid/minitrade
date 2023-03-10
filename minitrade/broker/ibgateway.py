@@ -162,12 +162,10 @@ def login_ibgateway(instance: GatewayInstance, account: BrokerAccount) -> None:
 
     with webdriver.Chrome(options=options) as driver:
         driver.get(root_url)
-        logger.debug('Screenshot as base64:')
-        logger.debug(driver.get_screenshot_as_base64())
         driver.find_element(value='user_name').send_keys(account.username)
         driver.find_element(value='password').send_keys(account.password)
         driver.find_element(value='submitForm').click()
-        logger.debug(f'2FA sent')
+        logger.warn(f'Login initiated for {account.username}')
         WebDriverWait(driver, timeout=60).until(lambda d: d.current_url.startswith(redirect_url))
         # Explicitly call close as context manager seems not working sometimes.
         driver.close()
@@ -273,8 +271,8 @@ def login_gateway_with_account(account=Depends(get_account)):
     try:
         # try launching the gateway and login
         instance = launch_ibgateway()
-        app.registry[account.username] = instance
         login_ibgateway(instance, account)
+        app.registry[account.username] = instance
         return ping_ibgateway(account.username, instance)
     except Exception:
         logger.exception(f'Launching gateway failed for alias: {account.alias}')

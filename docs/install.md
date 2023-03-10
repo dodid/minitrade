@@ -65,3 +65,34 @@ Minitrade web UI and IB gateway listen on all interfaces, therefore, accessible 
 
         pip install minitrade
         minitrade init
+
+
+## Launch Minitrade
+
+Launching Minitrade involves launching all three processes:
+
+```
+# start scheduler
+minitrade scheduler start
+
+# start ibgateway
+minitrade ib start 
+
+# start web UI
+minitrade web
+```
+
+You can use any process monitor like Supervisor to keep the processes running. Or to do it quick and dirty, use a script like the following: 
+
+```
+#!/bin/bash
+
+# kill existing processes
+pkill -e -P 1 -f minitrade
+[ -f nohup.out ] && mv nohup.out nohup.out.old
+
+# reload processes
+nohup minitrade scheduler start &
+nohup minitrade ib start &
+nohup minitrade web &
+```

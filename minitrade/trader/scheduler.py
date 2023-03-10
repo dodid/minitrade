@@ -30,7 +30,7 @@ def schedule_trade_plan(plan: TradePlan) -> Job | None:
         job = app.scheduler.add_job(
             BacktestRunner(plan).execute,
             'cron',
-            day_of_week='0-4',
+            day_of_week='mon-fri',
             hour=trade_time.hour,
             minute=trade_time.minute,
             second=trade_time.second,
@@ -61,7 +61,8 @@ def load_trader() -> None:
     app.scheduler.add_job(
         Trader().execute,
         'cron',
-        minute='*/10',
+        day_of_week='mon-fri',
+        minute=0,
         misfire_grace_time=3600,
         id='trader-hf7749d',
         name='trader-hf7749d',
