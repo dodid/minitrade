@@ -1,33 +1,33 @@
+
 import logging
-from datetime import datetime, time
+from datetime import time
 
 from apscheduler.executors.pool import ProcessPoolExecutor
 from apscheduler.job import Job
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
-from fastapi import Depends, FastAPI, HTTPException, Response
+from fastapi import FastAPI, HTTPException, Response
 from pydantic import BaseModel
 
 from minitrade.trader import BacktestRunner, TradePlan, Trader
-
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
-
+from minitrade.utils.telegram import TelegramBot
 
 app = FastAPI(title='Minitrade runner')
+bot = TelegramBot.get_instance()
+if not bot:
+    logging.warn('Telegram bot not started')
+scheduler = AsyncIOScheduler(
+    # run job sequentially. yfinance lib may throw "Tkr {} tz already in cache" exception
+    # when multiple processes run in parallel
+    executors={'default': ProcessPoolExecutor(1)},
+    job_defaults={'coalesce': True, 'max_instances': 1}
+)
 
 
-class JobInfo(BaseModel):
-    job_id: str
-    job_frequency: str
-    next_run_time: datetime
-
-
-def schedule_trade_plan(plan: TradePlan) -> Job | None:
+def schedule_plan(plan: TradePlan) -> Job | None:
     ''' Schedule a trade plan'''
     if plan.enabled:
-        logger.info(f'Scheduling trade plan: {plan.name}')
         trade_time = time.fromisoformat(plan.trade_time_of_day)
-        job = app.scheduler.add_job(
+        job = scheduler.add_job(
             BacktestRunner(plan).execute,
             'cron',
             day_of_week='mon-fri',
@@ -44,100 +44,88 @@ def schedule_trade_plan(plan: TradePlan) -> Job | None:
     else:
         try:
             # this throws apscheduler.jobstores.base.JobLookupError if id is not found
-            app.scheduler.remove_job(plan.id)
+            scheduler.remove_job(plan.id)
         except Exception:
             pass
 
 
-def load_trade_plans() -> list[Job]:
-    ''' Reload all trade plans '''
-    plan_lst = TradePlan.list_plans()
-    jobs = [schedule_trade_plan(plan) for plan in plan_lst]
-    return [j for j in jobs if j is not None]
-
-
-def load_trader() -> None:
+def schedule_trader():
     ''' Load trader '''
-    app.scheduler.add_job(
+    scheduler.add_job(
         Trader().execute,
         'cron',
-        day_of_week='mon-fri',
-        minute=0,
+        minute='*/20',
         misfire_grace_time=3600,
-        id='trader-hf7749d',
-        name='trader-hf7749d',
+        id='trader_runner',
+        name='trader_runner',
         replace_existing=True
     )
 
 
-def job_info(job: Job) -> dict:
-    ''' Extract job info '''
-    return {'job_id': job.id, 'job_frequency': str(job.trigger), 'next_run_time': job.next_run_time}
+def load_plans() -> dict[str, Job | None]:
+    ''' Reload all trade plans '''
+    return {plan.name: jobinfo(schedule_plan(plan)) for plan in TradePlan.list_plans()}
 
 
-def create_scheduler() -> AsyncIOScheduler:
-    ''' Create a scheduler instance '''
-    # run job sequentially. yfinance lib may throw "Tkr {} tz already in cache" exception
-    # when multiple processes run in parallel
-    executors = {'default': ProcessPoolExecutor(1)}
-    job_defaults = {'coalesce': True, 'max_instances': 1}
-    return AsyncIOScheduler(executors=executors, job_defaults=job_defaults)
+def jobinfo(job: Job | None) -> dict | None:
+    if job:
+        return {'job_id': job.id, 'job_name': job.name, 'job_frequency': str(job.trigger), 'next_run_time': job.next_run_time}
 
 
 @app.on_event('startup')
-def start_scheduler():
-    ''' Load trade plan '''
-    app.scheduler = create_scheduler()
-    app.scheduler.start()
-    load_trade_plans()
-    load_trader()
+async def startup():
+    bot and await bot.startup()
+    scheduler.start()
+    load_plans()
+    schedule_trader()
 
 
 @app.on_event('shutdown')
-def shutdown_scheduler():
-    ''' shutdown the scheduler '''
-    app.scheduler.shutdown()
+async def shutdown():
+    scheduler.shutdown()
+    bot and await bot.shutdown()
 
 
-def get_plan(plan_id: str) -> TradePlan:
-    plan = TradePlan.get_plan(plan_id)
-    if plan:
-        return plan
-    else:
-        raise HTTPException(404, f'TradePlan {plan_id} not found')
-
-
-@app.get('/jobs', response_model=list[JobInfo])
+@app.get('/jobs')
 def get_jobs():
     ''' Return the currently scheduled jobs '''
-    return [job_info(job) for job in app.scheduler.get_jobs()]
+    return [jobinfo(job) for job in scheduler.get_jobs()]
 
 
-@app.get('/jobs/{plan_id}', response_model=JobInfo)
-def get_jobs_by_id(plan_id: str):
+@app.get('/jobs/{plan_id}')
+def get_job_by_id(plan_id: str):
     ''' Return the specific job '''
-    job = app.scheduler.get_job(job_id=plan_id)
-    return job_info(job) if job else Response(status_code=204)
+    job = scheduler.get_job(job_id=plan_id)
+    return jobinfo(job) if job else Response(status_code=204)
 
 
-@app.post('/jobs', response_model=list[JobInfo])
-def post_jobs():
-    ''' Reschedule all trade plans '''
-    return [job_info(job) for job in load_trade_plans()]
-
-
-@app.put('/jobs/{plan_id}', response_model=JobInfo)
-def put_jobs(plan=Depends(get_plan)):
+@app.put('/jobs/{plan_id}')
+def put_jobs(plan_id: str):
     ''' Reschedule a single trade plan '''
-    job = schedule_trade_plan(plan)
-    return job_info(job) if job else Response(status_code=204)
+    plan = TradePlan.get_plan(plan_id)
+    if plan:
+        job = schedule_plan(plan)
+        return jobinfo(job) if job else Response(status_code=204)
+    else:
+        raise HTTPException(404, f'TradePlan {plan_id} not found')
 
 
 @app.delete('/jobs/{plan_id}')
 def delete_jobs(plan_id: str):
     ''' Unschedule a single trade plan '''
     try:
-        app.scheduler.remove_job(plan_id)
+        scheduler.remove_job(plan_id)
     except Exception:
         pass
+    return Response(status_code=204)
+
+
+class Message(BaseModel):
+    text: str
+
+
+@app.post('/messages')
+async def post_messages(data: Message):
+    '''Send Telegram message'''
+    bot and await bot.send_message(data.text)
     return Response(status_code=204)

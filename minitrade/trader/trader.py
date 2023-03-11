@@ -21,8 +21,9 @@ from minitrade.backtest import Backtest, Strategy
 from minitrade.broker import Broker, BrokerAccount
 from minitrade.datasource import QuoteSource
 from minitrade.utils.config import config
+from minitrade.utils.mailjet import mailjet_send_email
 from minitrade.utils.mtdb import MTDB
-from minitrade.utils.providers import mailjet_send_email
+from minitrade.utils.telegram import telegram_send_message
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -114,8 +115,7 @@ class TradePlan:
         Returns:
             A broker specific instrument ID
         '''
-        ticker_map = json.loads(self.broker_ticker_map)
-        return ticker_map[ticker]
+        return self.broker_ticker_map[ticker]
 
     @staticmethod
     def list_plans() -> list[TradePlan]:
@@ -578,6 +578,7 @@ class BacktestRunner:
                 f'Stderr\n{log.stderr}' if log.stderr else 'No stderr'
             ]
             message = '\n\n'.join(message)
+            telegram_send_message(message)
             mailjet_send_email(subject, message)
 
 
@@ -764,13 +765,21 @@ class Trader:
         start_time = datetime.utcnow()
         account = BrokerAccount.get_account(plan)
         broker = Broker.get_broker(account)
+
+        if not broker.is_ready():
+            telegram_send_message(
+                f'Plan {plan.name}',
+                f'{len(orders)} order to be submitted:',
+                *['- ' + x.tag for x in orders],
+                'Use "/ib login" to login.'
+            )
+            return
+
         validator = OrderValidator(plan, broker)
         run_id = MTDB.uniqueid()
-        summary = [f'Trader run ID {run_id}', str(plan), f'{len(orders)} orders to be processed']
+        summary = [f'Trader run ID {run_id}', f'Plan {plan.name}', f'{len(orders)} order to be processed']
 
         try:
-            broker.connect()
-            summary.append(f'Broker {broker.account.alias} is ready')
             # download the latest orders and trades from broker before submitting new orders
             broker.download_orders()
             broker.download_trades()
@@ -781,11 +790,12 @@ class Trader:
                     order.broker_order_id = broker_order_id
                     order.save()
                 except Exception as e:
-                    summary.append(f'#{i} {order.ticker} {order.side} {abs(order.size)} ERROR {str(e)}')
+                    summary.append(f'#{i} {order.ticker} {order.side} {abs(order.size)} ERROR')
+                    summary.append(f'  - {str(e)}')
                     summary.append('Order processing aborted')
                     break
                 else:
-                    summary.append(f'#{i} {order.ticker} {order.side} {abs(order.size)} OK ({order.id})')
+                    summary.append(f'#{i} {order.ticker} {order.side} {abs(order.size)} OK')
             # download orders and trades after submitting new orders
             broker.download_orders()
             broker.download_trades()
@@ -814,4 +824,5 @@ class Trader:
             log_time=datetime.utcnow()
         )
         MTDB.save(log, 'TraderLog', on_conflict='error')
+        telegram_send_message(text)
         mailjet_send_email(f'Trader @ {start_time} finished', text)

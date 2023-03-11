@@ -273,6 +273,8 @@ def login_gateway_with_account(account=Depends(get_account)):
         instance = launch_ibgateway()
         login_ibgateway(instance, account)
         app.registry[account.username] = instance
+        # wait for authentication state to settle
+        time.sleep(5)
         return ping_ibgateway(account.username, instance)
     except Exception:
         logger.exception(f'Launching gateway failed for alias: {account.alias}')

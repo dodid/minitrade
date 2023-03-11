@@ -1,4 +1,6 @@
 
+import logging
+
 from minitrade.utils.config import config
 
 
@@ -25,4 +27,4 @@ def mailjet_send_email(
         result = mailjet.send.create(data=data)
         return result.status_code == 200
     else:
-        raise RuntimeError('Mailjet not configured')
+        logging.warn('Mailjet not configured')

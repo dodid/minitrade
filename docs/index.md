@@ -220,17 +220,21 @@ Configuring the system takes a few steps:
 
     ![Minitrade web UI - performance ](https://imgur.com/Y0lPTQx.jpg)
     
-3. Email provider
+3. Telegram bot (required)
+
+    Configure a Telegram bot to receive notifications and to control trader execution. Follow [the instructions](https://medium.com/geekculture/generate-telegram-token-for-bot-api-d26faf9bf064) to create a bot, and take note of the token and chat ID. Configure those in web UI. On saving the configuration, a test message will be sent. Setup is successful if the message can be received.
+
+    After changing telegram settings, restart all minitrade processes to make the change effective.
+    
+4. Email provider (optional)
 
     Configure a **[Mailjet](https://mailjet.com)** account to receive email notifcations about backtesting and trading results. A free-tier account should be enough. Configure authorized senders in Mailjet, otherwise sending will fail. Try use different domains for senders and receivers if free email services like Hotmail, Gmail are used, otherwise, e.g., an email sending from a Hotmail address, through 3rd part servers, to the same or another Hotmail address is likely to be treated as spam and not delivered. Sending from Hotmail address to Gmail address or vice versa increases the chance of going through. On saving the configuration, a test email will be sent. Setup is successful if the email can be received.
 
-    After changing email settings, restart all minitrade processes to make the change effective.
-
-4. Strategy
+5. Strategy
 
     Strategies are just Python files containing a strategy class implementation inherited from the `Strategy` class. The files can be uploaded via the UI and be made available for defining a trade plan. If a strategy class can't be found, it will show an error. If multiple strategy classes exist in a file, the one to be run should be decorated with `@entry_strategy`. To update a strategy, upload a differnt file with the same filename.
 
-5. Trade plan
+6. Trade plan
 
     A trade plan provides all necessary information to trade a strategy, including:
     - which strategy to run
@@ -260,6 +264,7 @@ Configuring the system takes a few steps:
 
 Minitrade uses [IB's client portal API](https://www.interactivebrokers.com/en/trading/ib-api.php#client-portal-api) to submit orders. The gateway client will be automatically downloaded and configured when `minitrade init` is run. It handles automatically login via Chrome and Selenium webdriver. 
 
-IB automatically disconnects a session after 24 hours or so. Minitrade checks connection status and reinitializes a connection, if dead, when it needs to interact with IB, i.e. when an order should be submitted or account info is retrieved via web UI. Therefore, a silent 2FA push notification may be sent to mobile phone at random times, which is quite easy to miss and results in a login failure. After a few consecutive failed attempts, IB may lock out the account and one has to contact customer service to unlock. This is quite a hurdle for a fully automated experience. 
+IB automatically disconnects a session after 24 hours or so. Minitrade checks connection status when it needs to interact with IB, i.e. when an order should be submitted or account info is retrieved via web UI. Therefore, Should Minitrade initiates a connection, if dead, automatically, a silent 2FA push notification would be sent to mobile phone at random times, which would be quite easy to miss and result in a login failure. After a few consecutive failed attempts, IB may lock out the account and one has to contact customer service to unlock. 
 
-The plan is to have some kind of out-of-band exchange, via email or Telegram, that can confirm a user is ready to respond to the 2FA notification before login is initialied. For now, though, Minitrade tries to use a longer interval between login attempts to mitigate the problem. The order submission job is scheduled to run on every full hour. In case one notification is missed, hopefully, the next one coming on next full hour can be attended to. In between, one can always preemptively login via the web UI.
+To avoid this, Minitrade only submits orders where there is already a working connection to a broker. If there is not, Minitrade sends messages via Telegram bot to notify that there are pending orders to be submitted. User should issue `/ib login` command manually to the bot to trigger a login to IB account. The 2FA push notification should be received in a few seconds and user can complete the login process on mobile phone. Once login is successful, Minitrade will be able to submit orders when trader runs again every 20 minutes.
+

@@ -45,6 +45,14 @@ class InteractiveBrokers(Broker):
         self._admin_port = config.brokers.ib.gateway_admin_port
         self._port = None
 
+    @property
+    def account_id(self):
+        if not self._account_id:
+            accounts = self.get_account_info()
+            if accounts:
+                self._account_id = accounts[0]['id']
+        return self._account_id
+
     def __call_ibgateway_admin(self, method: str, path: str, params: dict | None = None):
         '''Call the ibgateway's admin API
 
@@ -125,9 +133,9 @@ class InteractiveBrokers(Broker):
                 self.__call_ibgateway_admin('PUT', f'/ibgateway/{self.account.alias}')
                 time.sleep(5)   # wait a few seconds for gateway to be authenticated
                 if not self.is_ready():
-                    raise ConnectionError('Broker is not connected')
+                    raise ConnectionError('Login failed for {self.account.alias}')
             except Exception as e:
-                raise ConnectionError(f'Broker is not connected for account {self.account.alias}') from e
+                raise ConnectionError(f'Login failed for {self.account.alias}') from e
         self.get_account_info()
 
     def disconnect(self):
@@ -138,16 +146,13 @@ class InteractiveBrokers(Broker):
             logger.exception(f'Logout failed for IB account {self.account.alias}')
 
     def get_account_info(self) -> Any:
-        accounts = self.__call_ibgateway('GET', '/portfolio/accounts')
-        if accounts:
-            self._account_id = accounts[0]['id']
-        return accounts
+        return self.__call_ibgateway('GET', '/portfolio/accounts')
 
     def get_portfolio(self) -> pd.DataFrame:
         portfolio = []
         i = 0
         while True:
-            page = self.__call_ibgateway('GET', f'/portfolio/{self._account_id}/positions/{i}')
+            page = self.__call_ibgateway('GET', f'/portfolio/{self.account_id}/positions/{i}')
             portfolio.extend(page)
             if len(page) < 100:
                 break
@@ -182,7 +187,7 @@ class InteractiveBrokers(Broker):
         ib_order = result = ex = broker_order_id = None
         try:
             ib_order = {
-                'acctId': self._account_id,
+                'acctId': self.account_id,
                 'conid': plan.broker_instrument_id(order.ticker),
                 'cOID': order.id,
                 'orderType': 'MKT',
@@ -197,7 +202,7 @@ class InteractiveBrokers(Broker):
                 'isClose': False
             }
             result = self.__call_ibgateway(
-                'POST', f'/iserver/account/{self._account_id}/orders', json={'orders': [ib_order]})
+                'POST', f'/iserver/account/{self.account_id}/orders', json={'orders': [ib_order]})
             # Sometimes IB needs additional confirmation before submitting order. Confirm yes to the message.
             # https://interactivebrokers.github.io/cpwebapi/endpoints
             if 'id' in result[0]:
@@ -208,7 +213,7 @@ class InteractiveBrokers(Broker):
             ex = traceback.format_exc()
             raise RuntimeError(f'Placing order failed for {self.account.alias} order {order}') from e
         finally:
-            self.__log_order(self._account_id, plan, order, ib_order, result, ex, broker_order_id)
+            self.__log_order(self.account_id, plan, order, ib_order, result, ex, broker_order_id)
 
     def __log_order(self, account_id: str, plan: TradePlan, order: RawOrder, iborder: dict,
                     result: Any, exception: str, broker_order_id: str):

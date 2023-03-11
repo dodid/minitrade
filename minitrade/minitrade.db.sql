@@ -65,7 +65,7 @@ DROP TABLE IF EXISTS "TradePlan";
 
 CREATE TABLE IF NOT EXISTS "TradePlan" (
 	"id" TEXT NOT NULL,
-	"name" TEXT NOT NULL,
+	"name" TEXT NOT NULL COLLATE NOCASE,
 	"strategy_file" TEXT NOT NULL,
 	"ticker_css" TEXT NOT NULL,
 	"market_timezone" TEXT NOT NULL,

@@ -12,9 +12,6 @@ from posixpath import expanduser
 import yaml
 from pydantic import BaseModel
 
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
-
 
 class SourceConfigYahoo(BaseModel):
     enable_proxy: bool = False
@@ -48,8 +45,14 @@ class ProviderConfigMailjet(BaseModel):
     mailto: str | None
 
 
+class ProviderConfigTelegram(BaseModel):
+    token: str | None
+    chat_id: str | None
+
+
 class ProviderConfig(BaseModel):
     mailjet: ProviderConfigMailjet = ProviderConfigMailjet()
+    telegram: ProviderConfigTelegram = ProviderConfigTelegram()
 
 
 class GlobalConfig(BaseModel):
