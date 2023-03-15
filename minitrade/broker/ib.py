@@ -54,22 +54,7 @@ class InteractiveBrokers(Broker):
         return self._account_id
 
     def __call_ibgateway_admin(self, method: str, path: str, params: dict | None = None):
-        '''Call the ibgateway's admin API
-
-        Parameters
-        ----------
-        method : str
-            The HTTP method, i.e. GET, POST, PUT, DELETE, etc.
-        path : str
-            The REST API endpoint, e.g. '/ibgateway'
-        params : dict, optional
-            Extra parameters to be sent along with the REST API call
-
-        Returns
-        -------
-        Any
-            result json if API returns 200, otherwise None
-        '''
+        '''Call the ibgateway's admin API'''
         url = f'http://{self._admin_host}:{self._admin_port}{path}'
         resp = requests.request(method=method, url=url, params=params)
         if resp.status_code == 200:
@@ -79,22 +64,7 @@ class InteractiveBrokers(Broker):
 
     def __call_ibgateway(
             self, method: str, path: str, params: dict | None = None, json: Any | None = None, timeout: int = 10) -> Any:
-        '''Call the ibgateway's REST API
-
-        Parameters
-        ----------
-        method : str
-            The HTTP method, i.e. GET, POST, PUT, DELETE, etc.
-        path : str
-            The REST API endpoint, see https://www.interactivebrokers.com/api/doc.html
-        params : dict, optional
-            Extra parameters to be sent along with the REST API call
-
-        Returns
-        -------
-        Any
-            result json if API returns 200, otherwise None
-        '''
+        '''Call the ibgateway's REST API'''
         if self._port:
             url = f'http://localhost:{self._port}/v1/api{path}'
             resp = requests.request(method=method, url=url, params=params, json=json, timeout=timeout)

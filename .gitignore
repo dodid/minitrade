@@ -238,3 +238,4 @@ cython_debug/
 *.db
 .python-version
 scratch/
+htmlcov/

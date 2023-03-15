@@ -33,7 +33,7 @@ except ImportError:
 
 from ._plotting import plot  # noqa: I001
 from ._stats import compute_stats
-from ._util import _Allocation, _as_str, _Data, _Indicator, try_
+from ._util import _as_str, _Data, _Indicator, try_
 
 __pdoc__ = {
     'Strategy.__init__': False,
@@ -41,6 +41,151 @@ __pdoc__ = {
     'Position.__init__': False,
     'Trade.__init__': False,
 }
+
+
+class Allocation:
+    def __init__(self, tickers):
+        self.tickers = tickers
+        self.alloc = pd.DataFrame({'s': False, 'c': 0, 'p': 0}, index=tickers)
+
+    def __str__(self):
+        return self.alloc.to_string()
+
+    @property
+    def selected(self):
+        '''Assets in the candidate pool'''
+        return self.alloc['s'].copy()
+
+    @property
+    def current(self):
+        '''Current weights being assigned to assets'''
+        return self.alloc['c'].copy()
+
+    @current.setter
+    def current(self, value):
+        if (value < 0).any() or value.sum() > 1:
+            raise AttributeError(f'Weight must be positive and sum up to less than 1. Got {value}')
+        self.alloc['c'] = value
+
+    @property
+    def previous(self):
+        '''Previous weights being assigned to assets'''
+        return self.alloc['p'].copy()
+
+    @property
+    def delta(self):
+        '''Weight change of current allocation vs. previous one'''
+        return self.current - self.previous
+
+    @property
+    def modified(self):
+        '''True if weight allocation changes from previous to current.'''
+        return self.delta.any()
+
+    def add(self, *where: pd.Series | list, limit: int = None):
+        '''Add assets to the candidate pool that will make up the new portfolio.
+
+        Multiple conditions can be specified and assets meet all conditions, i.e.,
+        conditions joined by logical `and`, will be added to the candidate pool. 
+        Each condition can take one of two forms:
+
+        1. As a boolean Series with assets as the index and a True value to indicate 
+        the asset should be included.
+        2. A list of assets or anything list-like. Assets appeared in the list are to be included.
+
+        `limit` controls the maximum number of assets that should be included in the 
+        portfolio. Suppose the candidate pool contains 2 assets before the call. During
+        the call, 3 new assets meet all conditions, and the limit is 4, then only the 
+        first 2 new assets will be added to the pool. However, if limit is 1, it will
+        not drop assets from the pool, only no new asset will be added.
+
+        Args:
+            where: A list of conditions
+            limit: Maximum number of assets should be included
+        '''
+        selected = pd.Series(True, index=self.tickers)
+        for condition in where:
+            if not isinstance(condition, pd.Series):
+                items = list(condition)
+                assert all(x in self.tickers for x in items)
+                condition = pd.Series(True, index=items)
+            selected &= condition
+        if limit:
+            selected = selected[selected].index
+            for ticker in selected:
+                if self.alloc['s'].sum() < limit:
+                    self.alloc.loc[ticker, 's'] = True
+                else:
+                    break
+        else:
+            self.alloc.loc[selected, 's'] = True
+        return self
+
+    def drop(self, *where: pd.Series | list, limit: int = None):
+        '''Drop assets from the candidate pool that will make up the new portfolio.
+
+        Multiple conditions can be specified and assets meet all conditions, i.e.,
+        conditions joined by logical `and`, will be dropped from the candidate pool. 
+        Each condition can take one of two forms:
+
+        1. As a boolean Series with assets as the index and a True value to indicate 
+        the asset should be removed.
+        2. A list of assets or anything list-like. Assets appeared in the list are to be removed.
+
+        `limit` controls the maximum number of assets that should be included in the 
+        portfolio. Suppose the candidate pool contains 4 assets before the call. During
+        the call, 3 new assets meet all conditions, and the limit is 2, then only the 
+        first 2 assets will be dropped from the pool. However, if no assets meet the 
+        conditions, the pool will not automatically shrink in size to satisify the limit.
+
+        Args:
+            where: A list of conditions
+            limit: Maximum number of assets should be included
+        '''
+        selected = pd.Series(True, index=self.tickers)
+        for condition in where:
+            if not isinstance(condition, pd.Series):
+                items = list(condition)
+                assert all(x in self.tickers for x in items)
+                condition = pd.Series(True, index=items)
+            selected &= condition
+        if limit:
+            selected = selected[selected].index
+            for ticker in selected:
+                if self.alloc['s'].sum() > limit:
+                    self.alloc.loc[ticker, 's'] = False
+                else:
+                    break
+        else:
+            self.alloc.loc[selected, 's'] = False
+        return self
+
+    def equal_weight(self, sum_: float = 1):
+        '''Allocate equity value equally to the candidate pool.
+
+        `sum_` should be between 0 and 1, with 1 means 100% of value should be allocated.
+
+        Args:
+            sum_: Total weight that should be allocated. 
+        '''
+        if sum_ > 1 or sum_ < 0:
+            raise AttributeError(f'Total weight should be within [0, 1], given {sum_}')
+        if self.alloc['s'].any():
+            selected = self.alloc['s'].astype(int)
+            self.alloc.loc[:, 'c'] = selected * sum_ / selected.sum()
+        else:
+            self.alloc.loc[:, 'c'] = 0
+        return self
+
+    def _next(self):
+        self.alloc.loc[:, 's'] = False
+        self.alloc.loc[:, 'p'] = self.alloc['c']
+        self.alloc.loc[:, 'c'] = 0
+
+    def _clear(self):
+        self.alloc.loc[:, 's'] = False
+        self.alloc.loc[:, 'p'] = 0
+        self.alloc.loc[:, 'c'] = 0
 
 
 class Strategy(metaclass=ABCMeta):
@@ -57,7 +202,7 @@ class Strategy(metaclass=ABCMeta):
         self._broker: _Broker = broker
         self._data: _Data = data
         self._params = self._check_params(params)
-        self._alloc = _Allocation(data)
+        self._alloc = Allocation(data.tickers)
 
     def __repr__(self):
         return '<Strategy ' + str(self) + '>'
@@ -303,7 +448,7 @@ class Strategy(metaclass=ABCMeta):
         return tuple(self._broker.closed_trades)
 
     @property
-    def alloc(self) -> _Allocation:
+    def alloc(self) -> Allocation:
         """An object that manages the value allocation among a multi-asset portfolio
 
         `alloc` let's you build up an allocation plan incrementally, and keeps track of 
@@ -738,8 +883,8 @@ class Trade:
 
 
 class _Broker:
-    def __init__(self, *, data: _Data, cash, commission, margin,
-                 trade_on_close, hedging, exclusive_orders, index, trade_start_date, lot_size, fail_fast):
+    def __init__(self, *, data: _Data, cash, commission, margin, trade_on_close, hedging, exclusive_orders,
+                 trade_start_date, lot_size, fail_fast, rebalance_cash_reserve, rebalance_tolerance):
         assert 0 < cash, f"cash should be >0, is {cash}"
         assert -.1 <= commission < .1, \
             ("commission should be between -10% "
@@ -755,8 +900,13 @@ class _Broker:
         self._trade_start_date = trade_start_date
         self._lot_size = lot_size
         self._fail_fast = fail_fast
+        # percentage of total equity reserved as cash to account for order quantity rounding
+        # and sudden price changes
+        self._rebalance_cash_reserve = rebalance_cash_reserve
+        # minimal percentage value gap to the desired allocation to trigger an order
+        self._rebalance_tolerance = rebalance_tolerance
 
-        self._equity = np.tile(np.nan, len(index))
+        self._equity = np.tile(np.nan, len(data.index))
         self.orders: List[Order] = []
         self.trades: Dict[str, List[Trade]] = {ticker: [] for ticker in self._data.tickers}
         self.positions: Dict[str, Position] = {ticker: Position(self, ticker) for ticker in self._data.tickers}
@@ -766,42 +916,40 @@ class _Broker:
         pos = ','.join([f'{k}:{int(p.pl)}' for k, p in self.positions.items()])
         return f'<Broker: {self._cash:.0f}{pos} ({len(self.all_trades)} trades)>'
 
-    def rebalance(self, alloc: _Allocation, force_rebalance: bool = False):
+    def rebalance(self, alloc: Allocation, force_rebalance: bool = False):
         # ignore any trade actions before trade_start_date
         if self._trade_start_date and self.now.replace(tzinfo=None) < self._trade_start_date:
-            alloc.clear()
+            alloc._clear()
             return
-        # percentage of total equity reserved as cash to account for order quantity rounding
-        # and sudden price changes
-        cash_reserve = 0.1
-        # minimal percentage value gap to the desired allocation to trigger an order
-        rebalance_threshold = 0.1
         # rebalance if force_rebalance is true or portfolio weights have changed
         if force_rebalance or alloc.modified:
             # money value of current portfolio
             total_equity = self.equity()
             # desired values for each ticker excluding cash reserve that is not to be allocated
-            value_allocation = alloc.current * total_equity * (1 - cash_reserve)
+            value_allocation = alloc.current * total_equity * (1 - self._rebalance_cash_reserve)
+            # calculate the amount to buy or sell
+            current_value = pd.Series([self.equity(ticker)
+                                       for ticker in self._data.tickers], index=self._data.tickers)
+            value_adjust = value_allocation - current_value
             # sort in ascending order so that sell orders are placed first then buy orders to make sure that cash
             # balance is always positive in simulation
-            for ticker in alloc.delta.sort_values().index:
+            for ticker in value_adjust.sort_values().index:
                 if alloc.current.loc[ticker] == 0:
                     # this may generate multiple orders for the same ticker if multiple long positions are opened
                     # for the same ticker previously over time
                     for trade in self.trades[ticker]:
                         trade.close()
                 else:
-                    # calculate the amount to buy or sell
-                    value_adjust = value_allocation.loc[ticker] - self.equity(ticker)
                     # rebalance if the current value deviate too much from the desired value
                     # this is to avoid tiny orders triggered by ticker price fluctuation
-                    if value_adjust and abs(value_adjust) / value_allocation.loc[ticker] > rebalance_threshold:
+                    if value_adjust[ticker] and abs(
+                            value_adjust[ticker]) / value_allocation.loc[ticker] > self._rebalance_tolerance:
                         # calculate number of shares to buy respecting lot_size
                         # implicitly this forces order in whole share, fractional share not supported for now
-                        size = value_adjust // self.last_price(ticker) // self._lot_size * self._lot_size
+                        size = value_adjust[ticker] // self.last_price(ticker) // self._lot_size * self._lot_size
                         if size != 0:
                             self.new_order(ticker=ticker, size=size)
-        alloc.next()
+        alloc._next()
 
     def new_order(self,
                   ticker: str,
@@ -1140,7 +1288,9 @@ class Backtest:
                  exclusive_orders=False,
                  trade_start_date=None,
                  lot_size=1,
-                 fail_fast=True
+                 fail_fast=True,
+                 rebalance_cash_reserve=0.1,
+                 rebalance_tolerance=0.1
                  ):
         """
         Initialize a backtest. Requires data and a strategy to test.
@@ -1252,9 +1402,10 @@ class Backtest:
         self._broker = partial(
             _Broker, cash=cash, commission=commission, margin=margin,
             trade_on_close=trade_on_close, hedging=hedging,
-            exclusive_orders=exclusive_orders, index=data.index,
+            exclusive_orders=exclusive_orders,
             trade_start_date=datetime.strptime(trade_start_date, '%Y-%m-%d') if trade_start_date else None,
-            lot_size=lot_size, fail_fast=fail_fast
+            lot_size=lot_size, fail_fast=fail_fast,
+            rebalance_cash_reserve=rebalance_cash_reserve, rebalance_tolerance=rebalance_tolerance
         )
         self._strategy = strategy
         self._results: Optional[pd.Series] = None
