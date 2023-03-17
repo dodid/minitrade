@@ -174,7 +174,7 @@ def login_ibgateway(instance: GatewayInstance, account: BrokerAccount) -> None:
         driver.find_element(value='submitForm').click()
         time.sleep(3)
         challenge_label = driver.find_elements(value='chlg_SWCR')
-        challenge_code = challenge_label[0].text
+        challenge_code = challenge_label[0].text if challenge_label else None
         if challenge_code:
             logger.warn(f'Challenge code: {challenge_code}')
             send_telegram_message(f'Challenge code for "{account.username}":\n{challenge_code}')
