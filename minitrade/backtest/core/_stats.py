@@ -36,7 +36,7 @@ def geometric_mean(returns: pd.Series) -> float:
 def compute_stats(
         orders: Union[List['Order'], pd.DataFrame],
         trades: Union[List['Trade'], pd.DataFrame],
-        equity: np.ndarray,
+        equity: pd.DataFrame,
         ohlc_data: pd.DataFrame,
         strategy_instance: 'Strategy',
         risk_free_rate: float = 0,
@@ -44,7 +44,7 @@ def compute_stats(
     assert -1 < risk_free_rate < 1
 
     index = ohlc_data.index
-    dd = 1 - equity / np.maximum.accumulate(equity)
+    dd = 1 - equity['_Equity'] / np.maximum.accumulate(equity['_Equity'])
     dd_dur, dd_peaks = compute_drawdown_duration_peaks(pd.Series(dd, index=index))
 
     if isinstance(orders, pd.DataFrame):
@@ -58,11 +58,7 @@ def compute_stats(
             'EntryType': [t.entry_type for t in orders],
         }).set_index('SignalTime')
 
-    equity_df = pd.DataFrame({
-        'Equity': equity,
-        'DrawdownPct': dd,
-        'DrawdownDuration': dd_dur},
-        index=index)
+    equity_df = pd.concat([equity, pd.DataFrame({'DrawdownPct': dd, 'DrawdownDuration': dd_dur}, index=index)], axis=1)
 
     if isinstance(trades, pd.DataFrame):
         trades_df = trades
@@ -104,9 +100,9 @@ def compute_stats(
         have_position[t.EntryBar:t.ExitBar + 1] = 1
 
     s.loc['Exposure Time [%]'] = have_position.mean() * 100  # In "n bars" time, not index time
-    s.loc['Equity Final [$]'] = equity[-1]
-    s.loc['Equity Peak [$]'] = equity.max()
-    s.loc['Return [%]'] = (equity[-1] - equity[0]) / equity[0] * 100
+    s.loc['Equity Final [$]'] = equity['_Equity'][-1]
+    s.loc['Equity Peak [$]'] = equity['_Equity'].max()
+    s.loc['Return [%]'] = (equity['_Equity'][-1] - equity['_Equity'][0]) / equity['_Equity'][0] * 100
     c = ohlc_data.Close.values
     s.loc['Buy & Hold Return [%]'] = (c[-1] - c[0]) / c[0] * 100  # long-only return
 
@@ -114,11 +110,10 @@ def compute_stats(
     day_returns = np.array(np.nan)
     annual_trading_days = np.nan
     if isinstance(index, pd.DatetimeIndex):
-        day_returns = equity_df['Equity'].resample('D').last().dropna().pct_change()
+        day_returns = equity_df['_Equity'].resample('D').last().dropna().pct_change()
         gmean_day_return = geometric_mean(day_returns)
         annual_trading_days = float(
-            365 if index.dayofweek.to_series().between(5, 6).mean() > 2/7 * .6 else
-            252)
+            365 if index.dayofweek.to_series().between(5, 6).mean() > 2/7 * .6 else 252)
 
     # Annualized return and risk metrics are computed based on the (mostly correct)
     # assumption that the returns are compounded. See: https://dx.doi.org/10.2139/ssrn.3054517

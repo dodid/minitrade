@@ -13,8 +13,9 @@ from bokeh.colors import RGB
 from bokeh.colors.named import lime as BULL_COLOR
 from bokeh.colors.named import tomato as BEAR_COLOR
 from bokeh.models import (ColumnDataSource, CrosshairTool, CustomJS,
-                          DatetimeTickFormatter, HoverTool, LinearColorMapper,
-                          NumeralTickFormatter, Range1d, Span, WheelZoomTool)
+                          DatetimeTickFormatter, HoverTool, Legend,
+                          LinearColorMapper, NumeralTickFormatter, Range1d,
+                          Span, WheelZoomTool)
 from bokeh.plotting import figure as _figure
 
 try:
@@ -119,7 +120,8 @@ def _maybe_resample_data(resample_rule, df, indicators, equity_data, trades):
                   for i in indicators]
     assert not indicators or indicators[0].index.equals(df.index)
 
-    equity_data = equity_data.resample(freq, label='right').agg(_EQUITY_AGG).dropna(how='all')
+    ticker_agg = {ticker: 'last' for ticker in equity_data.columns if ticker not in _EQUITY_AGG}
+    equity_data = equity_data.resample(freq, label='right').agg(_EQUITY_AGG | ticker_agg).dropna(how='all')
     assert equity_data.index.equals(df.index)
 
     def _weighted_returns(s, trades=trades):
@@ -157,7 +159,8 @@ def plot(*, results: pd.Series,
          smooth_equity=False, relative_equity=True,
          superimpose=False, resample=True,
          reverse_indicators=True,
-         show_legend=True, open_browser=True):
+         show_legend=True, open_browser=True,
+         plot_allocation=False, relative_allocation=True):
     """
     Like much of GUI code everywhere, this is a mess.
     """
@@ -265,6 +268,10 @@ return this.labels[index] || "";
                                **kwargs)
         fig.xaxis.visible = False
         fig.yaxis.minor_tick_line_color = None
+        fig.add_layout(Legend(), 'center')
+        fig.legend.orientation = "horizontal"
+        fig.legend.background_fill_alpha = 0.8
+        fig.legend.border_line_alpha = 0
         return fig
 
     def set_tooltips(fig, tooltips=(), vline=True, renderers=()):
@@ -285,7 +292,7 @@ return this.labels[index] || "";
     def _plot_equity_section(is_return=False):
         """Equity section"""
         # Max DD Dur. line
-        equity = equity_data['Equity'].copy()
+        equity = equity_data['_Equity'].copy()
         dd_end = equity_data['DrawdownDuration'].idxmax()
         if np.isnan(dd_end):
             dd_start = dd_end = equity.index[0]
@@ -369,6 +376,36 @@ return this.labels[index] || "";
                  legend_label=f'Max Dd Dur. ({dd_timedelta_label})'
                  .replace(' 00:00:00', '')
                  .replace('(0 days ', '('))
+
+        figs_above_ohlc.append(fig)
+
+    def _plot_equity_stack_section(relative=False):
+        """Equity stack area chart section"""
+        equity = equity_data.iloc[:, 1:-2].copy()
+        names = list(equity.columns)
+        if relative:
+            equity = equity.divide(equity.sum(axis=1), axis=0)
+        equity_source = ColumnDataSource(equity)
+        equity_source.add(data.index, 'datetime')
+
+        yaxis_label = 'Allocation'
+        fig = new_indicator_figure(y_axis_label=yaxis_label, height=60 + 10 * len(names))
+
+        if relative:
+            tooltip_format = [f'@{ticker}{{+0,0.[000]%}}' for ticker in names]
+            tick_format = '0,0.[00]%'
+            equity_source.add(pd.Series(1, index=data.index), 'equity')
+        else:
+            tooltip_format = [f'@{ticker}{{$ 0,0}}' for ticker in names]
+            tick_format = '$ 0.0 a'
+            equity_source.add(equity_data['_Equity'], 'equity')
+
+        cg = colorgen()
+        colors = [next(cg) for _ in range(len(names))]
+        r = fig.line('index', 'equity', source=equity_source, line_width=1, line_alpha=0)
+        fig.varea_stack(stackers=names, x='index', color=colors, legend_label=names, source=equity_source)
+        set_tooltips(fig, list(zip(names, tooltip_format)), renderers=[r])
+        fig.yaxis.formatter = NumeralTickFormatter(format=tick_format)
 
         figs_above_ohlc.append(fig)
 
@@ -500,6 +537,9 @@ return this.labels[index] || "";
                 legend_label=source_name, line_color=color,
                 line_width=2)
         ohlc_tooltips.extend(label_tooltip_pairs)
+        fig.legend.orientation = "horizontal"
+        fig.legend.background_fill_alpha = 0.8
+        fig.legend.border_line_alpha = 0
 
     def _plot_indicators():
         """Strategy indicators"""
@@ -604,6 +644,9 @@ return this.labels[index] || "";
 
     if plot_equity:
         _plot_equity_section()
+
+    if plot_allocation:
+        _plot_equity_stack_section(relative_allocation)
 
     if plot_return:
         _plot_equity_section(is_return=True)

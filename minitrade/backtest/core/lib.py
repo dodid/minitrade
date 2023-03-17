@@ -62,7 +62,8 @@ e.g.
 """
 
 _EQUITY_AGG = {
-    'Equity': 'last',
+    '_Equity': 'last',
+    '_Cash': 'last',
     'DrawdownPct': 'max',
     'DrawdownDuration': 'max',
 }

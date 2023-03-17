@@ -906,7 +906,7 @@ class _Broker:
         # minimal percentage value gap to the desired allocation to trigger an order
         self._rebalance_tolerance = rebalance_tolerance
 
-        self._equity = np.tile(np.nan, len(data.index))
+        self._equity = np.tile(np.nan, (len(data.index), len(data.tickers)+2))
         self.orders: List[Order] = []
         self.trades: Dict[str, List[Trade]] = {ticker: [] for ticker in self._data.tickers}
         self.positions: Dict[str, Position] = {ticker: Position(self, ticker) for ticker in self._data.tickers}
@@ -1047,11 +1047,14 @@ class _Broker:
         self._process_orders()
 
         # Log account equity for the equity curve
-        equity = self.equity()
+        total_equity = self.equity()
+        ticker_equity = [self.equity(ticker) for ticker in self._data.tickers]
+        cash = total_equity - sum(ticker_equity)
+        equity = [total_equity, *ticker_equity, cash]
         self._equity[i] = equity
 
         # If equity is negative, set all to 0 and stop the simulation
-        if equity <= 0:
+        if equity[0] <= 0:
             assert self.margin_available <= 0
             for trade in self.all_trades:
                 self._close_trade(trade, self._data.Close[-1], i)
@@ -1520,10 +1523,16 @@ class Backtest:
             # for future `indicator._opts['data'].index` calls to work
             data._set_length(len(self._data))
 
-            equity = pd.Series(broker._equity).bfill().fillna(broker._cash).values
+            equity = pd.DataFrame(broker._equity, index=data.index,
+                                  columns=['_Equity', *data.tickers, '_Cash']).bfill().fillna(broker._cash)
 
-            # TODO change to equal weighed average
-            self._ohlc_ref_data = self._data.groupby(level=1, axis=1).agg(np.mean)
+            # equal weighed average, as if buy and hold an equal weighed portfolio
+            weights = 1 / self._data.xs('Close', axis=1, level=1).iloc[0]
+            weighted_data = self._data.copy()
+            for ticker in weights.index:
+                weighted_data[ticker] = weighted_data[ticker] * weights[ticker]
+            weighted_data = weighted_data.groupby(level=1, axis=1).agg('sum') / weights.sum()
+            self._ohlc_ref_data = weighted_data
 
             self._results = compute_stats(
                 orders=processed_orders,
@@ -1852,7 +1861,8 @@ class Backtest:
              smooth_equity=False, relative_equity=True,
              superimpose: Union[bool, str] = False,
              resample=True, reverse_indicators=False,
-             show_legend=True, open_browser=True):
+             show_legend=True, open_browser=True,
+             plot_allocation=False, relative_allocation=True):
         """
         Plot the progression of the last backtest run.
 
@@ -1931,6 +1941,12 @@ class Backtest:
 
         If `open_browser` is `True`, the resulting `filename` will be
         opened in the default web browser.
+
+        If `plot_allocation` is `True`, the resulting plot will contain
+        an equity allocation graph section. 
+
+        If `relative_allocation` is `True`, scale and label equity allocation graph axis
+        with return percent, not absolute cash-equivalent values.
         """
         if results is None:
             if self._results is None:
@@ -1956,4 +1972,6 @@ class Backtest:
             resample=resample,
             reverse_indicators=reverse_indicators,
             show_legend=show_legend,
-            open_browser=open_browser)
+            open_browser=open_browser,
+            plot_allocation=plot_allocation,
+            relative_allocation=relative_allocation)
