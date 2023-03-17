@@ -23,7 +23,7 @@ from minitrade.datasource import QuoteSource
 from minitrade.utils.config import config
 from minitrade.utils.mailjet import mailjet_send_email
 from minitrade.utils.mtdb import MTDB
-from minitrade.utils.telegram import telegram_send_message
+from minitrade.utils.telegram import send_telegram_message
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -578,7 +578,7 @@ class BacktestRunner:
                 f'Stderr\n{log.stderr}' if log.stderr else 'No stderr'
             ]
             message = '\n\n'.join(message)
-            telegram_send_message(message)
+            send_telegram_message(message)
             mailjet_send_email(subject, message)
 
 
@@ -767,7 +767,7 @@ class Trader:
         broker = Broker.get_broker(account)
 
         if not broker.is_ready():
-            telegram_send_message(
+            send_telegram_message(
                 f'Plan {plan.name}',
                 f'{len(orders)} order to be submitted:',
                 *['- ' + x.tag for x in orders],
@@ -824,5 +824,5 @@ class Trader:
             log_time=datetime.utcnow()
         )
         MTDB.save(log, 'TraderLog', on_conflict='error')
-        telegram_send_message(text)
+        send_telegram_message(text)
         mailjet_send_email(f'Trader @ {start_time} finished', text)

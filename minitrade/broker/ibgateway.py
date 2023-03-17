@@ -16,6 +16,7 @@ from selenium import webdriver
 from selenium.webdriver.support.ui import WebDriverWait
 
 from minitrade.broker import BrokerAccount
+from minitrade.utils.telegram import send_telegram_message
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -146,6 +147,10 @@ def ping_ibgateway(username: str, instance: GatewayInstance) -> dict:
         raise HTTPException(503, f'Ping gateway {username} error') from e
 
 
+# IB 2FA challenge response code
+challenge_response = None
+
+
 def login_ibgateway(instance: GatewayInstance, account: BrokerAccount) -> None:
     ''' Login gateway `instance` to broker `account`
 
@@ -153,6 +158,8 @@ def login_ibgateway(instance: GatewayInstance, account: BrokerAccount) -> None:
         instance: The gateway instance to login
         account: Account to log in
     '''
+    global challenge_response
+    challenge_response = None
     root_url = f'http://localhost:{instance.port}'
     redirect_url = f'http://localhost:{instance.port}/sso/Dispatcher'
 
@@ -165,8 +172,24 @@ def login_ibgateway(instance: GatewayInstance, account: BrokerAccount) -> None:
         driver.find_element(value='user_name').send_keys(account.username)
         driver.find_element(value='password').send_keys(account.password)
         driver.find_element(value='submitForm').click()
-        logger.warn(f'Login initiated for {account.username}')
-        WebDriverWait(driver, timeout=60).until(lambda d: d.current_url.startswith(redirect_url))
+        time.sleep(3)
+        challenge_label = driver.find_elements(value='chlg_SWCR')
+        challenge_code = challenge_label[0].text
+        if challenge_code:
+            logger.warn(f'Challenge code: {challenge_code}')
+            send_telegram_message(f'Challenge code for "{account.username}":\n{challenge_code}')
+            send_telegram_message('Please respond in 2 minutes.')
+            for _ in range(120):
+                if challenge_response:
+                    driver.find_element(value='chlginput').send_keys(challenge_response)
+                    driver.find_element(value='submitForm').click()
+                    WebDriverWait(driver, timeout=60).until(lambda d: d.current_url.startswith(redirect_url))
+                    break
+                else:
+                    time.sleep(1)
+        else:
+            logger.warn(f'Login initiated for {account.username}')
+            WebDriverWait(driver, timeout=60).until(lambda d: d.current_url.startswith(redirect_url))
         # Explicitly call close as context manager seems not working sometimes.
         driver.close()
         driver.quit()
@@ -296,4 +319,23 @@ def exit_gateway(account=Depends(get_account)):
     instance = app.registry.get(account.username, None)
     if instance:
         kill_ibgateway(account.username, instance)
+    return Response(status_code=204)
+
+
+class ChallengeResponse(BaseModel):
+    code: str
+
+
+@app.post('/challenge')
+def set_challenge_response(cr: ChallengeResponse):
+    '''Receive challenge response code
+
+    Args:
+        code: Challenge response code
+
+    Returns:
+        204
+    '''
+    global challenge_response
+    challenge_response = cr.code
     return Response(status_code=204)

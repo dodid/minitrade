@@ -10,13 +10,23 @@ from minitrade.broker import Broker, BrokerAccount
 from minitrade.utils.config import config
 
 
-def telegram_send_message(*text):
+def send_telegram_message(*text):
     url = f'http://{config.scheduler.host}:{config.scheduler.port}/messages'
     resp = requests.request(method='POST', url=url, json={'text': '\n'.join(text)})
     if resp.status_code == 200:
         return resp.json()
     elif resp.status_code >= 400:
         raise RuntimeError(f'Sending messge failed: {resp.status_code} {resp.text}')
+
+
+def send_ibgateway_challenge_response(code: str):
+    '''Send IB challenge response'''
+    url = f'http://{config.brokers.ib.gateway_admin_host}:{config.brokers.ib.gateway_admin_port}/challenge'
+    resp = requests.request(method='POST', url=url, json={'code': code})
+    if resp.status_code == 200:
+        return resp.json()
+    elif resp.status_code >= 400:
+        raise RuntimeError(f'Request returned {resp.status_code} {resp.text}')
 
 
 class TelegramBot():
@@ -30,16 +40,12 @@ class TelegramBot():
         if token or config.providers.telegram.token:
             self.app = ApplicationBuilder().token(token or config.providers.telegram.token).build()
             self.chat_id = chat_id or config.providers.telegram.chat_id
-            start_handler = CommandHandler('job', self.job)
-            self.app.add_handler(start_handler)
-            caps_handler = CommandHandler('ib', self.ib)
-            self.app.add_handler(caps_handler)
-            chatid_handler = CommandHandler('chatid', self.chatid)
-            self.app.add_handler(chatid_handler)
-            help_handler = CommandHandler('help', self.help)
-            self.app.add_handler(help_handler)
-            unknown_handler = MessageHandler(filters.COMMAND, self.unknown)
-            self.app.add_handler(unknown_handler)
+            self.app.add_handler(CommandHandler('job', self.job))
+            self.app.add_handler(CommandHandler('ib', self.ib))
+            self.app.add_handler(CommandHandler('chatid', self.chatid))
+            self.app.add_handler(CommandHandler('help', self.help))
+            self.app.add_handler(MessageHandler(filters.COMMAND, self.unknown))
+            self.app.add_handler(MessageHandler(filters.TEXT, self.text))
         else:
             raise RuntimeError('Telegram token is not configured')
 
@@ -91,17 +97,18 @@ class TelegramBot():
     async def ib(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         cmd = len(context.args) == 1 and context.args[0] or None
         if cmd == 'login':
-            for account in BrokerAccount.list():
-                await context.bot.send_message(chat_id=update.effective_chat.id, text=f'Login {account.alias} ...')
-                try:
-                    broker = Broker.get_broker(account)
+            async def login():
+                for account in BrokerAccount.list():
+                    await context.bot.send_message(chat_id=update.effective_chat.id, text=f'Login {account.alias}...')
                     try:
-                        broker.connect()
+                        broker = Broker.get_broker(account)
+                        await asyncio.to_thread(broker.connect)
                         await context.bot.send_message(chat_id=update.effective_chat.id, text=f'Login {account.alias} ... OK')
                     except Exception:
                         await context.bot.send_message(chat_id=update.effective_chat.id, text=f'Login {account.alias} ... ERROR')
-                except Exception:
-                    await context.bot.send_message(chat_id=update.effective_chat.id, text=f'Login {account.alias} failed')
+            self.ib_login_task = asyncio.create_task(login(), name='login')
+            def clear_ib_login_task(x): self.ib_login_task = None
+            self.ib_login_task.add_done_callback(clear_ib_login_task)
         else:
             status = await self.__call_ibgateway_admin('GET', '/ibgateway')
             await context.bot.send_message(chat_id=update.effective_chat.id, text=f'{len(status)} gateway running')
@@ -124,6 +131,10 @@ class TelegramBot():
 
     async def unknown(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         await context.bot.send_message(chat_id=update.effective_chat.id, text="Sorry, I don't understand that command. Try /help.")
+
+    async def text(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        await asyncio.to_thread(send_ibgateway_challenge_response, update.message.text)
+        await context.bot.send_message(chat_id=update.effective_chat.id, text="Thanks")
 
     async def startup(self):
         await self.app.initialize()
