@@ -100,9 +100,9 @@ def compute_stats(
         have_position[t.EntryBar:t.ExitBar + 1] = 1
 
     s.loc['Exposure Time [%]'] = have_position.mean() * 100  # In "n bars" time, not index time
-    s.loc['Equity Final [$]'] = equity['_Equity'][-1]
+    s.loc['Equity Final [$]'] = equity['_Equity'].iloc[-1]
     s.loc['Equity Peak [$]'] = equity['_Equity'].max()
-    s.loc['Return [%]'] = (equity['_Equity'][-1] - equity['_Equity'][0]) / equity['_Equity'][0] * 100
+    s.loc['Return [%]'] = (equity['_Equity'].iloc[-1] - equity['_Equity'].iloc[0]) / equity['_Equity'].iloc[0] * 100
     c = ohlc_data.Close.values
     s.loc['Buy & Hold Return [%]'] = (c[-1] - c[0]) / c[0] * 100  # long-only return
 

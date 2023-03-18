@@ -187,15 +187,15 @@ def compute_stats(
         >>> long_stats = compute_stats(stats=stats, trades=only_long_trades,
         ...                            data=GOOG, risk_free_rate=.02)
     """
-    equity = stats._equity_curve.Equity
+    equity = stats._equity_curve
     if trades is None:
         trades = stats._trades
     else:
         # XXX: Is this buggy?
         equity = equity.copy()
-        equity[:] = stats._equity_curve.Equity.iloc[0]
+        equity['_Equity'] = stats._equity_curve._Equity.iloc[0]
         for t in trades.itertuples(index=False):
-            equity.iloc[t.EntryBar:] += t.PnL
+            equity['_Equity'].iloc[t.EntryBar:] += t.PnL
     return _compute_stats(orders=stats._orders, trades=trades, equity=equity, ohlc_data=data,
                           risk_free_rate=risk_free_rate, strategy_instance=stats._strategy)
 

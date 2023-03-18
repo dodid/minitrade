@@ -76,14 +76,12 @@ class QuoteSource(ABC):
         if isinstance(tickers, str):
             tickers = tickers.split(',')
         data = {ticker: self._daily_bar(ticker, start, end) for ticker in tickers}
-        df = pd.concat(data, axis=1).copy()
-        ohlc = ['Open', 'High', 'Low', 'Close']
-        df.loc[:, (slice(None), 'Volume')] = df.loc[:, (slice(None), 'Volume')].fillna(0)
-        df.loc[:, (slice(None), ohlc)] = df.loc[:, (slice(None), ohlc)].fillna(method='ffill')
+        df = pd.concat(data, axis=1).fillna(method='ffill')
         if align:
             start_index = df[df.notna().all(axis=1)].index[0]
             df = df.loc[start_index:, :]
             if normalize:
+                ohlc = ['Open', 'High', 'Low', 'Close']
                 for s in tickers:
                     df.loc[:, (s, ohlc)] = df.loc[:, (s, ohlc)] / df[s].loc[start_index, 'Close']
         return df
