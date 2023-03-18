@@ -342,7 +342,7 @@ return this.labels[index] || "";
                   fill_color='#ffffea', line_color='#ffcb66')
 
         # Equity line
-        r = fig.line('index', source_key, source=source, line_width=1.5, line_alpha=1, legend_label='Portfolio')
+        r = fig.line('index', source_key, source=source, line_width=1.5, line_alpha=1, legend_label='Strategy')
         if relative_equity:
             tooltip_format = f'@{source_key}{{+0,0.[000]%}}'
             tick_format = '0,0.[00]%'
