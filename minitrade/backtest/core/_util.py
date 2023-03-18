@@ -156,9 +156,9 @@ class _Data:
         if arr is None:
             array, df = self.__arrays[key]
             if key == '__index':
-                arr = self.__cache[key] = _Indicator(array=array[..., :self.__i], df=lambda: df[:self.__i])
+                arr = self.__cache[key] = _Indicator(array=array[:self.__i], df=lambda: df[:self.__i])
             else:
-                arr = self.__cache[key] = _Indicator(array=array[..., :self.__i], df=lambda: df.iloc[:self.__i])
+                arr = self.__cache[key] = _Indicator(array=array[:self.__i], df=lambda: df.iloc[:self.__i])
         return arr
 
     @property
