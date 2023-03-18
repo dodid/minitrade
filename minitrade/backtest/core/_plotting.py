@@ -220,6 +220,7 @@ def plot(*, results: pd.Series,
 
     source = ColumnDataSource(baseline)
     source.add((baseline.Close >= baseline.Open).values.astype(np.uint8).astype(str), 'inc')
+    source.add(baseline['Close']/baseline['Close'][0], 'bnh_perf')
 
     trade_source = ColumnDataSource(dict(
         index=trades['ExitBar'],
@@ -341,7 +342,7 @@ return this.labels[index] || "";
                   fill_color='#ffffea', line_color='#ffcb66')
 
         # Equity line
-        r = fig.line('index', source_key, source=source, line_width=1.5, line_alpha=1)
+        r = fig.line('index', source_key, source=source, line_width=1.5, line_alpha=1, legend_label='Portfolio')
         if relative_equity:
             tooltip_format = f'@{source_key}{{+0,0.[000]%}}'
             tick_format = '0,0.[00]%'
@@ -352,6 +353,12 @@ return this.labels[index] || "";
             legend_format = '${:,.0f}'
         set_tooltips(fig, [(yaxis_label, tooltip_format)], renderers=[r])
         fig.yaxis.formatter = NumeralTickFormatter(format=tick_format)
+
+        # Buy-and-hold reference performance
+        if relative_equity and not is_return:
+            fig.line('index', 'bnh_perf', source=source, line_width=1,
+                     line_alpha=1, color='#666666', legend_label='Buy&Hold')
+            set_tooltips(fig, [(yaxis_label, tooltip_format), ('Buy&Hold', f'@bnh_perf{{+0,0.[000]%}}')], renderers=[r])
 
         # Peaks
         argmax = equity.idxmax()
