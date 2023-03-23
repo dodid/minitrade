@@ -13,6 +13,7 @@ import requests
 from fastapi import Depends, FastAPI, HTTPException, Response
 from pydantic import BaseModel
 from selenium import webdriver
+from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 
 from minitrade.broker import BrokerAccount
@@ -169,9 +170,9 @@ def login_ibgateway(instance: GatewayInstance, account: BrokerAccount) -> None:
 
     with webdriver.Chrome(options=options) as driver:
         driver.get(root_url)
-        driver.find_element(value='user_name').send_keys(account.username)
-        driver.find_element(value='password').send_keys(account.password)
-        driver.find_element(value='submitForm').click()
+        driver.find_element(By.NAME, "username").send_keys(account.username)
+        driver.find_element(By.NAME, "password").send_keys(account.password)
+        driver.find_element(By.CSS_SELECTOR, ".form-group:nth-child(1) > .btn").click()
         time.sleep(3)
         challenge_label = driver.find_elements(value='chlg_SWCR')
         challenge_code = challenge_label[0].text if challenge_label else None
@@ -190,6 +191,7 @@ def login_ibgateway(instance: GatewayInstance, account: BrokerAccount) -> None:
         else:
             logger.warn(f'Login initiated for {account.username}')
             WebDriverWait(driver, timeout=60).until(lambda d: d.current_url.startswith(redirect_url))
+            logger.warn('Login succeeded')
         # Explicitly call close as context manager seems not working sometimes.
         driver.close()
         driver.quit()

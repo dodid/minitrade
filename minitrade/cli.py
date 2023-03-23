@@ -1,3 +1,4 @@
+import hashlib
 import os
 import pkgutil
 import platform
@@ -231,7 +232,7 @@ def init():
 
     minitrade_root = expanduser('~/.minitrade')
     # init dirs
-    click.secho(f'Setting up directories ...')
+    click.secho(f'Setting up directories...')
     os.makedirs(os.path.join(minitrade_root, 'database'), mode=0o700, exist_ok=True)
     os.makedirs(os.path.join(minitrade_root, 'strategy'), mode=0o700, exist_ok=True)
     os.makedirs(os.path.join(minitrade_root, 'ibgateway'), mode=0o700, exist_ok=True)
@@ -240,7 +241,7 @@ def init():
     GlobalConfig().save()
     # init db
     db_loc = os.path.join(minitrade_root, 'database/minitrade.db')
-    click.secho(f'Setting up database ...')
+    click.secho(f'Setting up database...')
     sql = pkgutil.get_data(__name__, 'minitrade.db.sql').decode('utf-8')
     with sqlite3.connect(db_loc) as conn:
         conn.executescript(sql)
@@ -249,18 +250,22 @@ def init():
     from minitrade.datasource import populate_nasdaq_traded_symbols
     populate_nasdaq_traded_symbols()
     # download and extract IB gateway
-    click.secho(f'Installing Interactive Brokers gateway ...')
+    click.secho(f'Installing Interactive Brokers gateway...')
     ib_loc = os.path.join(minitrade_root, 'ibgateway')
     url = 'https://download2.interactivebrokers.com/portal/clientportal.gw.zip'
     response = requests.get(url, stream=True)
     total_kb = int(int(response.headers["Content-Length"]) / 1000)
     with open(f'{ib_loc}/clientportal.gw.zip', "wb") as f:
+        file_hash = hashlib.md5()
         t = tqdm(response.iter_content(chunk_size=1000), total=total_kb,
                  unit="KB", desc='Downloading IB gateway', leave=False)
         for data in t:
+            file_hash.update(data)
             f.write(data)
             t.format_sizeof(len(data))
         t.close()
+        with open(f'{ib_loc}/clientportal.gw.zip.md5', "w") as h:
+            h.write(file_hash.hexdigest())
     ZipFile(f'{ib_loc}/clientportal.gw.zip').extractall(ib_loc)
     # tighten API access to localhost only
     try:
