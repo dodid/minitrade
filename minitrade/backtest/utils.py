@@ -76,9 +76,12 @@ def backtest_strategy_parameters(data: pd.DataFrame, strategy: Strategy,
         goals: A list of goals as required by `Backtest.optimize()`. A plot is generated for each.
         **kwargs: Parameters to be passed to `Backtest.optimize()`, which should specify value range for strategy parameters.
     '''
-    bt = Backtest(data, strategy=strategy, fail_fast=False)
+    bt_args = {k: v for k, v in kwargs.items() if k in ['rebalance_tolerance', 'rebalance_cash_reserve', 'lot_size']}
+    opt_args = {k: v for k, v in kwargs.items()
+                if k not in ['rebalance_tolerance', 'rebalance_cash_reserve', 'lot_size']}
+    bt = Backtest(data, strategy=strategy, fail_fast=False, **bt_args)
     for goal in goals:
-        stats, heatmap = bt.optimize(maximize=goal, return_heatmap=True, **kwargs)
+        stats, heatmap = bt.optimize(maximize=goal, return_heatmap=True, **opt_args)
         if heatmap.index.nlevels == 1:
             heatmap.plot.bar(title=goal)
         else:

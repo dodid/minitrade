@@ -10,7 +10,7 @@ import os
 import sys
 import traceback
 import warnings
-from abc import ABCMeta, abstractmethod
+from abc import ABC, abstractmethod
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from copy import copy
 from datetime import datetime
@@ -188,7 +188,7 @@ class Allocation:
         self.alloc.loc[:, 'c'] = 0
 
 
-class Strategy(metaclass=ABCMeta):
+class Strategy(ABC):
     """
     A trading strategy base class. Extend this class and
     override methods
@@ -829,7 +829,7 @@ class Trade:
     def pl_pct(self):
         """Trade profit (positive) or loss (negative) in percent."""
         price = self.__exit_price or self.__broker.last_price(self.__ticker)
-        return copysign(1, self.__size) * (price / self.__entry_price - 1)
+        return copysign(1, self.__size) * (price / self.__entry_price - 1) if self.__entry_price != 0 else np.nan
 
     @property
     def value(self):
@@ -883,7 +883,7 @@ class Trade:
 
 
 class _Broker:
-    def __init__(self, *, data: _Data, cash, commission, margin, trade_on_close, hedging, exclusive_orders,
+    def __init__(self, *, data: _Data, cash, holding, commission, margin, trade_on_close, hedging, exclusive_orders,
                  trade_start_date, lot_size, fail_fast, rebalance_cash_reserve, rebalance_tolerance):
         assert 0 < cash, f"cash should be >0, is {cash}"
         assert -.1 <= commission < .1, \
@@ -892,6 +892,7 @@ class _Broker:
         assert 0 < margin <= 1, f"margin should be between 0 and 1, is {margin}"
         self._data = data
         self._cash = cash
+        self._holding = holding
         self._commission = commission
         self._leverage = 1 / margin
         self._trade_on_close = trade_on_close
@@ -909,6 +910,9 @@ class _Broker:
         self._equity = np.tile(np.nan, (len(data.index), len(data.tickers)+2))
         self.orders: List[Order] = []
         self.trades: Dict[str, List[Trade]] = {ticker: [] for ticker in self._data.tickers}
+        for ticker, size in holding:
+            self.trades[ticker].append(Trade(self, ticker=ticker, size=size,
+                                       entry_price=0, entry_bar=0, tag='preexisting'))
         self.positions: Dict[str, Position] = {ticker: Position(self, ticker) for ticker in self._data.tickers}
         self.closed_trades: List[Trade] = []
 
@@ -1284,6 +1288,7 @@ class Backtest:
                  strategy: Type[Strategy],
                  *,
                  cash: float = 10_000,
+                 holding: list = [],
                  commission: float = .0,
                  margin: float = 1.,
                  trade_on_close=False,
@@ -1317,6 +1322,9 @@ class Backtest:
         _subclass_ (not an instance).
 
         `cash` is the initial cash to start with.
+
+        `holding` is a list of preexisting asset positions before backtest begins.
+        It's a list of (`ticker`, `size`) tuples.
 
         `commission` is the commission ratio. E.g. if your broker's commission
         is 1% of trade value, set commission to `0.01`. Note, if you wish to
@@ -1403,7 +1411,7 @@ class Backtest:
 
         self._data = data
         self._broker = partial(
-            _Broker, cash=cash, commission=commission, margin=margin,
+            _Broker, cash=cash, holding=holding, commission=commission, margin=margin,
             trade_on_close=trade_on_close, hedging=hedging,
             exclusive_orders=exclusive_orders,
             trade_start_date=datetime.strptime(trade_start_date, '%Y-%m-%d') if trade_start_date else None,
