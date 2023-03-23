@@ -182,11 +182,11 @@ def show_trade_plan_execution_history(plan: TradePlan) -> None:
 
     with tab2:
         account = BrokerAccount.get_account(plan)
-        broker = Broker.get_broker(account)
+        broker = account and Broker.get_broker(account)
         orders = plan.get_orders()
         for order in orders:
-            trade = broker.find_trades(order)
-            broker_order = broker.find_order(order)
+            trade = broker and broker.find_trades(order)
+            broker_order = broker and broker.find_order(order)
             order_status = '✅' if trade else '🟢' if order.broker_order_id else '🚫'
             with st.expander(f'{order_status} {order.signal_time} **{order.ticker} {order.side} {abs(order.size)}**'):
                 st.caption('Raw order')
@@ -199,26 +199,27 @@ def show_trade_plan_execution_history(plan: TradePlan) -> None:
                     st.write(trade)
 
     with tab3:
-        try:
-            data = logs[0].data
-            trades = broker.format_trades(orders)
-            _, trade_df, equity, pnl, commission_rate = calculate_trade_stats(data, plan.initial_cash, trades)
-            rr = (equity / equity[0] - 1) * 100
-            rr.name = 'Return rate (%)'
-            c1, c2, c3, c4 = st.columns(4)
-            c1.metric(label='Portfolio Value',
-                      value=f'{equity.iloc[-1]:,.0f}', delta=f'{int(equity.iloc[-1]-equity.iloc[-2]):,}')
-            c2.metric(label='PnL', value=f'{(equity.iloc[-1]-plan.initial_cash):,.0f}')
-            c3.metric(label='Return', value=f'{rr.iloc[-1]:.2f}%')
-            c4.metric(label='Commission Rate', value=f'{commission_rate:.3%}')
-            st.caption('Return rate (%)')
-            st.line_chart(rr, height=200)
-            st.caption('Profit and loss')
-            st.write(pnl.style.format('{:,.0f}', na_rep=' '))
-            st.caption('Trades')
-            st.write(trade_df.style.format(na_rep=' '))
-        except Exception as e:
-            st.write(e)
+        if broker and logs:
+            try:
+                data = logs[0].data
+                trades = broker.format_trades(orders)
+                _, trade_df, equity, pnl, commission_rate = calculate_trade_stats(data, plan.initial_cash, trades)
+                rr = (equity / equity[0] - 1) * 100
+                rr.name = 'Return rate (%)'
+                c1, c2, c3, c4 = st.columns(4)
+                c1.metric(label='Portfolio Value',
+                          value=f'{equity.iloc[-1]:,.0f}', delta=f'{int(equity.iloc[-1]-equity.iloc[-2]):,}')
+                c2.metric(label='PnL', value=f'{(equity.iloc[-1]-plan.initial_cash):,.0f}')
+                c3.metric(label='Return', value=f'{rr.iloc[-1]:.2f}%')
+                c4.metric(label='Commission Rate', value=f'{commission_rate:.3%}')
+                st.caption('Return rate (%)')
+                st.line_chart(rr, height=200)
+                st.caption('Profit and loss')
+                st.write(pnl.style.format('{:,.0f}', na_rep=' '))
+                st.caption('Trades')
+                st.write(trade_df.style.format(na_rep=' '))
+            except Exception as e:
+                st.write(e)
 
     with tab4:
         st.write(asdict(plan))

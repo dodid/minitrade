@@ -36,10 +36,14 @@ class TelegramBot():
         if config.providers.telegram.token:
             return TelegramBot()
 
-    def __init__(self, token: str = None, chat_id: str = None):
+    def __init__(self, token: str = None, chat_id: str = None, proxy: str = None):
         if token or config.providers.telegram.token:
-            self.app = ApplicationBuilder().token(token or config.providers.telegram.token).build()
             self.chat_id = chat_id or config.providers.telegram.chat_id
+            self.proxy = proxy or config.providers.telegram.proxy
+            self.app = ApplicationBuilder().token(
+                token or config.providers.telegram.token).proxy_url(
+                self.proxy).get_updates_proxy_url(
+                self.proxy).build()
             self.app.add_handler(CommandHandler('job', self.job))
             self.app.add_handler(CommandHandler('ib', self.ib))
             self.app.add_handler(CommandHandler('chatid', self.chatid))

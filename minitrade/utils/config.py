@@ -14,7 +14,6 @@ from pydantic import BaseModel
 
 
 class SourceConfigYahoo(BaseModel):
-    enable_proxy: bool = False
     proxy: str | None = None
 
 
@@ -48,6 +47,7 @@ class ProviderConfigMailjet(BaseModel):
 class ProviderConfigTelegram(BaseModel):
     token: str | None
     chat_id: str | None
+    proxy: str | None
 
 
 class ProviderConfig(BaseModel):

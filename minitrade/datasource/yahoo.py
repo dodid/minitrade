@@ -8,7 +8,7 @@ from minitrade.utils.config import config
 
 class YahooQuoteSource(QuoteSource):
 
-    def __init__(self, use_proxy: bool = True, proxy: str = None):
+    def __init__(self, proxy: str = None):
         ''' Yahoo data source
 
         Parameters
@@ -18,11 +18,7 @@ class YahooQuoteSource(QuoteSource):
         proxy: str
             Http proxy URI to override currently setting if not None
         '''
-        yc = config.sources.yahoo
-        if use_proxy:
-            self.proxy = proxy or (yc.proxy if yc.enable_proxy else None)
-        else:
-            self.proxy = None
+        self.proxy = proxy or config.sources.yahoo.proxy
 
     def _daily_bar(self, ticker, start, end) -> pd.DataFrame:
         df: pd.DataFrame = yf.Ticker(ticker).history(start=start, end=end, interval='1d',

@@ -25,11 +25,12 @@ def test_and_save_mailjet(api_key, api_secret, sender, mailto):
         st.error('Sending email failed, please check')
 
 
-def test_and_save_telegram(token, chat_id):
+def test_and_save_telegram(token, chat_id, proxy):
     try:
-        asyncio.run(TelegramBot(token, chat_id).self_test())
+        asyncio.run(TelegramBot(token, chat_id, proxy).self_test())
         config.providers.telegram.token = token
         config.providers.telegram.chat_id = chat_id
+        config.providers.telegram.proxy = proxy
         config.save()
         if chat_id:
             st.success('Setting saved. You should have received a message.')
@@ -41,16 +42,20 @@ def test_and_save_telegram(token, chat_id):
 
 if provider == 'Mailjet':
     st.subheader('Mailjet')
-    api_key = st.text_input('API key', value=config.providers.mailjet.api_key)
-    api_secret = st.text_input('API secret', value=config.providers.mailjet.api_secret)
-    sender = st.text_input('Sender email', value=config.providers.mailjet.sender)
-    mailto = st.text_input('Recipient email', value=config.providers.mailjet.mailto)
+    api_key = st.text_input('API key', value=config.providers.mailjet.api_key or '') or None
+    api_secret = st.text_input('API secret', value=config.providers.mailjet.api_secret or '') or None
+    sender = st.text_input('Sender email', value=config.providers.mailjet.sender or '') or None
+    mailto = st.text_input('Recipient email', value=config.providers.mailjet.mailto or '') or None
     if st.button('Save'):
         test_and_save_mailjet(api_key, api_secret, sender, mailto)
 
 if provider == 'Telegram':
     st.subheader('Telegram')
-    token = st.text_input('Token', value=config.providers.telegram.token)
-    chat_id = st.text_input('Chat ID', value=config.providers.telegram.chat_id)
+    token = st.text_input('Token', value=config.providers.telegram.token or '') or None
+    chat_id = st.text_input('Chat ID', value=config.providers.telegram.chat_id or '') or None
+    proxy = st.text_input(
+        'Proxy',
+        placeholder='http://user:pass@host:port or https://user:pass@host:port or socks5://user:pass@host:port',
+        value=config.providers.telegram.proxy or '') or None
     if st.button('Save'):
-        test_and_save_telegram(token, chat_id)
+        test_and_save_telegram(token, chat_id, proxy)

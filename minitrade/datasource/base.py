@@ -73,18 +73,21 @@ class QuoteSource(ABC):
         Returns:
             A dataframe with 2-level columns, first level being the tickers, and the second level being columns 'Open', 'High', 'Low', 'Close', 'Volume'. The dataframe is indexed by datetime.
         '''
-        if isinstance(tickers, str):
-            tickers = tickers.split(',')
-        data = {ticker: self._daily_bar(ticker, start, end) for ticker in tickers}
-        df = pd.concat(data, axis=1).fillna(method='ffill')
-        if align:
-            start_index = df[df.notna().all(axis=1)].index[0]
-            df = df.loc[start_index:, :]
-            if normalize:
-                ohlc = ['Open', 'High', 'Low', 'Close']
-                for s in tickers:
-                    df.loc[:, (s, ohlc)] = df.loc[:, (s, ohlc)] / df[s].loc[start_index, 'Close']
-        return df
+        try:
+            if isinstance(tickers, str):
+                tickers = tickers.split(',')
+            data = {ticker: self._daily_bar(ticker, start, end) for ticker in tickers}
+            df = pd.concat(data, axis=1).fillna(method='ffill')
+            if align:
+                start_index = df[df.notna().all(axis=1)].index[0]
+                df = df.loc[start_index:, :]
+                if normalize:
+                    ohlc = ['Open', 'High', 'Low', 'Close']
+                    for s in tickers:
+                        df.loc[:, (s, ohlc)] = df.loc[:, (s, ohlc)] / df[s].loc[start_index, 'Close']
+            return df
+        except Exception:
+            raise AttributeError(f'Data error')
 
 
 def populate_nasdaq_traded_symbols():

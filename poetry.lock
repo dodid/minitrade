@@ -1166,6 +1166,7 @@ h2 = {version = ">=3,<5", optional = true, markers = "extra == \"http2\""}
 httpcore = ">=0.15.0,<0.17.0"
 rfc3986 = {version = ">=1.3,<2", extras = ["idna2008"]}
 sniffio = "*"
+socksio = {version = ">=1.0.0,<2.0.0", optional = true, markers = "extra == \"socks\""}
 
 [package.extras]
 brotli = ["brotli", "brotlicffi"]
@@ -3335,7 +3336,10 @@ files = [
 ]
 
 [package.dependencies]
-httpx = {version = ">=0.23.3,<0.24.0", extras = ["http2"]}
+httpx = [
+    {version = ">=0.23.3,<0.24.0", extras = ["http2"]},
+    {version = "*", extras = ["socks"], optional = true, markers = "extra == \"socks\""},
+]
 
 [package.extras]
 all = ["APScheduler (>=3.10.0,<3.11.0)", "aiolimiter (>=1.0.0,<1.1.0)", "cachetools (>=5.3.0,<5.4.0)", "cryptography (>=39.0.1)", "httpx[socks]", "pytz (>=2018.6)", "tornado (>=6.2,<7.0)"]
@@ -3902,6 +3906,18 @@ python-versions = ">=3.7"
 files = [
     {file = "sniffio-1.3.0-py3-none-any.whl", hash = "sha256:eecefdce1e5bbfb7ad2eeaabf7c1eeb404d7757c379bd1f7e5cce9d8bf425384"},
     {file = "sniffio-1.3.0.tar.gz", hash = "sha256:e60305c5e5d314f5389259b7f22aaa33d8f7dee49763119234af3755c55b9101"},
+]
+
+[[package]]
+name = "socksio"
+version = "1.0.0"
+description = "Sans-I/O implementation of SOCKS4, SOCKS4A, and SOCKS5."
+category = "main"
+optional = false
+python-versions = ">=3.6"
+files = [
+    {file = "socksio-1.0.0-py3-none-any.whl", hash = "sha256:95dc1f15f9b34e8d7b16f06d74b8ccf48f609af32ab33c608d08761c5dcbb1f3"},
+    {file = "socksio-1.0.0.tar.gz", hash = "sha256:f88beb3da5b5c38b9890469de67d0cb0f9d494b78b106ca1845f96c10b91c4ac"},
 ]
 
 [[package]]
@@ -4719,4 +4735,4 @@ testing = ["big-O", "flake8 (<5)", "jaraco.functools", "jaraco.itertools", "more
 [metadata]
 lock-version = "2.0"
 python-versions = "~3.10"
-content-hash = "b15927acd27de07be79250766527a172c0b8fdb981192927518074f6b0955212"
+content-hash = "79a28ae4f6eac60eafaba722f07bbf75b1dde1e42610ae55f0ef82992b9d53be"
