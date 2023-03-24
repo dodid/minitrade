@@ -11,6 +11,17 @@ CREATE TABLE IF NOT EXISTS "BrokerAccount" (
 	PRIMARY KEY("alias")
 );
 
+INSERT INTO
+	"BrokerAccount" (
+		"alias",
+		"broker",
+		"mode",
+		"username",
+		"password"
+	)
+VALUES
+	('Manual', 'Manual', 'Live', '', '');
+
 DROP TABLE IF EXISTS "IbTrade";
 
 CREATE TABLE IF NOT EXISTS "IbTrade" (
@@ -76,6 +87,7 @@ CREATE TABLE IF NOT EXISTS "TradePlan" (
 	"broker_account" TEXT,
 	"commission_rate" FLOAT NOT NULL,
 	"initial_cash" FLOAT NOT NULL,
+	"initial_holding" JSON,
 	"enabled" BOOLEAN NOT NULL,
 	"create_time" DATETIME NOT NULL,
 	"update_time" DATETIME,
@@ -195,6 +207,25 @@ CREATE TABLE IF NOT EXISTS "NasdaqTraded" (
 	"nasdaq_symbol" TEXT,
 	"nextshares" TEXT,
 	PRIMARY KEY("symbol")
+);
+
+DROP TABLE IF EXISTS "ManualTrade";
+
+CREATE TABLE IF NOT EXISTS "ManualTrade" (
+	"id" TEXT NOT NULL,
+	"plan_id" TEXT NOT NULL,
+	"run_id" TEXT NOT NULL,
+	"ticker" TEXT NOT NULL,
+	"side" TEXT NOT NULL,
+	"size" BIGINT NOT NULL,
+	"signal_time" DATETIME NOT NULL,
+	"entry_type" TEXT NOT NULL,
+	"broker_order_id" TEXT NOT NULL,
+	"submit_time" DATETIME NOT NULL,
+	"price" FLOAT,
+	"commission" FLOAT,
+	"trade_time" DATETIME,
+	PRIMARY KEY("id")
 );
 
 COMMIT;

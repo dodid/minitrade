@@ -1,6 +1,7 @@
 
 from dataclasses import asdict
 from datetime import datetime, time, timedelta
+from zoneinfo import ZoneInfo
 
 import pandas as pd
 import streamlit as st
@@ -49,23 +50,31 @@ def get_broker_ticker_map(tickers: dict | None) -> dict | None:
 
 def show_create_trade_plan_form() -> TradePlan | None:
     strategy_file = st.selectbox('Pick a strategy', StrategyManager.list())
-    ticker_css = st.text_input('Define the asset space')
+    ticker_css = st.text_input(
+        'Define the asset space (a list of tickers separated by comma without space)', placeholder='AAPL,GOOG')
     data_source = st.selectbox('Select a data source', QuoteSource.AVAILABLE_SOURCES)
     market_timezone = market_timezone_selectbox()
     backtest_start_date = st.date_input(
-        'Pick a backtest start date (run backtest from that date)', value=datetime.today()-timedelta(days=110))
+        'Pick a backtest start date (run backtest from that date to give enough lead time to calculate indicators)',
+        value=datetime.today() - timedelta(days=110))
     trade_start_date = st.date_input(
         'Pick a trade start date (trade signal before that is surpressed)', min_value=datetime.now().date())
-    trade_time_of_day = st.time_input('Pick when backtesting should start (market local time)', value=time(20, 30))
+    trade_time_of_day = st.time_input('Pick when backtesting should start (market local time)', value=time(19, 30))
     account = st.selectbox('Select a broker account', BrokerAccount.list(), format_func=lambda b: b.alias)
-    initial_cash = st.number_input('Set the cash amount to invest', value=10000)
+    initial_cash = st.number_input('Set the cash amount to invest', value=0)
+    initial_holding = st.text_input(
+        'Set the preexisting asset positions (number of shares you already own and to be considered in the strategy)',
+        placeholder='AAPL:100,GOOG:100') or None
     name = st.text_input('Name the trade plan')
     tickers = ticker_resolver(account, ticker_css)
     dryrun = st.button('Save and dry run')
     if dryrun:
         ticker_map = get_broker_ticker_map(tickers)
+        if initial_holding:
+            initial_holding = {k.strip(): int(v)
+                               for k, v in [x.strip().split(':') for x in initial_holding.split(',')]}
         if len(ticker_css.strip()) == 0 or len(name.strip()) == 0:
-            st.error('Please do not leave any field empty.')
+            st.error('Please do not leave any required field empty.')
         elif account and ticker_map is None:
             st.error('Tickers are not fully resolved.')
         else:
@@ -81,6 +90,7 @@ def show_create_trade_plan_form() -> TradePlan | None:
                 trade_time_of_day=trade_time_of_day.strftime('%H:%M:%S'),
                 broker_account=account.alias if account else None,
                 initial_cash=initial_cash,
+                initial_holding=initial_holding,
                 enabled=False,
                 create_time=datetime.utcnow(),
                 update_time=None,
@@ -96,7 +106,7 @@ def display_run(plan: TradePlan, log: BacktestLog):
         tab1, tab2, tab3, tab4 = st.tabs(['Result', 'Error', 'Log', 'Orders'])
         if log.result is not None:
             df = log.result
-            df = df[~df.index.str.startswith('_')]['0'].to_dict()
+            df = df[~df.index.str.startswith('_')].T
             tab1.write(df)
         tab2.code(log.exception)
         tab3.caption('Log - stdout')
@@ -189,14 +199,24 @@ def show_trade_plan_execution_history(plan: TradePlan) -> None:
             broker_order = broker and broker.find_order(order)
             order_status = '✅' if trade else '🟢' if order.broker_order_id else '🚫'
             with st.expander(f'{order_status} {order.signal_time} **{order.ticker} {order.side} {abs(order.size)}**'):
-                st.caption('Raw order')
-                st.write(asdict(order))
+                t1, t2, t3 = st.tabs(['Raw order', 'Broker order', 'Trade status'])
+                t1.dataframe(pd.DataFrame([asdict(order)]))
                 if broker_order:
-                    st.caption('Broker order')
-                    st.write(broker_order)
+                    t2.dataframe(pd.DataFrame([broker_order]))
                 if trade:
-                    st.caption('Trade status')
-                    st.write(trade)
+                    t3.dataframe(pd.DataFrame(trade))
+                    c1, c2, c3, c4 = t3.columns(4)
+                    price = c1.number_input('Price', key=f'{order.id}-price', value=trade[0]['price'] or 0.0)
+                    commission = c2.number_input(
+                        'Commission', key=f'{order.id}-comm', value=trade[0]['commission'] or 0.0)
+                    dt = c3.date_input('Trade time (market local timezone)',
+                                       key=f'{order.id}-date', value=trade[0]['trade_time'])
+                    tm = c4.time_input('Trade time', key=f'{order.id}-time',
+                                       value=trade[0]['trade_time'] or time(9, 30), label_visibility='hidden')
+                    if t3.button('Save', key=f'{order.id}-save'):
+                        broker.update_trade(trade[0]['id'], price, commission,
+                                            datetime.combine(dt, tm, ZoneInfo(plan.market_timezone)))
+                        st.warning('Click "Refresh" button to see change')
 
     with tab3:
         if broker and logs:

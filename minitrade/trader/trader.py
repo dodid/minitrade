@@ -93,6 +93,9 @@ class TradePlan:
     initial_cash: float
     '''Cash amount to start with'''
 
+    initial_holding: dict | None = None
+    '''Asset positions to start with'''
+
     enabled: bool = False
     '''If the trade plan is enabled for trading'''
 
@@ -102,7 +105,7 @@ class TradePlan:
     update_time: datetime | None
     '''Time when the trade plan is updated'''
 
-    broker_ticker_map: str | None
+    broker_ticker_map: dict | None = None
     '''A json string encoding a dict mapping from generic tickers to broker
     specific instrument IDs'''
 

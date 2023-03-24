@@ -77,7 +77,7 @@ class Broker(ABC):
     to add a concrete implementation to talk to a particular broker.
     '''
 
-    AVAILABLE_BROKERS = {'IB': 'Interactive Brokers'}
+    AVAILABLE_BROKERS = {'IB': 'Interactive Brokers', 'Manual': 'Manual Trader'}
     '''A dict mapping from broker alias to broker user-friendly name for supported brokers.'''
 
     @staticmethod
@@ -97,6 +97,9 @@ class Broker(ABC):
         if account.broker == 'IB':
             from .ib import InteractiveBrokers
             return InteractiveBrokers(account)
+        elif account.broker == 'Manual':
+            from .manual import ManualBroker
+            return ManualBroker(account)
         else:
             raise AttributeError(f'Broker {account.broker} is not supported')
 
@@ -152,7 +155,7 @@ class Broker(ABC):
         raise NotImplementedError()
 
     @abstractmethod
-    def get_portfolio(self) -> pd.DataFrame:
+    def get_portfolio(self) -> pd.DataFrame | None:
         '''Get account portfolio
 
         Returns:
@@ -161,7 +164,7 @@ class Broker(ABC):
         raise NotImplementedError()
 
     @abstractmethod
-    def download_trades(self) -> pd.DataFrame:
+    def download_trades(self) -> pd.DataFrame | None:
         '''Get recent trades at broker. Trades are completed orders.
 
         This function is called immediately before and after order submission to get the most 
@@ -177,7 +180,7 @@ class Broker(ABC):
         raise NotImplementedError()
 
     @abstractmethod
-    def download_orders(self) -> pd.DataFrame:
+    def download_orders(self) -> pd.DataFrame | None:
         '''Get recent orders at broker. RawOrder submitted creates a correspoing order
         on the broker side, which can have different status such as open, cancelled, error, etc.
 
@@ -239,7 +242,7 @@ class Broker(ABC):
             order: A `RawOrder`
 
         Returns:
-            A dict that contains broker specific trade infomation associated with the order, 
+            A list of dict that contains broker specific trade infomation associated with the order, 
             or None if no broker trade is found.
         '''
         raise NotImplementedError()

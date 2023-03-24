@@ -5,6 +5,44 @@ def test_get_broker():
     supported = Broker.AVAILABLE_BROKERS
     assert 'IB' in supported
     assert isinstance(supported['IB'], str)
+    assert 'Manual' in supported
+    assert isinstance(supported['Manual'], str)
+
+
+def test_builtin_manual_broker_account(clean_db):
+    assert BrokerAccount.get_account('Manual') is not None
+
+
+def test_create_manual_broker_account(clean_db):
+    account = BrokerAccount(alias='pytest_manual_account', broker='Manual',
+                            mode='Paper', username='username', password='password')
+    account.save()
+    assert BrokerAccount.get_account('pytest_manual_account') == account
+
+
+def test_manual_broker_works():
+    account = BrokerAccount.get_account('pytest_manual_account')
+    broker = Broker.get_broker(account=account)
+    assert broker.is_ready() == True
+    try:
+        broker.connect()
+    except Exception:
+        assert False, f'Broker not connected'
+    assert broker.is_ready() == True
+    try:
+        broker.get_account_info()
+        broker.get_portfolio()
+        broker.download_trades()
+        broker.download_orders()
+    except Exception as e:
+        assert False, f'Unexpected exception {e}'
+
+
+def test_delete_manual_broker_account():
+    account = BrokerAccount.get_account('pytest_manual_account')
+    assert account.alias == 'pytest_manual_account'
+    account.delete()
+    assert BrokerAccount.get_account('pytest_manual_account') is None
 
 
 def test_create_ib_broker_account(clean_db):
