@@ -27,3 +27,6 @@ if source == 'Yahoo':
                           placeholder='http://host:port', value=config.sources.yahoo.proxy or '') or None
     if st.button('Test and save'):
         test_and_save_yahoo_proxy(proxy)
+elif source == 'EastMoney':
+    st.subheader('EastMoney')
+    st.write('Nothing to configure')

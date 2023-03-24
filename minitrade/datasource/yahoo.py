@@ -13,8 +13,6 @@ class YahooQuoteSource(QuoteSource):
 
         Parameters
         ----------
-        use_proxy : bool
-            False to not use proxy at all
         proxy: str
             Http proxy URI to override currently setting if not None
         '''

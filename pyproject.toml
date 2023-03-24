@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "minitrade"
-version = "0.1.10"
+version = "0.1.11"
 description = "A personal automated trading system"
 authors = ["Wei Wu <dodid@outlook.com>"]
 readme = "README.md"
@@ -37,6 +37,7 @@ scikit-learn = "^1.2.1"
 scipy = "^1.10.1"
 minitrade-scikit-optimize = "^0.9.1"
 python-telegram-bot = {extras = ["socks"], version = "^20.1"}
+akshare = "^1.9.21"
 
 
 [tool.poetry.group.dev.dependencies]

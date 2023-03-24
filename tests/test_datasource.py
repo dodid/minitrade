@@ -4,15 +4,30 @@ from .fixture import *
 def test_get_data_source():
     supported = QuoteSource.AVAILABLE_SOURCES
     assert 'Yahoo' in supported
+    assert 'EastMoney' in supported
     for s in supported:
         source = QuoteSource.get_source(s)
         assert isinstance(source, QuoteSource)
 
 
-def test_get_nasdaq_traded(clean_db):
-    # @pytest.mark.skip(reason="take too long to test, only run manually")
-    populate_nasdaq_traded_symbols()
-    assert MTDB.get_one('NasdaqTraded', 'symbol', 'SPY') is not None
+def test_eastmoney_get_single_ticker():
+    em = QuoteSource.get_source('EastMoney')
+    start = '2000-01-03'
+    end, prev_close = '2022-12-10', '2022-12-09'
+    df = em.daily_bar('000001', start=start, end=end)
+    assert list(df.columns.levels[0]) == ['000001']
+    assert list(df.columns.levels[1]) == 'Open,High,Low,Close,Volume'.split(',')
+    assert isinstance(df.index, pd.DatetimeIndex)
+    assert df.index[0].strftime('%Y-%m-%d') == '2000-01-04'
+    assert df.index[-1].strftime('%Y-%m-%d') == prev_close
+    assert df.notna().all(axis=None) == True
+
+    df = em.daily_bar('000001', start=start)
+    assert list(df.columns.levels[0]) == ['000001']
+    assert list(df.columns.levels[1]) == 'Open,High,Low,Close,Volume'.split(',')
+    assert isinstance(df.index, pd.DatetimeIndex)
+    assert df.index[0].strftime('%Y-%m-%d') == '2000-01-04'
+    assert df.notna().all(axis=None) == True
 
 
 def test_yahoo_get_single_ticker():
@@ -67,3 +82,9 @@ def test_yahoo_get_multiple_tickers():
 
     with pytest.raises(Exception):
         yahoo.daily_bar('AAPL , GOOG,META ')
+
+
+def test_get_nasdaq_traded(clean_db):
+    # @pytest.mark.skip(reason="take too long to test, only run manually")
+    populate_nasdaq_traded_symbols()
+    assert MTDB.get_one('NasdaqTraded', 'symbol', 'SPY') is not None

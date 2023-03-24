@@ -24,7 +24,7 @@ class QuoteSource(ABC):
     to add a concrete implementation to get data from particular data source.
     '''
 
-    AVAILABLE_SOURCES = ['Yahoo']
+    AVAILABLE_SOURCES = ['Yahoo', 'EastMoney']
     '''A list of names for supported quote sources as input to `QuoteSource.get_source()`.'''
 
     @staticmethod
@@ -44,6 +44,9 @@ class QuoteSource(ABC):
         if name == 'Yahoo':
             from .yahoo import YahooQuoteSource
             return YahooQuoteSource(**kwargs)
+        elif name == 'EastMoney':
+            from .eastmoney import EastMoneyQuoteSource
+            return EastMoneyQuoteSource()
         else:
             raise AttributeError(f'Quote source {name} is not supported')
 
