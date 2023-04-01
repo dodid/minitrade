@@ -10,6 +10,11 @@ def test_get_data_source():
         assert isinstance(source, QuoteSource)
 
 
+def test_get_data_source_not_exist():
+    with pytest.raises(AttributeError):
+        QuoteSource.get_source('NotExist')
+
+
 def test_eastmoney_get_single_ticker():
     em = QuoteSource.get_source('EastMoney')
     start = '2000-01-03'
@@ -40,6 +45,14 @@ def test_yahoo_get_single_ticker():
     assert isinstance(df.index, pd.DatetimeIndex)
     assert df.index[0].strftime('%Y-%m-%d') == start
     assert df.index[-1].strftime('%Y-%m-%d') == prev_close
+    assert df.notna().all(axis=None) == True
+
+    # test no end date
+    df = yahoo.daily_bar('AAPL', start=start)
+    assert list(df.columns.levels[0]) == ['AAPL']
+    assert list(df.columns.levels[1]) == 'Open,High,Low,Close,Volume'.split(',')
+    assert isinstance(df.index, pd.DatetimeIndex)
+    assert df.index[0].strftime('%Y-%m-%d') == start
     assert df.notna().all(axis=None) == True
 
 

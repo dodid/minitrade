@@ -11,6 +11,7 @@ from minitrade.utils.config import config
 
 
 def send_telegram_message(*text):
+    '''Send message to Telegram`'''
     url = f'http://{config.scheduler.host}:{config.scheduler.port}/messages'
     resp = requests.request(method='POST', url=url, json={'text': '\n'.join(text)})
     if resp.status_code == 200:
@@ -72,6 +73,7 @@ class TelegramBot():
             raise RuntimeError(f'Request {path} returned {resp.status_code} {resp.text}')
 
     async def job(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        '''List scheduled jobs or enable/disable a job'''
         from minitrade.trader import TradePlan
         cmd, plan_name = len(context.args) == 2 and context.args or (None, None)
         if cmd == 'enable':
@@ -120,9 +122,11 @@ class TelegramBot():
                 await context.bot.send_message(chat_id=update.effective_chat.id, text=str(s))
 
     async def chatid(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        '''Show chat id'''
         await context.bot.send_message(chat_id=update.effective_chat.id, text=update.effective_chat.id)
 
     async def help(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        '''Show help message'''
         await context.bot.send_message(chat_id=update.effective_chat.id,
                                        text='Commands:\n'
                                        '/job: show scheduler status\n'
@@ -157,6 +161,7 @@ class TelegramBot():
             raise RuntimeError('Chat ID is not configured')
 
     async def self_test(self):
+        '''Test if Telegram is correctly configured'''
         await self.app.bot.get_me()
         if self.chat_id:
             await self.send_message('Telegram is correctly configured')

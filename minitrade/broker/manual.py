@@ -7,6 +7,7 @@ from datetime import datetime, timezone
 import pandas as pd
 
 from minitrade.broker import Broker, BrokerAccount
+from minitrade.broker.base import OrderValidator
 from minitrade.utils.mtdb import MTDB
 
 if typing.TYPE_CHECKING:
@@ -28,6 +29,8 @@ class ManualBroker(Broker):
         pass
 
     def submit_order(self, plan: TradePlan, order: RawOrder) -> str:
+        validator = OrderValidator(plan)
+        validator.validate(order)
         order_id = MTDB.uniqueid()
         order = asdict(order)
         order['broker_order_id'] = order_id

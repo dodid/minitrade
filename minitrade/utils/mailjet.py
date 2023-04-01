@@ -28,3 +28,4 @@ def mailjet_send_email(
         return result.status_code == 200
     else:
         logging.warn('Mailjet not configured')
+        return False

@@ -1,8 +1,10 @@
 from __future__ import annotations
 
+import traceback
 import typing
 from abc import ABC, abstractmethod
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
+from datetime import datetime
 
 import pandas as pd
 
@@ -14,6 +16,8 @@ if typing.TYPE_CHECKING:
 __all__ = [
     'BrokerAccount',
     'Broker',
+    'OrderValidator',
+    'OrderValidatorLog',
 ]
 
 
@@ -69,6 +73,118 @@ class BrokerAccount:
     def delete(self) -> None:
         '''Delete broker account from database.'''
         MTDB.delete('BrokerAccount', 'alias', self.alias)
+
+
+@dataclass(kw_only=True)
+class OrderValidatorLog:
+    '''OrderValidatorLog logs the results of order validation.'''
+
+    id: str
+    '''Validator run ID'''
+
+    order_id: str
+    '''Raw order ID'''
+
+    order: str
+    '''Raw order in Json format'''
+
+    result: str
+    '''Validation output'''
+
+    exception: str | None = None
+    '''Exception that occurs during validation'''
+
+    log_time: datetime
+    '''Log time'''
+
+
+class OrderValidator:
+    '''OrderValidator is responsible for integrity checks on a raw order before it's
+    submitted to broker.'''
+
+    def __init__(self, plan: TradePlan):
+        self.plan = plan
+        self.tests = [
+            self.order_is_in_sync_with_db,
+            self.order_has_correct_plan_id,
+            self.order_has_correct_run_id,
+            self.order_has_correct_ticker,
+            self.order_has_correct_size,
+            self.order_has_no_broker_order_id,
+        ]
+
+    def _assert(self, condition, message):
+        if condition != True:
+            raise AttributeError(message)
+
+    def _assert_is_null(self, value, message):
+        return self._assert(value is None, f'{message}: {value=}')
+
+    def _assert_not_null(self, value, message):
+        return self._assert(value is not None, f'{message}: {value=}')
+
+    def _assert_equal(self, value, expected_value, message):
+        return self._assert(value == expected_value, f'{message}: {value=} != {expected_value=}')
+
+    def _assert_is_in(self, value, collection, message):
+        return self._assert(value in collection, f'{message}: {value=} not in {collection=}')
+
+    def _assert_less_than(self, value, limit, message):
+        return self._assert(value < limit, f'{message}: {value=} >= {limit=}')
+
+    def order_is_in_sync_with_db(self, order: RawOrder):
+        order_in_db = MTDB.get_one('RawOrder', 'id', order.id, cls=dict)
+        self._assert_not_null(order_in_db, 'Order is not in RawOrder table')
+        self._assert_equal(asdict(order), order_in_db, 'Order is not in sync with db')
+
+    def order_has_correct_plan_id(self, order: RawOrder):
+        self._assert_equal(order.plan_id, self.plan.id, 'Order has incorrect plan ID')
+
+    def order_has_correct_run_id(self, order: RawOrder):
+        self._assert_not_null(MTDB.get_one('BacktestLog', 'id', order.run_id), 'Order has incorrect run ID')
+
+    def order_has_correct_ticker(self, order: RawOrder):
+        self._assert_is_in(order.ticker, self.plan.ticker_css.split(','), 'Order has incorrect ticker')
+        self._assert_not_null(self.plan.broker_instrument_id(order.ticker), 'Order has incorrect ticker mapping')
+
+    def order_has_correct_size(self, order: RawOrder):
+        self._assert((order.size > 0 and order.side == 'Buy') or (
+            order.size < 0 and order.side == 'Sell'), 'Order side and size does not agree')
+
+    def order_has_no_broker_order_id(self, order: RawOrder):
+        self._assert_is_null(order.broker_order_id, 'Order already has broker_order_id')
+
+    def validate(self, order: RawOrder):
+        '''Run a bunch of checks to ensure the raw order is valid.
+
+        For example, a valid order should:
+
+        - have valid values for all its attributes
+        - not be a duplicate of what has been submitted before
+        - be timely
+        '''
+        result, ex = {}, None
+        try:
+            for test in self.tests:
+                test(order)
+                result[test.__name__] = 'Pass'
+        except Exception as e:
+            result[test.__name__] = 'Fail'
+            ex = traceback.format_exc()
+            raise RuntimeError(f'Order {order.id} failed {test.__name__}') from e
+        finally:
+            self._log_validator_run(order, result, ex)
+
+    def _log_validator_run(self, order: RawOrder, result: dict, exception: str) -> None:
+        log = OrderValidatorLog(
+            id=MTDB.uniqueid(),
+            order_id=order.id,
+            order=order,
+            result=result,
+            exception=exception,
+            log_time=datetime.utcnow()
+        )
+        MTDB.save(log, 'OrderValidatorLog')
 
 
 class Broker(ABC):

@@ -35,7 +35,6 @@ __all__ = [
     'RawOrder',
     'BacktestLog',
     'BacktestRunner',
-    'OrderValidatorLog',
     'TraderLog',
     'Trader',
 ]
@@ -424,6 +423,9 @@ class BacktestLog:
         '''
         return bool(self.result is None or self.exception or self.stderr)
 
+    def save(self):
+        MTDB.save(self, 'BacktestLog', on_conflict='error')
+
 
 class BacktestRunner:
     '''BacktestRunner handles the execution of a backtest, which involves preparing data,
@@ -549,7 +551,7 @@ class BacktestRunner:
                 stderr=stderr,
                 log_time=datetime.utcnow()
             )
-            MTDB.save(log, 'BacktestLog', on_conflict='error')
+            log.save()
         else:
             MTDB.update('BacktestLog', 'id', log.id, values={
                 'exception': '\n\n'.join([x for x in (log.exception, exception) if x]) or None,
@@ -586,163 +588,14 @@ class BacktestRunner:
 
 
 @dataclass(kw_only=True)
-class OrderValidatorLog:
-    '''OrderValidatorLog logs the results of order validation.'''
-
-    id: str
-    '''Validator run ID'''
-
-    order_id: str
-    '''Raw order ID'''
-
-    order: str
-    '''Raw order in Json format'''
-
-    result: str
-    '''Validation output'''
-
-    exception: str | None = None
-    '''Exception that occurs during validation'''
-
-    log_time: datetime
-    '''Log time'''
-
-
-class OrderValidator:
-    '''OrderValidator is responsible for integrity checks on a raw order before it's
-    submitted to broker.'''
-
-    def __init__(self, plan: TradePlan, broker: Broker):
-        self.plan = plan
-        self.broker = broker
-
-    def __assert(self, condition, message):
-        if condition != True:
-            raise ValueError(message)
-
-    def __assert_is_null(self, value, message):
-        return self.__assert(value is None, f'{message}: {value=}')
-
-    def __assert_not_null(self, value, message):
-        return self.__assert(value is not None, f'{message}: {value=}')
-
-    def __assert_equal(self, value, expected_value, message):
-        return self.__assert(value == expected_value, f'{message}: {value=} != {expected_value=}')
-
-    def __assert_is_in(self, value, collection, message):
-        return self.__assert(value in collection, f'{message}: {value=} not in {collection=}')
-
-    def __assert_less_than(self, value, limit, message):
-        return self.__assert(value < limit, f'{message}: {value=} >= {limit=}')
-
-    def _assert_order_is_in_sync_with_db(self, order: RawOrder):
-        order_in_db = MTDB.get_one('RawOrder', 'id', order.id, cls=RawOrder)
-        self.__assert_not_null(order_in_db, 'Order is not in RawOrder table')
-        self.__assert_equal(order, order_in_db, 'Order is not in sync with db')
-
-    def _assert_order_has_correct_plan_id(self, order: RawOrder):
-        self.__assert_equal(order.plan_id, self.plan.id, 'Order has incorrect plan ID')
-
-    def _assert_order_has_correct_run_id(self, order: RawOrder):
-        self.__assert_not_null(MTDB.get_one('BacktestLog', 'id', order.run_id,
-                                            cls=BacktestLog), 'Order has incorrect run ID')
-
-    def _assert_order_has_correct_ticker(self, order: RawOrder):
-        self.__assert_is_in(order.ticker, self.plan.ticker_css.split(','), 'Order has incorrect ticker')
-        self.__assert_not_null(self.plan.broker_instrument_id(order.ticker), 'Order has incorrect ticker mapping')
-
-    def _assert_order_has_correct_size(self, order: RawOrder):
-        self.__assert((order.size > 0 and order.side == 'Buy') or (
-            order.size < 0 and order.side == 'Sell'), 'Order side and size does not agree')
-
-    def _assert_order_size_is_within_limit(self, order: RawOrder):
-        self.__assert_less_than(abs(order.size), 10000, 'Order size is too big')
-
-    def _assert_order_in_time_window(self, order: RawOrder):
-        plan = TradePlan.get_plan(order.plan_id)
-        now = datetime.now(tz=ZoneInfo(plan.market_timezone))
-        usmarket = MTDB.get_one('NasdaqTraded', 'symbol', order.ticker) is not None
-        self.__assert_equal(usmarket, True, 'Only U.S. market is supported for now')
-        if order.entry_type == 'MOO':
-            # MOO order submit window is between market close on signal_time and
-            # before next market open, considering weekends but not holidays
-            market_open, market_close = timedelta(hours=9, minutes=30), timedelta(hours=16)
-            self.__assert_less_than(order.signal_time + market_close, now,
-                                    'MOO order must be submitted after market close')
-            self.__assert_less_than(
-                now, order.signal_time + market_open + timedelta(days=1 if order.signal_time.weekday() < 4 else 3),
-                'MOO order must be submitted before next market open')
-        elif order.entry_type == 'MOC':
-            # MOC order submit window is before market close on signal_time
-            self.__assert_less_than(now, order.signal_time + market_close,
-                                    'MOC order must be submitted before market close')
-        else:
-            self.__assert(False, f'Unknown order entry type: {order.entry_type}')
-
-    def _assert_order_has_no_broker_order_id(self, order: RawOrder):
-        self.__assert_is_null(order.broker_order_id, 'Order already has broker_order_id')
-
-    def _assert_order_not_in_open_orders(self, order: RawOrder):
-        broker_order = self.broker.find_order(order)
-        # Okay if no order exists or order exists but not fully submitted
-        self.__assert(broker_order is None or broker_order['status'] == 'Inactive', 'Order exists in IbOrder table')
-
-    def _assert_order_not_in_finished_trades(self, order: RawOrder):
-        broker_trades = self.broker.find_trades(order)
-        self.__assert_equal(len(broker_trades), 0, 'Order exists in IbTrade table')
-
-    def validate(self, order: RawOrder):
-        '''Run a bunch of checks to ensure the raw order is valid.
-
-        For example, a valid order should:
-
-        - have valid values for all its attributes
-        - not be a duplicate of what has been submitted before
-        - be timely
-        '''
-        tests = [
-            self._assert_order_is_in_sync_with_db,
-            self._assert_order_has_correct_plan_id,
-            self._assert_order_has_correct_run_id,
-            self._assert_order_has_correct_ticker,
-            self._assert_order_has_correct_size,
-            self._assert_order_size_is_within_limit,
-            self._assert_order_in_time_window,
-            self._assert_order_has_no_broker_order_id,
-            self._assert_order_not_in_open_orders,
-            self._assert_order_not_in_finished_trades,
-        ]
-        result, ex = {}, None
-        try:
-            for test in tests:
-                name = test.__name__.removeprefix('_assert_')
-                test(order)
-                result[name] = 'Pass'
-        except Exception as e:
-            result[name] = 'Fail'
-            ex = traceback.format_exc()
-            raise RuntimeError(f'Order {order.id} failed {test.__name__}') from e
-        finally:
-            self._log_validator_run(order, result, ex)
-
-    def _log_validator_run(self, order: RawOrder, result: dict, exception: str) -> None:
-        log = OrderValidatorLog(
-            id=MTDB.uniqueid(),
-            order_id=order.id,
-            order=order,
-            result=result,
-            exception=exception,
-            log_time=datetime.utcnow()
-        )
-        MTDB.save(log, 'OrderValidatorLog')
-
-
-@dataclass(kw_only=True)
 class TraderLog:
     id: str
     summary: str
     start_time: datetime
     log_time: datetime
+
+    def save(self):
+        MTDB.save(self, 'TraderLog', on_conflict='error')
 
 
 class Trader:
@@ -778,7 +631,6 @@ class Trader:
             )
             return
 
-        validator = OrderValidator(plan, broker)
         run_id = MTDB.uniqueid()
         summary = [f'Trader run ID {run_id}', f'Plan {plan.name}', f'{len(orders)} order to be processed']
 
@@ -788,7 +640,6 @@ class Trader:
             broker.download_trades()
             for i, order in enumerate(orders):
                 try:
-                    validator.validate(order)
                     broker_order_id = broker.submit_order(plan, order)
                     order.broker_order_id = broker_order_id
                     order.save()
@@ -826,6 +677,6 @@ class Trader:
             start_time=start_time,
             log_time=datetime.utcnow()
         )
-        MTDB.save(log, 'TraderLog', on_conflict='error')
+        log.save()
         send_telegram_message(text)
         mailjet_send_email(f'Trader @ {start_time} finished', text)

@@ -4,13 +4,14 @@ import logging
 import time
 import traceback
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import TYPE_CHECKING, Any
+from zoneinfo import ZoneInfo
 
 import pandas as pd
 import requests
 
-from minitrade.broker import Broker, BrokerAccount
+from minitrade.broker import Broker, BrokerAccount, OrderValidator
 from minitrade.trader import TradePlan
 from minitrade.utils.config import config
 from minitrade.utils.mtdb import MTDB
@@ -154,6 +155,8 @@ class InteractiveBrokers(Broker):
             return pd.DataFrame(orders['orders'])
 
     def submit_order(self, plan: TradePlan, order: RawOrder) -> str | None:
+        validator = InteractiveBrokersValidator(plan, self)
+        validator.validate(order)
         ib_order = result = ex = broker_order_id = None
         try:
             ib_order = {
@@ -233,3 +236,52 @@ class InteractiveBrokers(Broker):
                          'commission': float(status['commission'])}
                 trades.append(trade)
         return trades
+
+
+class InteractiveBrokersValidator(OrderValidator):
+    '''OrderValidator is responsible for integrity checks on a raw order before it's
+    submitted to broker.'''
+
+    def __init__(self, plan: TradePlan, broker: Broker, pytest_now: datetime = None):
+        super().__init__(plan)
+        self.broker = broker
+        self.pytest_now = pytest_now  # allow injecting fake current time for pytest
+        self.tests.extend([
+            self.order_size_is_within_limit,
+            self.order_in_time_window,
+            self.order_not_in_finished_trades,
+            self.order_not_in_open_orders,
+        ])
+
+    def order_size_is_within_limit(self, order: RawOrder):
+        self._assert_less_than(abs(order.size), 10000, 'Order size is too big')
+
+    def order_in_time_window(self, order: RawOrder):
+        plan = TradePlan.get_plan(order.plan_id)
+        now = self.pytest_now or datetime.now(tz=ZoneInfo(plan.market_timezone))
+        usmarket = MTDB.get_one('NasdaqTraded', 'symbol', order.ticker) is not None
+        self._assert_equal(usmarket, True, 'Only U.S. market is supported for now')
+        market_open, market_close = timedelta(hours=9, minutes=30), timedelta(hours=16)
+        if order.entry_type == 'MOO':
+            # MOO order submit window is between market close on signal_time and
+            # before next market open, considering weekends but not holidays
+            self._assert_less_than(order.signal_time + market_close, now,
+                                   'MOO order must be submitted after market close')
+            self._assert_less_than(
+                now, order.signal_time + market_open + timedelta(days=1 if order.signal_time.weekday() < 4 else 3),
+                'MOO order must be submitted before next market open')
+        elif order.entry_type == 'MOC':
+            # MOC order submit window is before market close on signal_time
+            self._assert_less_than(now, order.signal_time + market_close,
+                                   'MOC order must be submitted before market close')
+        else:
+            self._assert(False, f'Unknown order entry type: {order.entry_type}')
+
+    def order_not_in_open_orders(self, order: RawOrder):
+        broker_order = self.broker.find_order(order)
+        # Okay if no order exists or order exists but not fully submitted
+        self._assert(broker_order is None or broker_order['status'] == 'Inactive', 'Order exists in IbOrder table')
+
+    def order_not_in_finished_trades(self, order: RawOrder):
+        broker_trades = self.broker.find_trades(order)
+        self._assert_equal(len(broker_trades), 0, 'Order exists in finished trade table')
