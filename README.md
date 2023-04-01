@@ -2,8 +2,6 @@
 
 **[Documentation](https://dodid.github.io/minitrade/)**
 
-> :warning: **Something seems wrong with IB Client Portal API after its recent update. All calls are rejected as unauthorized even after a successful login. Trading via the API is not working for the moment.**
-
 - [Minitrade](#minitrade)
 - [Installation](#installation)
 - [Backtesting](#backtesting)
