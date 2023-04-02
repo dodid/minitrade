@@ -264,7 +264,7 @@ def calculate_trade_stats(data: pd.DataFrame, cash: int, orders: list[dict], hol
         positions = issued_orders.groupby('ticker')['size'].sum()
         positions = pd.Series(positions, index=close_prices.iloc[i].index).fillna(0)
         if holding:
-            positions += pd.Series(holding)
+            positions = (positions + pd.Series(holding)).fillna(0)
         position_value = positions.dot(close_prices.iloc[i])
         equity.iloc[i] = cash + position_value - cost - commission
 
