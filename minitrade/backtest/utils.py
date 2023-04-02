@@ -146,12 +146,13 @@ def plot_heatmap(heatmap: pd.DataFrame, smooth: int | None = None):
         plt.show()
 
 
-def calculate_trade_stats(data: pd.DataFrame, cash: int, orders: list[dict]):
+def calculate_trade_stats(data: pd.DataFrame, cash: int, orders: list[dict], holding: dict = {}):
     '''Create a day-by-day portolio report based on initial cash and order executed.
 
     Args:
         data: Price data used in `Backtest`
         cash: The initial cash to start with
+        holding: The asset holding to start with
         orders: A list of orders executed. Each order is a dictionary like 
             {
                 'ticker': ...,
@@ -200,6 +201,11 @@ def calculate_trade_stats(data: pd.DataFrame, cash: int, orders: list[dict]):
     orders = orders.copy()
     orders.sort(key=lambda x: x['entry_time'])
     open_orders = []
+    if holding:
+        for ticker, size in holding.items():
+            open_orders.append(
+                {'ticker': ticker, 'entry_bar': 0, 'entry_time': data.index[0],
+                 'size': size, 'entry_price': 0, 'commission': 0})
     trades = []
     if orders:
         order_df = pd.DataFrame(orders)
@@ -232,9 +238,9 @@ def calculate_trade_stats(data: pd.DataFrame, cash: int, orders: list[dict]):
             'entry_time': open_order['entry_time'],
             'entry_price': open_order['entry_price'],
             'exit_bar': len(data) - 1, 'exit_time': data.index[-1],
-            'exit_price': exit_price,
-            'pnl': (exit_price - open_order['entry_price']) * open_order['size'],
-            'return_pct[%]': (exit_price / open_order['entry_price'] - 1) * copysign(1, open_order['size']) * 100}
+            'exit_price': exit_price, 'pnl': (exit_price - open_order['entry_price']) * open_order['size'],
+            'return_pct[%]': ((exit_price / open_order['entry_price'] - 1) * copysign(1, open_order['size']) * 100)
+            if open_order['entry_price'] else None, }
         alt_trades.append(alt_trade)
 
     # format into dataframe
@@ -253,12 +259,14 @@ def calculate_trade_stats(data: pd.DataFrame, cash: int, orders: list[dict]):
             issued_orders = order_df[order_df['entry_time'] < data.index[i+1]]
         else:
             issued_orders = order_df
-        pnl = -issued_orders['size'].dot(issued_orders['entry_price']) if len(issued_orders) > 0 else 0
+        cost = issued_orders['size'].dot(issued_orders['entry_price']) if len(issued_orders) > 0 else 0
         commission = issued_orders['commission'].sum()
         positions = issued_orders.groupby('ticker')['size'].sum()
-        positions = pd.Series(positions, index=close_prices.iloc[i].index).fillna(0)  # align the index
+        positions = pd.Series(positions, index=close_prices.iloc[i].index).fillna(0)
+        if holding:
+            positions += pd.Series(holding)
         position_value = positions.dot(close_prices.iloc[i])
-        equity.iloc[i] = cash + pnl - commission + position_value
+        equity.iloc[i] = cash + position_value - cost - commission
 
     # calculate ticker performance
     position_size = trade_df[trade_df['exit_time'].isna()].groupby('ticker')['size'].sum().rename('Position Size')
@@ -272,4 +280,4 @@ def calculate_trade_stats(data: pd.DataFrame, cash: int, orders: list[dict]):
     trade_value = order_df['size'].abs().dot(order_df['entry_price'])
     commission_rate = commission / trade_value if trade_value else 0
 
-    return order_df, trade_df, equity, pnl, commission_rate
+    return trade_df, equity, pnl, commission_rate

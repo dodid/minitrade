@@ -239,8 +239,6 @@ class InteractiveBrokers(Broker):
 
 
 class InteractiveBrokersValidator(OrderValidator):
-    '''OrderValidator is responsible for integrity checks on a raw order before it's
-    submitted to broker.'''
 
     def __init__(self, plan: TradePlan, broker: Broker, pytest_now: datetime = None):
         super().__init__(plan)
