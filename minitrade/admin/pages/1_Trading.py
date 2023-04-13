@@ -206,18 +206,19 @@ def show_trade_plan_execution_history(plan: TradePlan) -> None:
                     t2.dataframe(pd.DataFrame([broker_order]))
                 if trade:
                     t3.dataframe(pd.DataFrame(trade))
-                    c1, c2, c3, c4 = t3.columns(4)
-                    price = c1.number_input('Price', key=f'{order.id}-price', value=trade[0]['price'] or 0.0)
-                    commission = c2.number_input(
-                        'Commission', key=f'{order.id}-comm', value=trade[0]['commission'] or 0.0)
-                    dt = c3.date_input('Trade time (market local timezone)',
-                                       key=f'{order.id}-date', value=trade[0]['trade_time'])
-                    tm = c4.time_input('Trade time', key=f'{order.id}-time',
-                                       value=trade[0]['trade_time'] or time(9, 30), label_visibility='hidden')
-                    if t3.button('Save', key=f'{order.id}-save'):
-                        broker.update_trade(trade[0]['id'], price, commission,
-                                            datetime.combine(dt, tm, ZoneInfo(plan.market_timezone)))
-                        st.warning('Click "Refresh" button to see change')
+                    if account.broker == 'Manual':
+                        c1, c2, c3, c4 = t3.columns(4)
+                        price = c1.number_input('Price', key=f'{order.id}-price', value=trade[0]['price'] or 0.0)
+                        commission = c2.number_input(
+                            'Commission', key=f'{order.id}-comm', value=trade[0]['commission'] or 0.0)
+                        dt = c3.date_input('Trade time (market local timezone)',
+                                           key=f'{order.id}-date', value=trade[0]['trade_time'])
+                        tm = c4.time_input('Trade time', key=f'{order.id}-time',
+                                           value=trade[0]['trade_time'] or time(9, 30), label_visibility='hidden')
+                        if t3.button('Save', key=f'{order.id}-save'):
+                            broker.update_trade(trade[0]['id'], price, commission,
+                                                datetime.combine(dt, tm, ZoneInfo(plan.market_timezone)))
+                            st.warning('Click "Refresh" button to see change')
 
     with tab3:
         if broker and logs:

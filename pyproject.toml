@@ -52,6 +52,7 @@ mkdocs-material = "^8.5.11"
 mkdocs-click = "^0.8.0"
 mkdocs-jupyter = "^0.22.0"
 pytest-cov = "^4.0.0"
+jupyterlab = "^3.6.3"
 
 
 [tool.poetry.scripts]
