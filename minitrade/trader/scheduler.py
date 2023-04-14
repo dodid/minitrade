@@ -1,7 +1,8 @@
 
 import logging
-from datetime import time
+from datetime import datetime, time, timedelta
 
+import requests
 from apscheduler.executors.pool import ProcessPoolExecutor
 from apscheduler.job import Job
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
@@ -9,6 +10,7 @@ from fastapi import FastAPI, HTTPException, Response
 from pydantic import BaseModel
 
 from minitrade.trader import BacktestRunner, TradePlan, Trader
+from minitrade.utils.config import config
 from minitrade.utils.telegram import TelegramBot
 
 app = FastAPI(title='Minitrade runner')
@@ -23,13 +25,28 @@ scheduler = AsyncIOScheduler(
 )
 
 
+def __call_scheduler(method: str, path: str, params: dict | None = None):
+    url = f'http://{config.scheduler.host}:{config.scheduler.port}{path}'
+    resp = requests.request(method=method, url=url, params=params)
+    if resp.status_code == 200:
+        return resp.json()
+    elif resp.status_code >= 400:
+        raise RuntimeError(f'Scheduler {method} {url} {params} returns {resp.status_code} {resp.text}')
+
+
+def run_trader_after_backtest(plan: TradePlan):
+    BacktestRunner(plan).execute()
+    __call_scheduler('PUT', '/trader')
+
+
 def schedule_plan(plan: TradePlan) -> Job | None:
     ''' Schedule a trade plan'''
     if plan.enabled:
         trade_time = time.fromisoformat(plan.trade_time_of_day)
         job = scheduler.add_job(
-            BacktestRunner(plan).execute,
+            run_trader_after_backtest,
             'cron',
+            [plan],
             day_of_week='mon-fri',
             hour=trade_time.hour,
             minute=trade_time.minute,
@@ -128,4 +145,12 @@ class Message(BaseModel):
 async def post_messages(data: Message):
     '''Send Telegram message'''
     bot and await bot.send_message(data.text)
+    return Response(status_code=204)
+
+
+@app.put('/trader')
+def put_trade():
+    ''' Run trader immediately'''
+    job = scheduler.get_job(job_id='trader_runner')
+    job.modify(next_run_time=datetime.now() + timedelta(minutes=1))
     return Response(status_code=204)

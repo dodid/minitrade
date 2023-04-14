@@ -84,6 +84,7 @@ CREATE TABLE IF NOT EXISTS "TradePlan" (
 	"backtest_start_date" TEXT NOT NULL,
 	"trade_start_date" TEXT,
 	"trade_time_of_day" TEXT NOT NULL,
+	"entry_type" TEXT NOT NULL,
 	"broker_account" TEXT,
 	"commission_rate" FLOAT NOT NULL,
 	"initial_cash" FLOAT NOT NULL,

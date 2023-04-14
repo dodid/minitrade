@@ -35,6 +35,7 @@ def test_order_validator():
         backtest_start_date='2023-01-01',
         trade_start_date=None,
         trade_time_of_day='19:00',
+        entry_type='TOO',
         broker_account='pytest_manual_account',
         commission_rate=0.001,
         initial_cash=10000,
@@ -125,6 +126,7 @@ def test_ib_order_validator():
         backtest_start_date='2023-01-01',
         trade_start_date=None,
         trade_time_of_day='19:00',
+        entry_type='TOO',
         broker_account='pytest_ib_account',
         commission_rate=0.001,
         initial_cash=10000,
@@ -171,12 +173,12 @@ def test_ib_order_validator():
     run_log.save()
 
     order = RawOrder(id='valid', plan_id='valid', run_id='valid', ticker='AAPL', side='Buy', size=100, signal_time=datetime(
-        2023, 1, 3, tzinfo=ZoneInfo(plan.market_timezone)), entry_type='MOO', broker_order_id=None)
+        2023, 1, 3, tzinfo=ZoneInfo(plan.market_timezone)), entry_type='TOO', broker_order_id=None)
     order.save()
     validator.validate(order)
 
     order = RawOrder(id='valid', plan_id='valid', run_id='valid', ticker='AAPL', side='Buy', size=100, signal_time=datetime(
-        2023, 1, 2, tzinfo=ZoneInfo(plan.market_timezone)), entry_type='MOO', broker_order_id=None)
+        2023, 1, 2, tzinfo=ZoneInfo(plan.market_timezone)), entry_type='TOO', broker_order_id=None)
     order.save()
     with pytest.raises(RuntimeError):
         validator.validate(order)

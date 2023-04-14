@@ -50,9 +50,10 @@ def get_broker_ticker_map(tickers: dict | None) -> dict | None:
 
 
 def show_create_trade_plan_form() -> TradePlan | None:
+    account = st.selectbox('Select a broker account', BrokerAccount.list(), format_func=lambda b: b.alias)
     strategy_file = st.selectbox('Pick a strategy', StrategyManager.list())
     ticker_css = st.text_input(
-        'Define the asset space (a list of tickers separated by comma without space)', placeholder='AAPL,GOOG')
+        'Define the asset space (a list of tickers separated by comma without space)', placeholder='e.g. AAPL,GOOG')
     data_source = st.selectbox('Select a data source', QuoteSource.AVAILABLE_SOURCES)
     market_timezone = market_timezone_selectbox()
     backtest_start_date = st.date_input(
@@ -60,15 +61,21 @@ def show_create_trade_plan_form() -> TradePlan | None:
         value=datetime.today() - timedelta(days=110))
     trade_start_date = st.date_input(
         'Pick a trade start date (trade signal before that is surpressed)', min_value=datetime.now().date())
-    trade_time_of_day = st.time_input('Pick when backtesting should start (market local time)', value=time(19, 30))
-    account = st.selectbox('Select a broker account', BrokerAccount.list(), format_func=lambda b: b.alias)
+    c1, c2 = st.columns([1, 3])
+    entry_type = c1.selectbox(
+        'Select order entry type', ['TOO', 'TOC'],
+        format_func=lambda x: {'TOO': 'Trade on open (TOO)', 'TOC': 'Trade on close (TOC)'}[x])
+    trade_time_of_day = c2.time_input(
+        'Pick when backtest should run (after market close for TOO and before market close for TOC, market local time)',
+        value=time(19, 30) if entry_type == 'TOO' else time(14, 30))
     initial_cash = st.number_input('Set the cash amount to invest', value=0)
     initial_holding = st.text_input(
         'Set the preexisting asset positions (number of shares you already own and to be considered in the strategy)',
-        placeholder='AAPL:100,GOOG:100') or None
+        placeholder='e.g. AAPL:100,GOOG:100') or None
     name = st.text_input('Name the trade plan')
     tickers = ticker_resolver(account, ticker_css)
     dryrun = st.button('Save and dry run')
+
     if dryrun:
         ticker_map = get_broker_ticker_map(tickers)
         if initial_holding:
@@ -89,6 +96,7 @@ def show_create_trade_plan_form() -> TradePlan | None:
                 backtest_start_date=backtest_start_date.strftime('%Y-%m-%d'),
                 trade_start_date=trade_start_date.strftime('%Y-%m-%d'),
                 trade_time_of_day=trade_time_of_day.strftime('%H:%M:%S'),
+                entry_type=entry_type,
                 broker_account=account.alias if account else None,
                 initial_cash=initial_cash,
                 initial_holding=initial_holding,

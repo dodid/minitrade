@@ -163,7 +163,7 @@ class InteractiveBrokers(Broker):
                 'acctId': self.account_id,
                 'conid': plan.broker_instrument_id(order.ticker),
                 'cOID': order.id,
-                'orderType': 'MKT',
+                'orderType': 'MOC' if order.entry_type == 'TOC' else 'MKT',
                 'listingExchange': 'SMART',
                 'outsideRTH': False,
                 'side': order.side.upper(),
@@ -260,18 +260,18 @@ class InteractiveBrokersValidator(OrderValidator):
         usmarket = MTDB.get_one('NasdaqTraded', 'symbol', order.ticker) is not None
         self._assert_equal(usmarket, True, 'Only U.S. market is supported for now')
         market_open, market_close = timedelta(hours=9, minutes=30), timedelta(hours=16)
-        if order.entry_type == 'MOO':
-            # MOO order submit window is between market close on signal_time and
+        if order.entry_type == 'TOO':
+            # TOO order submit window is between market close on signal_time date and
             # before next market open, considering weekends but not holidays
             self._assert_less_than(order.signal_time + market_close, now,
-                                   'MOO order must be submitted after market close')
+                                   'TOO order must be submitted after market close')
             self._assert_less_than(
                 now, order.signal_time + market_open + timedelta(days=1 if order.signal_time.weekday() < 4 else 3),
-                'MOO order must be submitted before next market open')
-        elif order.entry_type == 'MOC':
-            # MOC order submit window is before market close on signal_time
+                'TOO order must be submitted before next market open')
+        elif order.entry_type == 'TOC':
+            # TOC order submit window is before market close on signal_time date
             self._assert_less_than(now, order.signal_time + market_close,
-                                   'MOC order must be submitted before market close')
+                                   'TOC order must be submitted before market close')
         else:
             self._assert(False, f'Unknown order entry type: {order.entry_type}')
 

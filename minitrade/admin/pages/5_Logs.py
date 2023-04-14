@@ -12,6 +12,4 @@ log = st.sidebar.radio('Logs', ['TraderLog', 'BacktestLog', 'OrderValidatorLog',
 data = MTDB.get_all(log, cls=dict)
 
 st.subheader(log)
-for i, item in enumerate(data):
-    with st.expander(f'Row {i}'):
-        st.write(item)
+st.write(pd.DataFrame(data))

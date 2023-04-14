@@ -112,6 +112,7 @@ class TelegramBot():
                         await context.bot.send_message(chat_id=update.effective_chat.id, text=f'Login {account.alias} ... OK')
                     except Exception:
                         await context.bot.send_message(chat_id=update.effective_chat.id, text=f'Login {account.alias} ... ERROR')
+                await self.__call_scheduler('PUT', '/trader')
             self.ib_login_task = asyncio.create_task(login(), name='login')
             def clear_ib_login_task(x): self.ib_login_task = None
             self.ib_login_task.add_done_callback(clear_ib_login_task)

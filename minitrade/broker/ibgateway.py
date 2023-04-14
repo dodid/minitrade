@@ -145,7 +145,8 @@ def ping_ibgateway(username: str, instance: GatewayInstance) -> dict:
             }
     except Exception as e:
         kill_ibgateway(username, instance)
-        raise HTTPException(503, f'Ping gateway {username} error') from e
+        send_telegram_message(f'IB gateway disconnected: {username}, {e}')
+        raise HTTPException(503, f'IB ping error: {username}') from e
 
 
 # IB 2FA challenge response code
@@ -185,6 +186,7 @@ def login_ibgateway(instance: GatewayInstance, account: BrokerAccount) -> None:
                     driver.find_element(By.ID, 'chlginput').send_keys(challenge_response)
                     driver.find_element(By.ID, 'submitForm').click()
                     WebDriverWait(driver, timeout=60).until(lambda d: d.current_url.startswith(redirect_url))
+                    logger.warn('Login succeeded')
                     break
                 else:
                     time.sleep(1)

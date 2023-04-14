@@ -696,7 +696,7 @@ class Order:
 
     @property
     def entry_type(self) -> str:
-        """Type of order entry, 'MOC' for market-on-close order, 'MOO' for market-on-open order"""
+        """Type of order entry, 'TOO' for trade-on-open order, 'TOC' for trade-on-close order"""
         return self.__entry_type
 
 
@@ -735,7 +735,7 @@ class Trade:
         """Place new `Order` to close `portion` of the trade at next market price."""
         assert 0 < portion <= 1, "portion must be a fraction between 0 and 1"
         size = copysign(max(1, round(abs(self.__size) * portion)), -self.__size)
-        entry_type = 'MOC' if self.__broker._trade_on_close else 'MOO'
+        entry_type = 'TOC' if self.__broker._trade_on_close else 'TOO'
         order = Order(self.__broker, self.__ticker, size, parent_trade=self,
                       entry_time=self.__broker.now, entry_type=entry_type, tag=self.__tag)
         self.__broker.orders.insert(0, order)
@@ -994,7 +994,7 @@ class _Broker:
                     "Short orders require: "
                     f"TP ({tp}) < LIMIT ({limit or stop or adjusted_price}) < SL ({sl})")
 
-        entry_type = 'MOC' if self._trade_on_close else 'MOO'
+        entry_type = 'TOC' if self._trade_on_close else 'TOO'
         order = Order(self, ticker, size, limit, stop, sl, tp, trade, self.now, entry_type, tag)
         # Put the new order in the order queue,
         # inserting SL/TP/trade-closing orders in-front

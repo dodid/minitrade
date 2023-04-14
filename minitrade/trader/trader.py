@@ -51,6 +51,7 @@ class TradePlan:
     - which date should a backtest starts 
     - which date should a trade order be generated from 
     - at what time of day should a backtest run
+    - when order should be executed, i.e. on market open or on market close
     - which broker account should orders be submitted through 
     - how much initial cash should be invested
     '''
@@ -82,6 +83,9 @@ class TradePlan:
 
     trade_time_of_day: str
     '''At what time of day should backtest starts in string format "HH:MM:SS".'''
+
+    entry_type: str
+    '''Type of order entry, 'TOO' for trade-on-open order, 'TOC' for trade-on-close order'''
 
     broker_account: str | None
     '''Alias of the broker account used to submit orders'''
@@ -352,7 +356,7 @@ class RawOrder:
     '''Date on which the order signal is generated.'''
 
     entry_type: str
-    '''Type of order entry, 'MOC' for market-on-close order, 'MOO' for market-on-open order'''
+    '''Type of order entry, 'TOC' for trade-on-close order, 'TOO' for trade-on-open order'''
 
     broker_order_id: str | None
     '''Broker assigned order ID after the raw order is submitted.'''
@@ -466,8 +470,13 @@ class BacktestRunner:
             self.data = source.daily_bar(tickers=self.plan.ticker_css, start=self.plan.backtest_start_date)
             self.code = StrategyManager.read(self.plan.strategy_file)
             self.strategy = StrategyManager.load(self.plan.strategy_file)
-            bt = Backtest(strategy=self.strategy, data=self.data, cash=self.plan.initial_cash,
-                          commission=self.plan.commission_rate, trade_start_date=self.plan.trade_start_date, **kwargs)
+            bt = Backtest(strategy=self.strategy,
+                          data=self.data,
+                          cash=self.plan.initial_cash,
+                          commission=self.plan.commission_rate,
+                          trade_on_close=self.plan.entry_type == 'TOC',
+                          trade_start_date=self.plan.trade_start_date,
+                          **kwargs)
             self.result = bt.run()
             if self.result is not None and not dryrun and self.plan.broker_account is not None:
                 self._record_orders()
