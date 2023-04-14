@@ -173,6 +173,7 @@ CREATE TABLE IF NOT EXISTS "IbOrder" (
 	"avgPrice" FLOAT,
 	"companyName" TEXT,
 	"status" TEXT,
+	"order_ccp_status" TEXT,
 	"outsideRTH" BOOLEAN,
 	"origOrderType" TEXT,
 	"supportsTaxOpt" TEXT,

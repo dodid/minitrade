@@ -146,9 +146,9 @@ class InteractiveBrokers(Broker):
         # the list may be incomplete, no definitive document is available
         whitelist = ['acct', 'exchange', 'conidex', 'conid', 'orderId', 'cashCcy', 'sizeAndFills', 'orderDesc',
                      'description1', 'description2', 'ticker', 'secType', 'listingExchange', 'remainingQuantity',
-                     'filledQuantity', 'companyName', 'status', 'origOrderType', 'supportsTaxOpt', 'lastExecutionTime',
-                     'orderType', 'bgColor', 'fgColor', 'order_ref', 'timeInForce', 'lastExecutionTime_r', 'side',
-                     'order_cancellation_by_system_reason', 'outsideRTH', 'price']
+                     'filledQuantity', 'companyName', 'status', 'order_ccp_status', 'origOrderType', 'supportsTaxOpt',
+                     'lastExecutionTime', 'orderType', 'bgColor', 'fgColor', 'order_ref', 'timeInForce',
+                     'lastExecutionTime_r', 'side', 'order_cancellation_by_system_reason', 'outsideRTH', 'price']
         orders = self.__call_ibgateway('GET', '/iserver/account/orders')
         if orders and orders['orders']:
             MTDB.save(orders['orders'], 'IbOrder', on_conflict='update', whitelist=whitelist)
