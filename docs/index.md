@@ -16,7 +16,7 @@ Limitations as a backtesting framework:
 
 Limitations (for now) as a trading system:
 - Tested only on Linux
-- Support only daily bar and market-on-open order
+- Support only daily bar
 - Support only long positions
 - Support only Interactive Brokers
 
@@ -87,7 +87,7 @@ Also note that some original utility functions and strategy classes only make se
 
 Minitrade extends `Backtesting.py` to support backtesting of multi-asset strategies. 
 
-Multi-asset strategies take a 2-level DataFrame as data input. For example, for a strategy class that intends to invest in AAPL and GOOG as a portfolio, the `self.data` should look like:
+Multi-asset strategies take a 2-level column DataFrame as data input. For example, for a strategy class that intends to invest in AAPL and GOOG as a portfolio, the `self.data` should look like:
 
 ```
 $ print(self.data)
@@ -104,7 +104,7 @@ Date
 
 Like in `Backtesting.py`, `self.data` is `_Data` type that supports progressively revealing of data, and the raw DataFrame can be accessed by `self.data.df`. 
 
-To facilitate indicator calculation, Minitrade has built-in integration with [pandas_ta](https://github.com/twopirllc/pandas-ta) a TA library. `pandas_ta` is accessible using `.ta` property of any DataFrame. Check out [here](https://github.com/twopirllc/pandas-ta#pandas-ta-dataframe-extension) for usage. `.ta` is also enhanced to support 2-level DataFrames. 
+To facilitate indicator calculation, Minitrade has built-in integration with [pandas_ta](https://github.com/twopirllc/pandas-ta) as TA library. `pandas_ta` is accessible using `.ta` property of any DataFrame. Check out [here](https://github.com/twopirllc/pandas-ta#pandas-ta-dataframe-extension) for usage. `.ta` is also enhanced to support 2-level DataFrames. 
 
 For example,
 
@@ -156,7 +156,7 @@ class TopPositiveRoc(Strategy):
         self.rebalance()
 ```
 
-`self.alloc` keeps track of what assets you want to buy and how much weight you want to assign to each. 
+`self.alloc` keeps track of what assets to be bought and how much weight is assigned to each. 
 
 At the beginning of each `Strategy.next()` call, `self.alloc` starts empty. 
 
@@ -219,7 +219,7 @@ Configuring the system takes a few steps:
     The credentials are saved in a local database. Be sure to secure the access to the server. 
 
     ![Minitrade web UI - performance ](https://imgur.com/Y0lPTQx.jpg)
-    
+
 3. Telegram bot (required)
 
     Configure a Telegram bot to receive notifications and to control trader execution. Follow [the instructions](https://medium.com/geekculture/generate-telegram-token-for-bot-api-d26faf9bf064) to create a bot, and take note of the token and chat ID. Configure those in web UI. On saving the configuration, a test message will be sent. Setup is successful if the message can be received.
@@ -262,9 +262,9 @@ Configuring the system takes a few steps:
 
 ### IB gateway
 
-Minitrade uses [IB's client portal API](https://www.interactivebrokers.com/en/trading/ib-api.php#client-portal-api) to submit orders. The gateway client will be automatically downloaded and configured when `minitrade init` is run. It handles automatically login via Chrome and Selenium webdriver. 
+Minitrade uses [IB's client portal API](https://www.interactivebrokers.com/en/trading/ib-api.php#client-portal-api) to submit orders. The gateway client will be downloaded and configured when `minitrade init` is run. Automated login is handled via Chrome and Selenium webdriver. 
 
-IB automatically disconnects a session after 24 hours or so. Minitrade checks connection status when it needs to interact with IB, i.e. when an order should be submitted or account info is retrieved via web UI. Therefore, Should Minitrade initiates a connection, if dead, automatically, a silent 2FA push notification would be sent to mobile phone at random times, which would be quite easy to miss and result in a login failure. After a few consecutive failed attempts, IB may lock out the account and one has to contact customer service to unlock. 
+IB disconnects a session after 24 hours or so. Minitrade checks connection status when it needs to interact with IB, i.e. when an order should be submitted or account info is retrieved via web UI. Should Minitrade initiates a connection automatically, a silent 2FA push notification would be sent to mobile phone at random times, which would be quite easy to miss and result in a login failure. After a few consecutive failed attempts, IB may lock out the account and one has to contact customer service to unlock. 
 
-To avoid this, Minitrade only submits orders where there is already a working connection to a broker. If there is not, Minitrade sends messages via Telegram bot to notify that there are pending orders to be submitted. User should issue `/ib login` command manually to the bot to trigger a login to IB account. The 2FA push notification should be received in a few seconds and user can complete the login process on mobile phone. Once login is successful, Minitrade will be able to submit orders when trader runs again every 20 minutes.
+To avoid this, Minitrade only submits orders where there is already a working connection to a broker. If there is not, Minitrade sends messages via Telegram bot to notify that there are pending orders to be submitted. User should issue `/ib login` command manually to the bot to trigger a login to IB account. The 2FA push notification should be received in a few seconds and user can complete the login process on mobile phone. Once login is successful, Minitrade will be able to submit orders.
 

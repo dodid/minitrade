@@ -233,7 +233,7 @@ class Strategy(ABC):
         but one that is revealed gradually in
         `minitrade.backtest.core.backtesting.Strategy.next` much like
         `minitrade.backtest.core.backtesting.Strategy.data` is.
-        Returns `np.ndarray` of indicator values.
+        Returns DataFrame in `init()` and `np.ndarray` of indicator values in `next()`.
 
         `funcval` is either a function that returns the indicator array(s) of
         same length as `minitrade.backtest.core.backtesting.Strategy.data`, or

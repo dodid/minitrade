@@ -2,7 +2,7 @@
 
 ## Hardware requirements
 
-Minitrade intends to run on very low cost machines such as AWS Lightsail instances with 1 GB RAM, 1 vCPU, 40 GB SSD, that cost $5 per month.
+Minitrade intends to run on very low cost machines such as AWS Lightsail instances with 1 GB RAM, 1 vCPU, 40 GB SSD, that cost $5 per month. It's recommended to add 1GB swap space following this [guidence](https://www.digitalocean.com/community/tutorials/how-to-add-swap-space-on-ubuntu-20-04) or similar. 
 
 ## Security recommendations
 
