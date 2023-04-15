@@ -181,8 +181,8 @@ def calculate_trade_stats(data: pd.DataFrame, cash: int, orders: list[dict], hol
                              'exit_time': order['entry_time'],
                              'exit_price': order['entry_price'],
                              'pnl': (order['entry_price'] - open_order['entry_price']) * closed_size,
-                             'return_pct[%]': (order['entry_price'] / open_order['entry_price'] - 1) *
-                             copysign(1, closed_size) * 100}
+                             'return_pct[%]': ((order['entry_price'] / open_order['entry_price'] - 1) *
+                                               copysign(1, closed_size) * 100) if open_order['entry_price'] else None}
                     closed_trades.append(trade)
                     # reduce the size of the original order
                     open_order['size'] -= closed_size
