@@ -235,10 +235,11 @@ def show_trade_plan_execution_history(plan: TradePlan) -> None:
                 trades = broker.format_trades(orders)
                 trade_start_date = datetime.strptime(
                     plan.trade_start_date, '%Y-%m-%d').replace(tzinfo=ZoneInfo(plan.market_timezone))
-                offset = max((data.index >= trade_start_date).sum(), 1)
+                offset = (data.index < trade_start_date).sum()
                 # calculate trade stats from trade_start_date
+                # data.index may have mixed timezone due to daylight saving time
                 trade_df, equity, pnl, commission_rate = calculate_trade_stats(
-                    data.iloc[-offset:], plan.initial_cash, trades, plan.initial_holding)
+                    data.iloc[offset:], plan.initial_cash, trades, plan.initial_holding)
                 rr = (equity / equity[0] - 1) * 100
                 rr.name = 'Return rate (%)'
                 c1, c2, c3, c4 = st.columns(4)
@@ -250,9 +251,7 @@ def show_trade_plan_execution_history(plan: TradePlan) -> None:
                 c4.metric(label='Commission Rate', value=f'{commission_rate:.3%}')
                 if len(rr) >= 2:
                     st.caption('Return rate (%)')
-                    fig, ax = plt.subplots()
-                    rr.plot(kind='line', ax=ax, xticks=rr.index, xlabel='date')
-                    st.pyplot(fig)
+                    st.line_chart(rr, height=300)
                 st.caption('Profit and loss')
                 st.write(pnl.style.format('{:,.0f}', na_rep=' '))
                 st.caption('Trades')

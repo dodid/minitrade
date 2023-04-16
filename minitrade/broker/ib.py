@@ -228,6 +228,7 @@ class InteractiveBrokers(Broker):
         trades = []
         for order in orders:
             for status in self.find_trades(order):
+                # IB return trade time in UTC time zone, but it is not marked as UTC
                 entry_time = datetime.strptime(status['trade_time'], '%Y%m%d-%H:%M:%S').replace(tzinfo=timezone.utc)
                 trade = {'ticker': order.ticker,
                          'entry_time': entry_time,

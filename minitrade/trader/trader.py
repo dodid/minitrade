@@ -473,6 +473,7 @@ class BacktestRunner:
             bt = Backtest(strategy=self.strategy,
                           data=self.data,
                           cash=self.plan.initial_cash,
+                          holding=self.plan.initial_holding,
                           commission=self.plan.commission_rate,
                           trade_on_close=self.plan.entry_type == 'TOC',
                           trade_start_date=self.plan.trade_start_date,

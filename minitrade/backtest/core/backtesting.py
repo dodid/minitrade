@@ -898,7 +898,7 @@ class _Broker:
         self._trade_on_close = trade_on_close
         self._hedging = hedging
         self._exclusive_orders = exclusive_orders
-        self._trade_start_date = trade_start_date
+        self._trade_start_date = trade_start_date   # datetime with no tz
         self._lot_size = lot_size
         self._fail_fast = fail_fast
         # percentage of total equity reserved as cash to account for order quantity rounding
@@ -910,9 +910,17 @@ class _Broker:
         self._equity = np.tile(np.nan, (len(data.index), len(data.tickers)+2))
         self.orders: List[Order] = []
         self.trades: Dict[str, List[Trade]] = {ticker: [] for ticker in self._data.tickers}
-        for ticker, size in holding:
-            self.trades[ticker].append(Trade(self, ticker=ticker, size=size,
-                                       entry_price=0, entry_bar=0, tag='preexisting'))
+        # Handle preexisting positions as if they are acquired on the first bar but
+        # at the close price of trade_start_date, so that the portfolio return is 0
+        # between backtest start date and trade_start_date.
+        if self._holding:
+            trade_start_bar = (self._data.index.tz_localize(None) < self._trade_start_date
+                               ).sum() if self._trade_start_date else 0
+            for ticker, size in self._holding.items():
+                self.trades[ticker].append(Trade(self, ticker=ticker, size=size, entry_price=self._data[
+                    ticker, 'Close'][trade_start_bar], entry_bar=0, tag='preexisting'))
+                # add the cost for preexisting positions to initial cash
+                self._cash += size * self._data[ticker, 'Close'][trade_start_bar]
         self.positions: Dict[str, Position] = {ticker: Position(self, ticker) for ticker in self._data.tickers}
         self.closed_trades: List[Trade] = []
 
@@ -1323,8 +1331,10 @@ class Backtest:
 
         `cash` is the initial cash to start with.
 
-        `holding` is a list of preexisting asset positions before backtest begins.
-        It's a list of (`ticker`, `size`) tuples.
+        `holding` is a mapping of preexisting assets and their sizes before 
+        backtest begins, e.g. 
+
+            {'AAPL': 10, 'MSFT': 5}
 
         `commission` is the commission ratio. E.g. if your broker's commission
         is 1% of trade value, set commission to `0.01`. Note, if you wish to

@@ -300,13 +300,13 @@ And finally, call `Strategy.rebalance()`, which will look at the current equity 
 
 For single asset strategy, the following illustrates how `self.data` can be accessed when there is only one asset.
 
-```
+```python
 yahoo = QuoteSource.get_source('Yahoo')
 data = yahoo.daily_bar('AAPL', start='2018-01-01', end='2018-01-08')
 bt = Backtest(data, SomeStrategy)
 ```
 
-```
+```python
 # self.data.the_ticker
 AAPL
 

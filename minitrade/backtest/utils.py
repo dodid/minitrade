@@ -203,9 +203,10 @@ def calculate_trade_stats(data: pd.DataFrame, cash: int, orders: list[dict], hol
     open_orders = []
     if holding:
         for ticker, size in holding.items():
+            # Handle the preexisting assets as if they are bought at the first bar
             open_orders.append(
                 {'ticker': ticker, 'entry_bar': 0, 'entry_time': data.index[0],
-                 'size': size, 'entry_price': 0, 'commission': 0})
+                 'size': size, 'entry_price': close_prices[ticker][0], 'commission': 0})
     trades = []
     if orders:
         order_df = pd.DataFrame(orders)

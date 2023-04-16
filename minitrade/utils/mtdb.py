@@ -157,7 +157,7 @@ class MTDB:
             else:
                 stmt = stmt.where(table[where_key] == where_value)
         for k, v in values.items():
-            stmt = stmt.set(table[k], v)
+            stmt = stmt.set(table[k], serialize_to_db(v))
         with MTDB.conn() as conn:
             conn.execute(str(stmt))
 

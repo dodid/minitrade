@@ -70,9 +70,8 @@ class ManualBroker(Broker):
         for order in orders:
             for status in self.find_trades(order):
                 if status['trade_time'] and status['price']:
-                    entry_time = status['trade_time'].replace(tzinfo=timezone.utc)
                     trade = {'ticker': order.ticker,
-                             'entry_time': entry_time,
+                             'entry_time': status['trade_time'],
                              'size': status['size'],
                              'entry_price': float(status['price']),
                              'commission': float(status['commission'])}
