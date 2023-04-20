@@ -174,19 +174,24 @@ class InteractiveBrokers(Broker):
                 'useAdaptive': False,
                 'isClose': False
             }
+            results = []
             result = self.__call_ibgateway(
                 'POST', f'/iserver/account/{self.account_id}/orders', json={'orders': [ib_order]})
+            results.append(result)
+            logger.info(f'Submit order response: {result}')
             # Sometimes IB needs additional confirmation before submitting order. Confirm yes to the message.
             # https://interactivebrokers.github.io/cpwebapi/endpoints
             if 'id' in result[0]:
                 result = self.__call_ibgateway('POST', f'/iserver/reply/{result[0]["id"]}', json={'confirmed': True})
+                results.append(result)
+                logger.info(f'Confirm order response: {result}')
             broker_order_id = result[0]['order_id']
             return broker_order_id
         except Exception as e:
             ex = traceback.format_exc()
             raise RuntimeError(f'Placing order failed for {self.account.alias} order {order}') from e
         finally:
-            self.__log_order(self.account_id, plan, order, ib_order, result, ex, broker_order_id)
+            self.__log_order(self.account_id, plan, order, ib_order, results, ex, broker_order_id)
 
     def __log_order(self, account_id: str, plan: TradePlan, order: RawOrder, iborder: dict,
                     result: Any, exception: str, broker_order_id: str):
