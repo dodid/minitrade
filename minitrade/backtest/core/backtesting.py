@@ -914,8 +914,9 @@ class _Broker:
         # at the close price of trade_start_date, so that the portfolio return is 0
         # between backtest start date and trade_start_date.
         if self._holding:
-            trade_start_bar = (self._data.index.tz_localize(None) < self._trade_start_date
-                               ).sum() if self._trade_start_date else 0
+            trade_start_bar = min(
+                (self._data.index.tz_localize(None) < self._trade_start_date).sum(),
+                len(self._data)-1) if self._trade_start_date else 0
             for ticker, size in self._holding.items():
                 self.trades[ticker].append(Trade(self, ticker=ticker, size=size, entry_price=self._data[
                     ticker, 'Close'][trade_start_bar], entry_bar=0, tag='preexisting'))
@@ -925,8 +926,8 @@ class _Broker:
         self.closed_trades: List[Trade] = []
 
     def __repr__(self):
-        pos = ','.join([f'{k}:{int(p.pl)}' for k, p in self.positions.items()])
-        return f'<Broker: {self._cash:.0f}{pos} ({len(self.all_trades)} trades)>'
+        pos = ','.join([f'{k}:{p.size}' for k, p in self.positions.items()])
+        return f'<Broker: margin_available:{self.margin_available:.0f},{pos} ({len(self.all_trades)} trades)>'
 
     def rebalance(self, alloc: Allocation, force_rebalance: bool = False):
         # ignore any trade actions before trade_start_date
@@ -1470,6 +1471,7 @@ class Backtest:
             _equity_curve                           Eq...
             _trades                       Size  EntryB...
             _orders                              Ticke...
+            _positions                           {'GOO...
             dtype: object
 
         .. warning::
@@ -1482,8 +1484,8 @@ class Backtest:
         data = _Data(self._data.copy(deep=False))
         broker: _Broker = self._broker(data=data)
         strategy: Strategy = self._strategy(broker, data, kwargs)
-
         processed_orders: List[Order] = []
+        final_positions = None
 
         try:
             strategy.init()
@@ -1528,6 +1530,11 @@ class Backtest:
                 # take note of the orders generated
                 processed_orders.extend(broker.orders)
             else:
+                # take note of the final positions
+                final_positions = {
+                    t: p.size for t, p in broker.positions.items()} | {
+                    'Margin': int(broker.margin_available)}
+
                 # Close any remaining open trades so they produce some stats
                 for trade in broker.all_trades:
                     trade.close()
@@ -1559,6 +1566,7 @@ class Backtest:
                 ohlc_data=self._ohlc_ref_data,
                 risk_free_rate=0.0,
                 strategy_instance=strategy,
+                positions=final_positions,
             )
 
         return self._results

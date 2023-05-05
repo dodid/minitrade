@@ -112,11 +112,13 @@ def display_run(plan: TradePlan, log: BacktestLog):
     log_status = '❌' if log.error else '✅' if orders else '🟢'
     label = f'{log_status} {log.log_time} [{log.id}]' + (f' **{len(orders)} orders**' if orders else '')
     with st.expander(label):
-        tab1, tab2, tab3, tab4 = st.tabs(['Result', 'Error', 'Log', 'Orders'])
+        tab1, tab2, tab3, tab4, tab5 = st.tabs(['Result', 'Error', 'Log', 'Orders', 'Positions'])
         if log.result is not None:
             df = log.result
             df = df[~df.index.str.startswith('_')].T
             tab1.write(df)
+            if '_positions' in log.result.index:
+                tab5.write(log.result.loc['_positions'][0])
         tab2.code(log.exception)
         tab3.caption('Log - stdout')
         if log.stdout:

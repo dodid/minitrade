@@ -589,8 +589,8 @@ class BacktestRunner:
                 f'Data\n{data.to_string()}',
                 f'Result\n{result}' if result else 'No backtest result',
                 f'Exception\n{log.exception}' if log.exception else 'No exception',
+                f'Stderr\n{log.stderr}' if log.stderr else 'No stderr',
                 f'Stdout\n{log.stdout}' if log.stdout else 'No stdout',
-                f'Stderr\n{log.stderr}' if log.stderr else 'No stderr'
             ]
             message = '\n\n'.join(message)
             send_telegram_message(message)
