@@ -1530,6 +1530,11 @@ class Backtest:
                 # take note of the orders generated
                 processed_orders.extend(broker.orders)
             else:
+                # Run broker one more time to handle orders placed in the last strategy
+                # iteration. Use the same OHLC values as in the last broker iteration.
+                if start < len(self._data):
+                    try_(partial(broker.next, i), exception=_OutOfMoneyError)
+
                 # take note of the final positions
                 final_positions = {
                     t: p.size for t, p in broker.positions.items()} | {
@@ -1539,8 +1544,7 @@ class Backtest:
                 for trade in broker.all_trades:
                     trade.close()
 
-                # Re-run broker one last time to handle orders placed in the last strategy
-                # iteration. Use the same OHLC values as in the last broker iteration.
+                # Re-run broker one last time to handle orders placed to close all trades.
                 if start < len(self._data):
                     try_(partial(broker.next, i), exception=_OutOfMoneyError)
 
