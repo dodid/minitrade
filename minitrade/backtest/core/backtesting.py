@@ -944,6 +944,7 @@ class _Broker:
             current_value = pd.Series([self.equity(ticker)
                                        for ticker in self._data.tickers], index=self._data.tickers)
             value_adjust = value_allocation - current_value
+            value_adjust_pct = value_adjust.abs().sum() / (current_value.abs().sum() + 1)
             # sort in ascending order so that sell orders are placed first then buy orders to make sure that cash
             # balance is always positive in simulation
             for ticker in value_adjust.sort_values().index:
@@ -955,8 +956,7 @@ class _Broker:
                 else:
                     # rebalance if the current value deviate too much from the desired value
                     # this is to avoid tiny orders triggered by ticker price fluctuation
-                    if value_adjust[ticker] and abs(
-                            value_adjust[ticker]) / value_allocation.loc[ticker] > self._rebalance_tolerance:
+                    if value_adjust[ticker] and value_adjust_pct > self._rebalance_tolerance:
                         # calculate number of shares to buy respecting lot_size
                         # implicitly this forces order in whole share, fractional share not supported for now
                         size = value_adjust[ticker] // self.last_price(ticker) // self._lot_size * self._lot_size
@@ -1307,7 +1307,7 @@ class Backtest:
                  lot_size=1,
                  fail_fast=True,
                  rebalance_cash_reserve=0.1,
-                 rebalance_tolerance=0.1
+                 rebalance_tolerance=0.01
                  ):
         """
         Initialize a backtest. Requires data and a strategy to test.
