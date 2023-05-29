@@ -578,14 +578,16 @@ class BacktestRunner:
             status = "failed" if log.error else "succeeded"
             subject = f'Plan {log.plan_name} {status} @ {ts}' + (f' {len(orders)} new orders' if orders else '')
             data = log.data.xs('Close', 1, 1).tail(2).T
+            result = positions = None
             if log.result is not None:
+                if '_positions' in log.result.index:
+                    positions = log.result.loc['_positions'][0]
                 result = log.result
                 result = result[~result.index.str.startswith('_')]['0'].to_string()
-            else:
-                result = None
             message = [
                 f'Plan {log.plan_name} @ {ts} {status}',
                 '\n'.join([o.tag for o in orders]) if orders else 'No new orders',
+                f'Positions\n{positions}',
                 f'Data\n{data.to_string()}',
                 f'Result\n{result}' if result else 'No backtest result',
                 f'Exception\n{log.exception}' if log.exception else 'No exception',
