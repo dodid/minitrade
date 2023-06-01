@@ -39,7 +39,6 @@ On the other hand, Minitrade is intended to be easily hackable to fit individual
 
 Minitrade requires `python=3.10.*`
 
-
 If only used as a backtesting framework:
 
     $ pip install minitrade
@@ -48,7 +47,7 @@ If used as a trading system, continue with the following:
 
     $ minitrade init
 
-For a detailed setup guide on Ubuntu, check out [Installation](https://dodid.github.io/minitrade/install/).
+For a detailed setup guide, check out [Installation](https://dodid.github.io/minitrade/install/).
 
 ## Backtesting
 
@@ -241,12 +240,14 @@ Configuring the system takes a few steps:
 
     Configure a Telegram bot to receive notifications and to control trader execution. Follow [the instructions](https://medium.com/geekculture/generate-telegram-token-for-bot-api-d26faf9bf064) to create a bot, and take note of the token and chat ID. Configure those in web UI. On saving the configuration, a test message will be sent. Setup is successful if the message can be received.
 
-    After changing telegram settings, restart all minitrade processes to make the change effective.
+    After changing telegram settings, restart all Minitrade processes or restart container to make the change effective.
     
 4. Email provider (optional)
 
     Configure a **[Mailjet](https://mailjet.com)** account to receive email notifcations about backtesting and trading results. A free-tier account should be enough. Configure authorized senders in Mailjet, otherwise sending will fail. Try use different domains for senders and receivers if free email services like Hotmail, Gmail are used, otherwise, e.g., an email sending from a Hotmail address, through 3rd part servers, to the same or another Hotmail address is likely to be treated as spam and not delivered. Sending from Hotmail address to Gmail address or vice versa increases the chance of going through. On saving the configuration, a test email will be sent. Setup is successful if the email can be received.
 
+    After changing email settings, restart all Minitrade processes or restart container to make the change effective.
+    
 5. Strategy
 
     Strategies are just Python files containing a strategy class implementation inherited from the `Strategy` class. The files can be uploaded via the UI and be made available for defining a trade plan. If a strategy class can't be found, it will show an error. If multiple strategy classes exist in a file, the one to be run should be decorated with `@entry_strategy`. To update a strategy, upload a differnt file with the same filename.

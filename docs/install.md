@@ -16,6 +16,18 @@ Minitrade web UI and IB gateway listen on all interfaces, therefore, accessible 
 
 [Create a dedicated IB user](https://www.interactivebrokers.com/en/software/singlefunds/topics/fundsaddusers.htm) for Minitrade. Only trading access should be provided, others, especially funding access, should be disallowed. This avoids access conflict when logging in from multiple devices and restricts the account permissions to the minimally required.
 
+## Try in docker
+
+It's not recommended to run Minitrade in docker container since it takes more resources and it's harder to manage. But if you just want to play with it, you can do:
+
+        docker pull dodid/minitrade
+
+Expose port 8501 to access the web UI.
+
+The image is only tested on a Linux host. It's known not working on a Mac with M1/M2 chips since Chrome won't work.
+
+You may need to restart container if you change the telegram or email settings to make them effective.
+
 ## Install on Ubuntu 20.04 
 
 1. Install OpenVPN, following the instructions [here](https://www.cyberciti.biz/faq/ubuntu-20-04-lts-set-up-openvpn-server-in-5-minutes/). Make sure firewall is open for the port that OpenVPN listens on.
