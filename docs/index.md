@@ -206,11 +206,23 @@ The web UI can be accessed at: ```http://127.0.0.1:8501```
 
 Configuring the system takes a few steps:
 
-1. Data source
+1. Telegram bot (required)
+
+    Configure a Telegram bot to receive notifications and to control trader execution. Follow [the instructions](https://medium.com/geekculture/generate-telegram-token-for-bot-api-d26faf9bf064) to create a bot, and take note of the token and chat ID. Configure those in web UI. On saving the configuration, a test message will be sent. Setup is successful if the message can be received.
+
+    After changing telegram settings, restart all Minitrade processes or restart container to make the change effective.
+    
+2. Email provider (optional)
+
+    Configure a **[Mailjet](https://mailjet.com)** account to receive email notifcations about backtesting and trading results. A free-tier account should be enough. Configure authorized senders in Mailjet, otherwise sending will fail. Try use different domains for senders and receivers if free email services like Hotmail, Gmail are used, otherwise, e.g., an email sending from a Hotmail address, through 3rd part servers, to the same or another Hotmail address is likely to be treated as spam and not delivered. Sending from Hotmail address to Gmail address or vice versa increases the chance of going through. On saving the configuration, a test email will be sent. Setup is successful if the email can be received.
+
+    After changing email settings, restart all Minitrade processes or restart container to make the change effective.
+
+3. Data source
 
     Test the data source and make sure it works. Currently only Yahoo is supported. If a proxy is needed to visit Yahoo, configure it in the UI.
 
-2. Broker
+4. Broker
 
     Put in the username and password, and give the account an alias. Note the **Account type** selected is only a hint to help remember. Whether it's paper or live depends on the account itself, rather than on what's chosen here. 
 
@@ -219,16 +231,6 @@ Configuring the system takes a few steps:
     The credentials are saved in a local database. Be sure to secure the access to the server. 
 
     ![Minitrade web UI - performance ](https://imgur.com/Y0lPTQx.jpg)
-
-3. Telegram bot (required)
-
-    Configure a Telegram bot to receive notifications and to control trader execution. Follow [the instructions](https://medium.com/geekculture/generate-telegram-token-for-bot-api-d26faf9bf064) to create a bot, and take note of the token and chat ID. Configure those in web UI. On saving the configuration, a test message will be sent. Setup is successful if the message can be received.
-
-    After changing telegram settings, restart all minitrade processes to make the change effective.
-    
-4. Email provider (optional)
-
-    Configure a **[Mailjet](https://mailjet.com)** account to receive email notifcations about backtesting and trading results. A free-tier account should be enough. Configure authorized senders in Mailjet, otherwise sending will fail. Try use different domains for senders and receivers if free email services like Hotmail, Gmail are used, otherwise, e.g., an email sending from a Hotmail address, through 3rd part servers, to the same or another Hotmail address is likely to be treated as spam and not delivered. Sending from Hotmail address to Gmail address or vice versa increases the chance of going through. On saving the configuration, a test email will be sent. Setup is successful if the email can be received.
 
 5. Strategy
 

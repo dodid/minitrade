@@ -11,6 +11,11 @@ RUN sh -c 'echo "deb https://dl.google.com/linux/chrome/deb/ stable main" >> /et
 RUN apt update
 RUN apt install -y google-chrome-stable
 
+RUN apt install -y zip
+# Need to match the Chrome version installed
+RUN wget https://chromedriver.storage.googleapis.com/114.0.5735.90/chromedriver_linux64.zip
+RUN unzip chromedriver_linux64.zip -d /usr/local/bin
+
 RUN pip install minitrade -U
 RUN minitrade init
 
