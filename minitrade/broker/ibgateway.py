@@ -168,14 +168,16 @@ def login_ibgateway(instance: GatewayInstance, account: BrokerAccount) -> None:
     options = webdriver.ChromeOptions()
     options.add_argument('ignore-certificate-errors')
     options.add_argument("--headless")
+    options.add_argument("--no-sandbox")
+    options.add_argument("--disable-gpu")
 
     with webdriver.Chrome(options=options) as driver:
         driver.get(root_url)
-        driver.find_element(By.ID, 'user_name').send_keys(account.username)
-        driver.find_element(By.ID, 'password').send_keys(account.password)
-        driver.find_element(By.ID, 'submitForm').click()
+        driver.find_element(By.NAME, 'username').send_keys(account.username)
+        driver.find_element(By.NAME, 'password').send_keys(account.password)
+        driver.find_element(By.CSS_SELECTOR, ".form-group:nth-child(1) > .btn").click()
         time.sleep(3)
-        challenge_label = driver.find_elements(By.ID, 'chlg_SWCR')
+        challenge_label = driver.find_elements(By.CSS_SELECTOR, '.xyz-goldchallenge')
         challenge_code = challenge_label[0].text if challenge_label else None
         if challenge_code:
             logger.warn(f'Challenge code: {challenge_code}')
@@ -183,8 +185,8 @@ def login_ibgateway(instance: GatewayInstance, account: BrokerAccount) -> None:
             send_telegram_message('Please respond in 2 minutes.')
             for _ in range(120):
                 if challenge_response:
-                    driver.find_element(By.ID, 'chlginput').send_keys(challenge_response)
-                    driver.find_element(By.ID, 'submitForm').click()
+                    driver.find_element(By.NAME, "gold-response").send_keys(challenge_response)
+                    driver.find_element(By.CSS_SELECTOR, ".xyzform-gold .btn").click()
                     WebDriverWait(driver, timeout=60).until(lambda d: d.current_url.startswith(redirect_url))
                     logger.warn('Login succeeded')
                     break
