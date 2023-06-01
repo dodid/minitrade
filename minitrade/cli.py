@@ -200,6 +200,8 @@ def check_selenium():
         options = webdriver.ChromeOptions()
         options.add_argument('ignore-certificate-errors')
         options.add_argument("--headless")
+        options.add_argument("--no-sandbox")
+        options.add_argument("--disable-gpu")
         with webdriver.Chrome(options=options) as driver:
             if driver.capabilities:
                 click.secho(f'  {"selenium":15s} ... working', fg='green')
