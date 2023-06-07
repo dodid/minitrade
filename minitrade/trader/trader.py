@@ -452,6 +452,7 @@ class BacktestRunner:
         self.result = None
 
     def _check_data(self, data: pd.DataFrame):
+        '''Check if price data is valid.'''
         # Check if data is invariant with previous backtest data.
         logs = self.plan.list_logs()
         log = next((l for l in logs if l.data is not None and not l.error), None)
