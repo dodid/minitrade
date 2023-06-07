@@ -95,7 +95,7 @@ def launch_ibgateway() -> GatewayInstance:
     '''
     def get_random_port():
         sock = socket.socket()
-        sock.bind(('127.0.0.1', 0))
+        sock.bind(('', 0))
         return sock.getsockname()[1]
     try:
         port = get_random_port()
