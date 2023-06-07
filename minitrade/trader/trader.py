@@ -452,7 +452,7 @@ class BacktestRunner:
         self.result = None
 
     def _check_data(self, data: pd.DataFrame):
-        '''Check if `data` is invariant with previous backtest data.'''
+        # Check if data is invariant with previous backtest data.
         logs = self.plan.list_logs()
         log = next((l for l in logs if l.data is not None and not l.error), None)
         if log:
@@ -461,6 +461,12 @@ class BacktestRunner:
             if not np.allclose(log.data.iloc[:prefix_len], data.iloc[:prefix_len], rtol=1e-5):
                 raise RuntimeError(
                     'Data change detected. If this is due to dividend or stock split, please start a new trade plan.')
+        # Check if most recent data are actually updated, otherwise issue a warning
+        if len(data) > 1:
+            same = np.isclose(data.iloc[-1], data.iloc[-2], rtol=1e-5)
+            if same.any():
+                print('Warning: Data may not be updated. Please verify.')
+                print(data.iloc[-2:])
 
     def run_backtest(self, run_id: str = None, dryrun: bool = False, **kwargs: dict[str, Any]) -> pd.Series | None:
         '''Run backtest according to the trade plan and log the result to database.
