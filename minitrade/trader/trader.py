@@ -14,6 +14,7 @@ from posixpath import expanduser
 from typing import Any
 from zoneinfo import ZoneInfo
 
+import numpy as np
 import pandas as pd
 import requests
 
@@ -450,6 +451,17 @@ class BacktestRunner:
         self.strategy = None
         self.result = None
 
+    def _check_data(self, data: pd.DataFrame):
+        '''Check if `data` is invariant with previous backtest data.'''
+        logs = self.plan.list_logs()
+        log = next((l for l in logs if l.data is not None and not l.error), None)
+        if log:
+            # exclude the last data point which may change intraday
+            prefix_len = len(log.data) - 1
+            if not np.allclose(log.data.iloc[:prefix_len], data.iloc[:prefix_len], rtol=1e-5):
+                raise RuntimeError(
+                    'Data change detected. If this is due to dividend or stock split, please start a new trade plan.')
+
     def run_backtest(self, run_id: str = None, dryrun: bool = False, **kwargs: dict[str, Any]) -> pd.Series | None:
         '''Run backtest according to the trade plan and log the result to database.
 
@@ -470,6 +482,7 @@ class BacktestRunner:
             self.data = source.daily_bar(tickers=self.plan.ticker_css, start=self.plan.backtest_start_date)
             self.code = StrategyManager.read(self.plan.strategy_file)
             self.strategy = StrategyManager.load(self.plan.strategy_file)
+            self._check_data(self.data)
             bt = Backtest(strategy=self.strategy,
                           data=self.data,
                           cash=self.plan.initial_cash,
