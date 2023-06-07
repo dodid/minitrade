@@ -64,7 +64,7 @@ class InteractiveBrokers(Broker):
             raise RuntimeError(f'Request {path} returned {resp.status_code} {resp.text}')
 
     def __call_ibgateway(
-            self, method: str, path: str, params: dict | None = None, json: Any | None = None, timeout: int = 10) -> Any:
+            self, method: str, path: str, params: dict | None = None, json: Any | None = None, timeout: int = 20) -> Any:
         '''Call the ibgateway's REST API'''
         if self._port:
             url = f'http://localhost:{self._port}/v1/api{path}'
