@@ -181,7 +181,7 @@ class InteractiveBrokers(Broker):
             logger.info(f'Submit order response: {result}')
             # Sometimes IB needs additional confirmation before submitting order. Confirm yes to the message.
             # https://interactivebrokers.github.io/cpwebapi/endpoints
-            if 'id' in result[0]:
+            while 'id' in result[0]:
                 result = self.__call_ibgateway('POST', f'/iserver/reply/{result[0]["id"]}', json={'confirmed': True})
                 results.append(result)
                 logger.info(f'Confirm order response: {result}')
