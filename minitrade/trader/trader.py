@@ -458,10 +458,13 @@ class BacktestRunner:
         log = next((l for l in logs if l.data is not None and not l.error), None)
         if log:
             # exclude the last data point which may change intraday
-            # only check for price change as volume data from Yahoo do change sometimes 
+            # only check for price change as volume data from Yahoo do change sometimes
             prefix_len = len(log.data) - 1
             for col in ['Open', 'High', 'Low', 'Close']:
-                if not np.allclose(log.data.xs(col, 1, 1).iloc[:prefix_len], data.xs(col, 1, 1).iloc[:prefix_len], rtol=1e-5):
+                if not np.allclose(
+                        log.data.xs(col, 1, 1).iloc[: prefix_len],
+                        data.xs(col, 1, 1).iloc[: prefix_len],
+                        rtol=1e-5):
                     raise RuntimeError(
                         'Data change detected. If this is due to dividend or stock split, please start a new trade plan.')
         # Check if most recent data are actually updated, otherwise issue a warning

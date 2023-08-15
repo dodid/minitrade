@@ -66,7 +66,7 @@ def launch_scheduler():
     '''Launch and shutdown scheduler'''
     schd = Process(target=scheduler_start)
     schd.start()
-    time.sleep(3)
+    time.sleep(5)
     yield
     schd.terminate()
 
