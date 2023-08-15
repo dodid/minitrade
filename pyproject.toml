@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "minitrade"
-version = "0.1.21"
+version = "0.1.22"
 description = "A personal automated trading system"
 authors = ["Wei Wu <dodid@outlook.com>"]
 readme = "README.md"

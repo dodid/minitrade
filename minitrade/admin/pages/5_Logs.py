@@ -10,7 +10,7 @@ log = st.sidebar.radio('Logs', ['TraderLog', 'BacktestLog', 'OrderValidatorLog',
                        'IbOrderLog', 'IbOrder', 'IbTrade', 'RawOrder', ])
 
 data = MTDB.get_all(log, cls=dict)
-data = [{k: str(v) if v else v for k, v in x.items()} for x in data]
+data = [{k: str(v) if isinstance(v, pd.DataFrame) or v else v for k, v in x.items()} for x in data]
 
 st.subheader(log)
 st.write(pd.DataFrame(data))
