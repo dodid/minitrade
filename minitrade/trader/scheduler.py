@@ -138,13 +138,14 @@ def delete_jobs(plan_id: str):
 
 
 class Message(BaseModel):
-    text: str
+    text: str | None = None
+    html: str | None = None
 
 
 @app.post('/messages')
 async def post_messages(data: Message):
     '''Send Telegram message'''
-    bot and await bot.send_message(data.text)
+    bot and await bot.send_message(data.html or data.text, parse_mode='HTML' if data.html else None)
     return Response(status_code=204)
 
 

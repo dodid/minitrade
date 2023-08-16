@@ -20,7 +20,7 @@ def mailjet_send_email(
                     'From': {'Email': sender, 'Name': 'Minitrade'},
                     'To': [{'Email': addr} for addr in mailto.split(',')],
                     'Subject': subject,
-                    'TextPart': message,
+                    'HTMLPart': message,
                 }
             ]
         }

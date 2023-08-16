@@ -17,6 +17,7 @@ from zoneinfo import ZoneInfo
 import numpy as np
 import pandas as pd
 import requests
+from tabulate import tabulate
 
 from minitrade.backtest import Backtest, Strategy
 from minitrade.broker import Broker, BrokerAccount
@@ -563,7 +564,7 @@ class BacktestRunner:
                                    stderr=proc.stderr if proc.stderr else None)
             raise RuntimeError(f'Backtest for {self.plan} run {self.run_id} failed') from e
         finally:
-            self._send_summary_email()
+            self._send_backtest_notification()
 
     def _log_backtest_run(self,
                           exception: str = None,
@@ -594,34 +595,81 @@ class BacktestRunner:
                 'stderr': stderr,
             })
 
-    def _send_summary_email(self):
-        ''' Send backtest summary email '''
+    def _send_backtest_notification(self):
+        ''' Send backtest result via telegram and/or email '''
         log = self.plan.get_log(self.run_id)
         if log:
             orders = self.plan.get_orders(log.id)
-            ts = log.log_time
-            status = "failed" if log.error else "succeeded"
-            subject = f'Plan {log.plan_name} {status} @ {ts}' + (f' {len(orders)} new orders' if orders else '')
-            data = log.data.xs('Close', 1, 1).tail(2).T
-            result = positions = None
+            plan_name = log.plan_name
+            plan_status = 'Failed' if log.error else 'Succeeded'
+            plan_time = log.log_time.strftime('%Y-%m-%d %H:%M:%S')
+            plan_subject = f'## {plan_name} ##  {plan_status} @ {plan_time}'
+            plan_positions = plan_data = plan_result = plan_exception = plan_stderr = plan_stdout = None
+
+            if log.data is not None:
+                data = log.data.xs('Close', 1, 1).tail(2).T
+                data.columns = data.columns.strftime('%Y-%m-%d')
+                plan_data = tabulate(data, stralign="right", headers='keys')
+
             if log.result is not None:
                 if '_positions' in log.result.index:
                     positions = log.result.loc['_positions'][0]
+                    positions = json.loads(positions.replace("'", '"'))
+                    plan_positions = tabulate(positions.items(), headers=['Ticker', 'Share'])
                 result = log.result
-                result = result[~result.index.str.startswith('_')]['0'].to_string()
-            message = [
-                f'Plan {log.plan_name} @ {ts} {status}',
-                '\n'.join([o.tag for o in orders]) if orders else 'No new orders',
-                f'Positions\n{positions}',
-                f'Data\n{data.to_string()}',
-                f'Result\n{result}' if result else 'No backtest result',
-                f'Exception\n{log.exception}' if log.exception else 'No exception',
-                f'Stderr\n{log.stderr}' if log.stderr else 'No stderr',
-                f'Stdout\n{log.stdout}' if log.stdout else 'No stdout',
-            ]
+                result = result[~result.index.str.startswith('_')].T.apply(pd.to_numeric, errors='ignore')
+                result = result.round(2).T
+                for item in ['Start', 'End']:
+                    result.loc[item] = result.loc[item][0][:10]
+                for item in [
+                    'Duration', 'Max. Drawdown Duration', 'Avg. Drawdown Duration', 'Max. Trade Duration',
+                        'Avg. Trade Duration']:
+                    result.loc[item] = str(result.loc['Duration'][0])[:-10]
+                plan_result = tabulate(result, stralign="right")
+
+            plan_exception = log.exception
+            plan_stderr = log.stderr
+            plan_stdout = log.stdout
+
+            summary = {
+                'Status': [plan_status],
+                'Exception': [plan_exception is not None],
+                'Stderr': [plan_stderr is not None],
+                'Stdout': [plan_stdout is not None],
+            }
+
+            message = [f'<b>{plan_subject}</b>']
+            message.append(f'<b>Summary</b>\n<pre>{tabulate(summary, headers="keys")}</pre>')
+
+            if orders:
+                plan_orders = tabulate([[o.side, o.ticker, abs(o.size)] for o in orders])
+                message.append(f'<b>Orders</b>\n<pre>{plan_orders}</pre>')
+            else:
+                message.append(f'<b>Orders</b>\n<pre>No order generated</pre>')
+
+            if plan_positions:
+                message.append(f'<b>Positions</b>\n<pre>{plan_positions}</pre>')
+
+            if plan_data:
+                message.append(f'<b>Data</b>\n<pre>{plan_data}</pre>')
+
+            if plan_result:
+                message.append(f'<b>Result</b>\n<pre>{plan_result}</pre>')
+
+            if plan_exception:
+                message.append(f'<b>Exception</b>\n<pre>{plan_exception}</pre>')
+
+            if plan_stderr:
+                message.append(f'<u>Stderr</u>\n<pre>{plan_stderr}</pre>')
+
+            if plan_stdout:
+                message.append(f'<u>Stdout</u>\n<pre>{plan_stdout}</pre>')
+
             message = '\n\n'.join(message)
-            send_telegram_message(message)
-            mailjet_send_email(subject, message)
+            send_telegram_message(html=message)
+
+            email_message = '<table border="0" cellspacing="0" width="100%"><tr><td></td><td width="350">' + message + '</td><td></td></tr></table>'
+            mailjet_send_email(plan_subject, email_message)
 
 
 @dataclass(kw_only=True)

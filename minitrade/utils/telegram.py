@@ -10,11 +10,11 @@ from minitrade.broker import Broker, BrokerAccount
 from minitrade.utils.config import config
 
 
-def send_telegram_message(*text):
+def send_telegram_message(*text, html: str = ''):
     '''Send message to Telegram`'''
     url = f'http://{config.scheduler.host}:{config.scheduler.port}/messages'
     resp = requests.request(method='POST', url=url, json={'text': '\n'.join(text)[
-                            :4096]})  # Telegram message length limit
+                            :4096], 'html': html[:4096]})  # Telegram message length limit
     if resp.status_code == 200:
         return resp.json()
     elif resp.status_code >= 400:
@@ -156,9 +156,9 @@ class TelegramBot():
         await self.app.stop()
         await self.app.shutdown()
 
-    async def send_message(self, text: str):
+    async def send_message(self, text: str, parse_mode: str = None):
         if self.chat_id:
-            await self.app.bot.send_message(text=text, chat_id=self.chat_id)
+            await self.app.bot.send_message(text=text, chat_id=self.chat_id, parse_mode=parse_mode)
         else:
             raise RuntimeError('Chat ID is not configured')
 
