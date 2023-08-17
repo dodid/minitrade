@@ -12,6 +12,7 @@ def mailjet_send_email(
     api_secret = api_secret or config.providers.mailjet.api_secret
     sender = sender or config.providers.mailjet.sender
     mailto = mailto or config.providers.mailjet.mailto
+    message = '<table border="0" cellspacing="0" width="100%"><tr><td width="500">' + message + '</td><td></td></tr></table>'
     if api_key and api_secret and sender and mailto:
         mailjet = Client(auth=(api_key, api_secret), version='v3.1')
         data = {

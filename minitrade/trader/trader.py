@@ -639,7 +639,7 @@ class BacktestRunner:
             }
 
             message = [f'<b>{plan_subject}</b>']
-            message.append(f'<b>Summary</b>\n<pre>{tabulate(summary, headers="keys")}</pre>')
+            message.append(f'<pre>{tabulate(summary, headers="keys")}</pre>')
 
             if orders:
                 plan_orders = tabulate([[o.side, o.ticker, abs(o.size)] for o in orders])
@@ -667,9 +667,7 @@ class BacktestRunner:
 
             message = '\n\n'.join(message)
             send_telegram_message(html=message)
-
-            email_message = '<table border="0" cellspacing="0" width="100%"><tr><td></td><td width="350">' + message + '</td><td></td></tr></table>'
-            mailjet_send_email(plan_subject, email_message)
+            mailjet_send_email(plan_subject, message)
 
 
 @dataclass(kw_only=True)
@@ -717,7 +715,7 @@ class Trader:
             return
 
         run_id = MTDB.uniqueid()
-        summary = [f'Trader run ID {run_id}', f'Plan {plan.name}', f'{len(orders)} order to be processed']
+        summary = [f'<b>Trader ## {plan.name} ##</b>', f'<pre>{len(orders)} orders</pre>']
 
         try:
             # download the latest orders and trades from broker before submitting new orders
@@ -729,12 +727,12 @@ class Trader:
                     order.broker_order_id = broker_order_id
                     order.save()
                 except Exception as e:
-                    summary.append(f'#{i} {order.ticker} {order.side} {abs(order.size)} ERROR')
-                    summary.append(f'  - {str(e)}')
+                    summary.append(f'<pre>#{i} {order.ticker} {order.side} {abs(order.size)} ERROR</pre>')
+                    summary.append(f'<pre>  - {str(e)}</pre>')
                     summary.append('Order processing aborted')
                     break
                 else:
-                    summary.append(f'#{i} {order.ticker} {order.side} {abs(order.size)} OK')
+                    summary.append(f'<pre>#{i} {order.ticker} {order.side} {abs(order.size)} OK</pre>')
             # download orders and trades after submitting new orders
             broker.download_orders()
             broker.download_trades()
@@ -763,5 +761,5 @@ class Trader:
             log_time=datetime.utcnow()
         )
         log.save()
-        send_telegram_message(text)
-        mailjet_send_email(f'Trader @ {start_time} finished', text)
+        send_telegram_message(html=text)
+        mailjet_send_email(f'Trader @ {start_time.strftime("%Y-%m-%d %H:%M:%S")}', text)
