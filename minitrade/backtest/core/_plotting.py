@@ -35,7 +35,8 @@ with open(os.path.join(os.path.dirname(__file__), 'autoscale_cb.js'),
           encoding='utf-8') as _f:
     _AUTOSCALE_JS_CALLBACK = _f.read()
 
-IS_JUPYTER_NOTEBOOK = 'JPY_PARENT_PID' in os.environ
+# Detect Jupyter Notebook, works in Jupyter and VS Code
+IS_JUPYTER_NOTEBOOK = 'ipykernel' in sys.modules
 
 if IS_JUPYTER_NOTEBOOK:
     warnings.warn('Jupyter Notebook detected. '
