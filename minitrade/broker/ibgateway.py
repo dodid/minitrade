@@ -19,8 +19,8 @@ from selenium.webdriver.support.ui import WebDriverWait
 from minitrade.broker import BrokerAccount
 from minitrade.utils.telegram import send_telegram_message
 
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+logging.getLogger("urllib3").setLevel(logging.ERROR)
+logger = logging.getLogger('uvicorn.error')
 
 __ib_loc = expanduser('~/.minitrade/ibgateway')
 
@@ -132,7 +132,9 @@ def ping_ibgateway(username: str, instance: GatewayInstance) -> dict:
     '''
     try:
         tickle = __call_ibgateway(instance, 'GET', '/tickle', timeout=5)
+        logger.debug(f'{username} gateway tickle: {tickle}')
         sso = __call_ibgateway(instance, 'GET', '/sso/validate', timeout=5)
+        logger.debug(f'{username} gateway sso: {tickle}')
         if sso and tickle:
             return {
                 'pid': instance.pid,
@@ -144,6 +146,7 @@ def ping_ibgateway(username: str, instance: GatewayInstance) -> dict:
                 'timestamp': datetime.now().isoformat(),
             }
     except Exception as e:
+        logger.debug(f'{username} gateway invalid, killing it')
         kill_ibgateway(username, instance)
         send_telegram_message(f'IB gateway disconnected: {username}, {e}')
         raise HTTPException(503, f'IB ping error: {username}') from e
@@ -172,33 +175,46 @@ def login_ibgateway(instance: GatewayInstance, account: BrokerAccount) -> None:
     options.add_argument("--disable-gpu")
 
     with webdriver.Chrome(options=options) as driver:
+        logger.debug(f'{account.username} loading {root_url}')
         driver.get(root_url)
+        logger.debug(f'{account.username} page loaded {driver.current_url}')
         driver.find_element(By.NAME, 'username').send_keys(account.username)
+        logger.debug(f'{account.username} filled in username')
         driver.find_element(By.NAME, 'password').send_keys(account.password)
+        logger.debug(f'{account.username} filled in password')
         driver.find_element(By.CSS_SELECTOR, ".form-group:nth-child(1) > .btn").click()
+        logger.debug(f'{account.username} submitted login form')
         time.sleep(3)
-        challenge_label = driver.find_elements(By.CSS_SELECTOR, '.xyz-goldchallenge')
-        challenge_code = challenge_label[0].text if challenge_label else None
-        if challenge_code:
-            logger.warn(f'Challenge code: {challenge_code}')
+        try:
+            manual_2fa = driver.find_element(
+                By.CSS_SELECTOR, '.text-center > .xyz-showchallenge > small').is_displayed()
+        except Exception:
+            manual_2fa = False
+        logger.debug(f'{account.username} manual 2fa = {manual_2fa}')
+        if manual_2fa:
+            driver.find_element(By.CSS_SELECTOR, ".text-center > .xyz-showchallenge > small").click()
+            logger.debug(f'{account.username} switched to logging in by challenge code')
+            challenge_code = driver.find_element(By.CSS_SELECTOR, '.xyz-goldchallenge').text
+            logger.debug(f'{account.username} found challenge code: {challenge_code}')
             send_telegram_message(f'Challenge code for "{account.username}":\n{challenge_code}')
             send_telegram_message('Please respond in 2 minutes.')
+            logger.debug(f'{account.username} sent challenge code to telegram')
             for _ in range(120):
                 if challenge_response:
                     driver.find_element(By.NAME, "gold-response").send_keys(challenge_response)
+                    logger.debug(f'{account.username} filled in challenge response: {challenge_response}')
                     driver.find_element(By.CSS_SELECTOR, ".xyzform-gold .btn").click()
+                    logger.debug(f'{account.username} submitted challenge response')
                     WebDriverWait(driver, timeout=60).until(lambda d: d.current_url.startswith(redirect_url))
-                    logger.warn('Login succeeded')
-                    break
+                    logger.debug(f'{account.username} login succeeded')
+                    return
                 else:
                     time.sleep(1)
+            logger.debug(f'{account.username} challenge response timeout')
         else:
-            logger.warn(f'Login initiated for {account.username}')
+            logger.debug(f'{account.username} login initiated')
             WebDriverWait(driver, timeout=60).until(lambda d: d.current_url.startswith(redirect_url))
-            logger.warn('Login succeeded')
-        # Explicitly call close as context manager seems not working sometimes.
-        driver.close()
-        driver.quit()
+            logger.debug(f'{account.username} login succeeded')
 
 
 async def ibgateway_keepalive() -> None:
@@ -208,7 +224,7 @@ async def ibgateway_keepalive() -> None:
         for username, instance in app.registry.copy().items():
             try:
                 status = await loop.run_in_executor(None, lambda: ping_ibgateway(username, instance))
-                logger.debug(f'Keepalive gateway {username}: {status}')
+                logger.debug(f'{username} keepalive: {status}')
             except Exception as e:
                 logger.error(e)
         await asyncio.sleep(60)
@@ -222,6 +238,8 @@ def kill_ibgateway(username: str, instance: GatewayInstance) -> None:
     '''
     app.registry.pop(username, None)
     psutil.Process(instance.pid).terminate()
+    logger.debug(f'{username} gateway killed')
+    logger.debug(f'Gateway registry: {app.registry}')
 
 
 @app.on_event('startup')
@@ -291,22 +309,27 @@ def login_gateway_with_account(account=Depends(get_account)):
     Returns:
         204 if login succeeds, otherwise 503.
     '''
+    logger.debug(f'{account.username} login started')
     instance = app.registry.get(account.username, None)
     if instance:
+        logger.debug(f'{account.username} found existing gateway: {instance}')
         try:
             return ping_ibgateway(account.username, instance)
         except Exception:
+            logger.debug(f'{account.username} existing gateway invalid, killing it')
             pass
     try:
         # try launching the gateway and login
         instance = launch_ibgateway()
+        logger.debug(f'{account.username} started new gateway: {instance}')
+        time.sleep(1)   # allow gateway instance to fully launch
         login_ibgateway(instance, account)
         app.registry[account.username] = instance
-        # wait for authentication state to settle
-        time.sleep(5)
-        return ping_ibgateway(account.username, instance)
-    except Exception:
-        logger.exception(f'Launching gateway failed for alias: {account.alias}')
+        time.sleep(5)   # wait for authentication state to settle
+        status = ping_ibgateway(account.username, instance)
+        return status
+    except Exception as e:
+        logger.exception(f'{account.username} gateway error: {e}')
         if instance:
             kill_ibgateway(account.username, instance)
         raise HTTPException(503, 'Launching gateway failed')

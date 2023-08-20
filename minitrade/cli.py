@@ -5,6 +5,9 @@ import platform
 import sqlite3
 import subprocess
 import sys
+import time
+from multiprocessing import Process
+from pathlib import Path
 from posixpath import expanduser
 from zipfile import ZipFile
 
@@ -52,8 +55,7 @@ def ib():
     pass
 
 
-@ib.command('start')
-def ib_start():
+def ib_start_inner(log_level = None):
     import uvicorn
 
     from minitrade.utils.config import config
@@ -61,8 +63,13 @@ def ib_start():
         'minitrade.broker.ibgateway:app',
         host=config.brokers.ib.gateway_admin_host,
         port=config.brokers.ib.gateway_admin_port,
-        log_level=config.brokers.ib.gateway_admin_log_level,
+        log_level=log_level or config.brokers.ib.gateway_admin_log_level,
     )
+
+
+@ib.command('start')
+def ib_start():
+    ib_start_inner()
 
 
 @ib.command('status')
@@ -182,33 +189,99 @@ def backtest(plan_id, run_id, dryrun, pytest):
         raise e
 
 
-def check_program_version(name):
-    proc = subprocess.run(['which', name], capture_output=True, cwd=os.getcwd(), text=True)
-    if proc.returncode == 0:
-        path = proc.stdout.strip('\n')
+def check_program_version(name, path=None):
+    try:
+        if not path:
+            proc = subprocess.run(['which', name], capture_output=True, cwd=os.getcwd(), text=True)
+            if proc.returncode:
+                raise RuntimeError(f'Program {name} not found')
+            path = proc.stdout.strip('\n')
         proc = subprocess.run([path, '--version'], capture_output=True, cwd=os.getcwd(), text=True)
-        if proc.returncode == 0:
-            click.secho(f'  {name:15s} ... found', fg='green')
-            return True
-    click.secho(f'  {name:15s} ... missing', fg='red')
-    return False
+        if proc.returncode:
+            raise RuntimeError(f'Program {name} not found')
+        version = proc.stdout.split('\n')[0]
+        click.secho(f'  {name:15s} ... found {version}', fg='green')
+        return True
+    except Exception as e:
+        click.secho(f'  {name:15s} ... missing', fg='red')
+        return False
 
 
 def check_selenium():
     try:
         from selenium import webdriver
-        options = webdriver.ChromeOptions()
+        options=webdriver.ChromeOptions()
         options.add_argument('ignore-certificate-errors')
         options.add_argument("--headless")
         options.add_argument("--no-sandbox")
         options.add_argument("--disable-gpu")
         with webdriver.Chrome(options=options) as driver:
-            if driver.capabilities:
+            driver.get('https://apple.com')
+            if driver.find_element(value='globalnav-list'):
                 click.secho(f'  {"selenium":15s} ... working', fg='green')
-                return True
+                return True  
     except Exception as e:
         click.secho(f'  selenium ... error: {e}', fg='red')
         return False
+
+
+@mtcli.command()
+def ib_diagnose():
+    '''Diagnose IB login issues'''
+    from minitrade.utils.config import config
+
+    click.secho('Checking dependencies:')
+    check_program_version('java')
+    if platform.system() == 'Darwin':
+        check_program_version(
+            'google-chrome', '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome')
+        check_program_version('chromedriver')
+    elif platform.system() == 'Linux':
+        check_program_version('google-chrome')
+
+    click.secho('Checking Minitrade installation:')
+    items=[
+        '~/.minitrade',
+        '~/.minitrade/strategy',
+        '~/.minitrade/ibgateway',
+        '~/.minitrade/config.yaml',
+        '~/.minitrade/database/minitrade.db',
+    ]
+    for item in items:
+        path=Path(item).expanduser()
+        click.secho(f'  {item:35s} ... {"found" if path.exists() else "missing"}',
+                    fg='green' if path.exists() else 'red')
+
+    click.secho('Checking Selenium:')
+    check_selenium()
+
+    click.secho('Checking IB gateway:')
+    try:
+        if requests.get(f'http://localhost:{config.scheduler.port}/jobs', timeout=3).status_code != 200:
+            raise RuntimeError('Scheduler is not running')
+    except Exception:
+        click.secho('  Scheduler is not running. Start it and try again.', fg='red')
+        return
+    try:
+        if requests.get(f'http://localhost:{config.brokers.ib.gateway_admin_port}/ibgateway', timeout=3).status_code == 200:
+            click.secho('  IB gateway is already running. Quit it and try again.', fg='red')
+            return
+    except Exception:
+        pass
+    try:
+        gateway = Process(target=ib_start_inner, args=['debug'])
+        gateway.start()
+        time.sleep(3)
+        alias = input('Please enter the IB account alias to be diagnosed: ')
+        if requests.put(f'http://localhost:{config.brokers.ib.gateway_admin_port}/ibgateway/{alias}').status_code != 200:
+            raise RuntimeError('IB gateway login failed')
+        gateway.terminate()
+        time.sleep(1)
+        click.secho(f'  {"ibgateway":15s} ... working', fg='green')
+    except Exception as e:
+        gateway.terminate()
+        time.sleep(1)
+        click.secho(f'  {"ibgateway":15s} ... error, {e}', fg='red')
 
 
 @mtcli.command()
@@ -232,7 +305,7 @@ def init():
             fg='red')
         sys.exit(1)
 
-    minitrade_root = expanduser('~/.minitrade')
+    minitrade_root=expanduser('~/.minitrade')
     # init dirs
     click.secho(f'Setting up directories...')
     os.makedirs(os.path.join(minitrade_root, 'database'), mode=0o700, exist_ok=True)
@@ -242,9 +315,9 @@ def init():
     from minitrade.utils.config import GlobalConfig
     GlobalConfig().save()
     # init db
-    db_loc = os.path.join(minitrade_root, 'database/minitrade.db')
+    db_loc=os.path.join(minitrade_root, 'database/minitrade.db')
     click.secho(f'Setting up database...')
-    sql = pkgutil.get_data(__name__, 'minitrade.db.sql').decode('utf-8')
+    sql=pkgutil.get_data(__name__, 'minitrade.db.sql').decode('utf-8')
     with sqlite3.connect(db_loc) as conn:
         conn.executescript(sql)
     conn.close()
@@ -253,13 +326,13 @@ def init():
     populate_nasdaq_traded_symbols()
     # download and extract IB gateway
     click.secho(f'Installing Interactive Brokers gateway...')
-    ib_loc = os.path.join(minitrade_root, 'ibgateway')
-    url = 'https://download2.interactivebrokers.com/portal/clientportal.gw.zip'
-    response = requests.get(url, stream=True)
-    total_kb = int(int(response.headers["Content-Length"]) / 1000)
+    ib_loc=os.path.join(minitrade_root, 'ibgateway')
+    url='https://download2.interactivebrokers.com/portal/clientportal.gw.zip'
+    response=requests.get(url, stream=True)
+    total_kb=int(int(response.headers["Content-Length"]) / 1000)
     with open(f'{ib_loc}/clientportal.gw.zip', "wb") as f:
-        file_hash = hashlib.md5()
-        t = tqdm(response.iter_content(chunk_size=1000), total=total_kb,
+        file_hash=hashlib.md5()
+        t=tqdm(response.iter_content(chunk_size=1000), total=total_kb,
                  unit="KB", desc='Downloading IB gateway', leave=False)
         for data in t:
             file_hash.update(data)
@@ -271,11 +344,11 @@ def init():
     ZipFile(f'{ib_loc}/clientportal.gw.zip').extractall(ib_loc)
     # tighten API access to localhost only
     try:
-        conf_loc = os.path.join(ib_loc, 'root/conf.yaml')
+        conf_loc=os.path.join(ib_loc, 'root/conf.yaml')
         with open(conf_loc, 'r') as f:
-            conf = yaml.safe_load(f)
-        conf['ips']['allow'] = ['127.0.0.1']
-        conf['ips']['deny'] = []
+            conf=yaml.safe_load(f)
+        conf['ips']['allow']=['127.0.0.1']
+        conf['ips']['deny']=[]
         with open(conf_loc, 'w') as f:
             yaml.safe_dump(conf, f)
     except Exception as e:
