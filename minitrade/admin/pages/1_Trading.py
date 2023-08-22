@@ -243,24 +243,29 @@ def show_trade_plan_execution_history(plan: TradePlan) -> None:
                 # data.index may have mixed timezone due to daylight saving time
                 trade_df, equity, pnl, commission_rate = calculate_trade_stats(
                     data.iloc[offset:], plan.initial_cash, trades, plan.initial_holding)
-                rr = (equity / equity[0] - 1) * 100
-                rr.name = 'Return rate (%)'
-                c1, c2, c3, c4 = st.columns(4)
-                c1.metric(
-                    label='Portfolio Value', value=f'{equity.iloc[-1]:,.0f}',
-                    delta=f'{int(equity.iloc[-1]-equity.iloc[-2]):,}' if len(equity) >= 2 else 0)
-                c2.metric(label='PnL', value=f'{(equity.iloc[-1]-equity.iloc[0]):,.0f}')
-                c3.metric(label='Return', value=f'{rr.iloc[-1]:.2f}%')
-                c4.metric(label='Commission Rate', value=f'{commission_rate:.3%}')
-                if len(rr) >= 2:
-                    st.caption('Return rate (%)')
-                    st.line_chart(rr, height=300)
-                st.caption('Profit and loss')
-                st.write(pnl.style.format('{:,.0f}', na_rep=' '))
-                st.caption('Trades')
-                st.write(trade_df.style.format(na_rep=' '))
+                if len(equity) > 0:
+                    c1, c2, c3, c4 = st.columns(4)
+                    c1.metric(
+                        label='Portfolio Value', value=f'{equity.iloc[-1]:,.0f}',
+                        delta=f'{int(equity.iloc[-1]-equity.iloc[-2]):,}' if len(equity) >= 2 else 0)
+                    c2.metric(label='PnL', value=f'{(equity.iloc[-1]-equity.iloc[0]):,.0f}')
+                    c4.metric(label='Commission Rate', value=f'{commission_rate:.3%}')
+                    rr = (equity / equity[0] - 1) * 100
+                    rr.name = 'Return rate (%)'
+                    c3.metric(label='Return', value=f'{rr.iloc[-1]:.2f}%')
+                    if len(rr) >= 2:
+                        st.caption('Return rate (%)')
+                        st.line_chart(rr, height=300)
+                    st.caption('Profit and loss')
+                    st.write(pnl.style.format('{:,.0f}', na_rep=' '))
+                    st.caption('Trades')
+                    st.write(trade_df.style.format(na_rep=' '))
+                else:
+                    st.write('No stats due to insufficient data')
             except Exception as e:
-                st.write(e)
+                st.write('No stats due to insufficient data')
+                with st.expander('Details'):
+                    st.write(e)
 
     with tab4:
         st.write(asdict(plan))
