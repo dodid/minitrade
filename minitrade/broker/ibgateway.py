@@ -201,14 +201,17 @@ def login_ibgateway(instance: GatewayInstance, account: BrokerAccount) -> None:
             logger.debug(f'{account.username} sent challenge code to telegram')
             for _ in range(120):
                 if challenge_response:
+                    logger.debug(f'{account.username} got challenge response: {challenge_response}')
                     driver.find_element(By.NAME, "gold-response").send_keys(challenge_response)
-                    logger.debug(f'{account.username} filled in challenge response: {challenge_response}')
+                    logger.debug(f'{account.username} filled in challenge response')
                     driver.find_element(By.CSS_SELECTOR, ".xyzform-gold .btn").click()
                     logger.debug(f'{account.username} submitted challenge response')
                     WebDriverWait(driver, timeout=60).until(lambda d: d.current_url.startswith(redirect_url))
                     logger.debug(f'{account.username} login succeeded')
                     return
                 else:
+                    if _ % 10 == 0:
+                        logger.debug(f'{account.username} waiting for challenge response ({_}s)')
                     time.sleep(1)
             logger.debug(f'{account.username} challenge response timeout')
         else:
@@ -367,4 +370,5 @@ def set_challenge_response(cr: ChallengeResponse):
     '''
     global challenge_response
     challenge_response = cr.code
+    logger.debug(f'Challenge response received: {challenge_response}')
     return Response(status_code=204)
