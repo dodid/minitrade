@@ -325,7 +325,7 @@ def login_gateway_with_account(account=Depends(get_account)):
         # try launching the gateway and login
         instance = launch_ibgateway()
         logger.debug(f'{account.username} started new gateway: {instance}')
-        time.sleep(5)   # allow gateway instance to fully launch
+        time.sleep(3)   # allow gateway instance to fully launch
         login_ibgateway(instance, account)
         app.registry[account.username] = instance
         time.sleep(5)   # wait for authentication state to settle
