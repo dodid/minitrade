@@ -1,11 +1,9 @@
-name: test_install
+name: test_external_dependencies
 
 on: 
-    push:
-      branches:
-        - master
-        - main
-
+  schedule:
+    - cron: "0 7 * * 1-5" # every weekday at 7am 
+  
 jobs:
   build:
 
