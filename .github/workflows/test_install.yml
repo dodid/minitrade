@@ -33,6 +33,7 @@ jobs:
         run: |
           pip install minitrade
           minitrade init
+          cp ~/.minitrade/config.yaml ~/.minitrade/config.pytest.yaml
       - name: Test with pytest
         run: |
           pytest tests
