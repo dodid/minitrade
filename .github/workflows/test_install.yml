@@ -35,5 +35,8 @@ jobs:
           minitrade init
           cp ~/.minitrade/config.yaml ~/.minitrade/config.pytest.yaml
       - name: Test with pytest
+        env:
+          IB_TEST_USERNAME: ${{ secrets.IB_TEST_USERNAME }}
+          IB_TEST_PASSWORD: ${{ secrets.IB_TEST_PASSWORD }}
         run: |
           pytest tests
