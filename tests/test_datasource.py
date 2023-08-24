@@ -35,6 +35,22 @@ def test_eastmoney_get_single_ticker():
     assert df.notna().all(axis=None) == True
 
 
+def test_eastmoney_get_snapshot():
+    em = QuoteSource.get_source('EastMoney')
+    s = em.snapshot(['000001', '000002', '000003'])
+    assert type(s) == pd.Series
+    assert s.index.to_list() == ['000001', '000002', '000003']
+    assert s.dtype == float
+
+
+def test_yahoo_get_snapshot():
+    yahoo = QuoteSource.get_source('Yahoo')
+    s = yahoo.snapshot(['AAPL', 'GOOG', 'META'])
+    assert type(s) == pd.Series
+    assert s.index.to_list() == ['AAPL', 'GOOG', 'META']
+    assert s.dtype == float
+
+
 def test_yahoo_get_single_ticker():
     yahoo = QuoteSource.get_source('Yahoo')
     start = '2000-01-03'

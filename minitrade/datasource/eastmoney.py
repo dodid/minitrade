@@ -10,7 +10,7 @@ from minitrade.datasource.base import QuoteSource
 class EastMoneyQuoteSource(QuoteSource):
     '''EastMoney data source'''
 
-    def _daily_bar(self, ticker, start, end) -> pd.DataFrame:
+    def _daily_bar(self, ticker, start, end):
         df: pd.DataFrame = ak.stock_zh_a_hist(
             symbol=ticker, period="daily",
             start_date=start.replace('-', ''),
@@ -22,3 +22,13 @@ class EastMoneyQuoteSource(QuoteSource):
         df = df.tz_localize('Asia/Shanghai')
         df = df[['Open', 'High', 'Low', 'Close', 'Volume']]
         return df
+
+    def _snapshot(self, tickers):
+        try:
+            src = [ak.stock_zh_a_spot_em, ak.fund_etf_spot_em, ak.fund_lof_spot_em]
+            df = [f().rename(columns={'代码': 'ticker', '最新价': 'price'}).set_index('ticker') for f in src]
+            s = pd.concat(df)['price']
+            data = {ticker: s[ticker] if ticker in s.index else None for ticker in tickers}
+            return pd.Series(data, name='price').astype(float)
+        except Exception as e:
+            raise AttributeError(f'Data error') from e

@@ -20,7 +20,7 @@ class YahooQuoteSource(QuoteSource):
         '''
         self.proxy = proxy or config.sources.yahoo.proxy
 
-    def _daily_bar(self, ticker, start, end) -> pd.DataFrame:
+    def _daily_bar(self, ticker, start, end):
         # Push 1 day out to include "end" in final data
         if end is not None:
             end = (datetime.strptime(end, '%Y-%m-%d') + timedelta(days=1)).strftime('%Y-%m-%d')
@@ -28,3 +28,11 @@ class YahooQuoteSource(QuoteSource):
                                                      auto_adjust=True, proxy=self.proxy, timeout=10)
         df = df[['Open', 'High', 'Low', 'Close', 'Volume']]
         return df
+
+    def _snapshot(self, tickers):
+        try:
+            data = {ticker: yf.Ticker(ticker).info['regularMarketPrice'] for ticker in tickers}
+            df = pd.Series(data, name='price').astype(float)
+            return df
+        except Exception as e:
+            raise AttributeError(f'Data error') from e
