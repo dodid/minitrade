@@ -1,4 +1,6 @@
 
+from datetime import datetime, timezone
+
 import akshare as ak
 import pandas as pd
 
@@ -23,12 +25,12 @@ class EastMoneyQuoteSource(QuoteSource):
         df = df[['Open', 'High', 'Low', 'Close', 'Volume']]
         return df
 
-    def _snapshot(self, tickers):
+    def _spot(self, tickers):
         try:
             src = [ak.stock_zh_a_spot_em, ak.fund_etf_spot_em, ak.fund_lof_spot_em]
             df = [f().rename(columns={'代码': 'ticker', '最新价': 'price'}).set_index('ticker') for f in src]
             s = pd.concat(df)['price']
             data = {ticker: s[ticker] if ticker in s.index else None for ticker in tickers}
-            return pd.Series(data, name='price').astype(float)
+            return pd.Series(data, name=datetime.now(timezone.utc)).astype(float)
         except Exception as e:
             raise AttributeError(f'Data error') from e

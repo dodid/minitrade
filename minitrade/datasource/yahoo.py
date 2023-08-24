@@ -1,5 +1,5 @@
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 import pandas as pd
 import yfinance as yf
@@ -29,10 +29,10 @@ class YahooQuoteSource(QuoteSource):
         df = df[['Open', 'High', 'Low', 'Close', 'Volume']]
         return df
 
-    def _snapshot(self, tickers):
+    def _spot(self, tickers):
         try:
             data = {ticker: yf.Ticker(ticker).info['regularMarketPrice'] for ticker in tickers}
-            df = pd.Series(data, name='price').astype(float)
+            df = pd.Series(data, name=datetime.now(timezone.utc)).astype(float)
             return df
         except Exception as e:
             raise AttributeError(f'Data error') from e

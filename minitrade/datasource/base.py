@@ -51,10 +51,10 @@ class QuoteSource(ABC):
             raise AttributeError(f'Quote source {name} is not supported')
 
     @abstractmethod
-    def _snapshot(self, tickers: list[str]) -> pd.Series:
+    def _spot(self, tickers: list[str]) -> pd.Series:
         raise NotImplementedError()
 
-    def snapshot(self, tickers: list[str] | str) -> pd.Series:
+    def spot(self, tickers: list[str] | str) -> pd.Series:
         '''Read current quote for a list of `tickers`.
 
         Args:
@@ -65,7 +65,7 @@ class QuoteSource(ABC):
         '''
         if isinstance(tickers, str):
             tickers = tickers.split(',')
-        return self._snapshot(tickers)
+        return self._spot(tickers)
 
     @abstractmethod
     def _daily_bar(self, ticker: str, start: str, end: str = None) -> pd.DataFrame:
