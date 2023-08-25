@@ -1,11 +1,13 @@
 from __future__ import annotations
 
+import io
 import logging
-import urllib.request
 from abc import ABC, abstractmethod
 from typing import Any
+from urllib import request
 
 import pandas as pd
+from tqdm.auto import tqdm
 
 from minitrade.utils.mtdb import MTDB
 
@@ -14,13 +16,13 @@ logger = logging.getLogger(__name__)
 
 __all__ = [
     'QuoteSource',
-    'populate_nasdaq_traded_symbols'
+    'download_tickers',
 ]
 
 
 class QuoteSource(ABC):
     '''
-    QuoteSource is a base class that returns quote data for instruments. Extend this class 
+    QuoteSource is a base class that returns quote data for instruments. Extend this class
     to add a concrete implementation to get data from particular data source.
     '''
 
@@ -74,7 +76,7 @@ class QuoteSource(ABC):
         This should be overridden in subclass to provide an implemention.
 
         Returns:
-            A dataframe with columns 'Open', 'High', 'Low', 'Close', 'Volume' indexed by datetime 
+            A dataframe with columns 'Open', 'High', 'Low', 'Close', 'Volume' indexed by datetime
         '''
         raise NotImplementedError()
 
@@ -110,11 +112,59 @@ class QuoteSource(ABC):
             raise AttributeError(f'Data error')
 
 
-def populate_nasdaq_traded_symbols():
-    with urllib.request.urlopen('ftp://ftp.nasdaqtrader.com/SymbolDirectory/nasdaqtraded.txt') as f:
-        rows = f.read().decode('utf-8').split('\r\n')
-    columns = rows[0].replace(' ', '_').lower().split('|')
-    # skip header and footer
-    tickers = [dict(zip(columns, row.split('|'))) for row in rows[1:-2]]
-    tickers = [ticker for ticker in tickers if ticker['test_issue'] == 'N']
-    MTDB.save(tickers, 'NasdaqTraded', on_conflict='update')
+def download_tickers():
+    import warnings
+    warnings.simplefilter("ignore")     # ignore warnings from pandas read_excel
+
+    def download_nasdaq_traded_symbols():
+        df = pd.read_csv('ftp://ftp.nasdaqtrader.com/SymbolDirectory/nasdaqtraded.txt',
+                         sep='|', skipfooter=2, engine='python')
+        df = df[df['Test Issue'] == 'N']
+        df.to_sql('NasdaqTraded', MTDB.conn(), if_exists='replace', index=False)
+
+    def download_szse_traded_symbols():
+        df = pd.read_excel(
+            'http://www.szse.cn/api/report/ShowReport?SHOWTYPE=xlsx&CATALOGID=1110&TABKEY=tab1',
+            dtype={'A股代码': str, 'B股代码': str})
+        df.to_sql('SzseTraded', MTDB.conn(), if_exists='replace', index=False)
+
+    def download_szse_traded_etfs():
+        df = pd.read_excel(
+            'http://www.szse.cn/api/report/ShowReport?SHOWTYPE=xlsx&CATALOGID=1105&TABKEY=tab1&random=0.2921736379452743',
+            dtype={'基金代码': str})
+        df.to_sql('SzseTradedEtf', MTDB.conn(), if_exists='replace', index=False)
+
+    def download_shse_traded_symbols():
+        sse_stock_list_url = 'http://query.sse.com.cn//sseQuery/commonExcelDd.do?sqlId=COMMON_SSE_CP_GPJCTPZ_GPLB_GP_L&type=inParams&CSRC_CODE=&STOCK_CODE=&REG_PROVINCE=&STOCK_TYPE=1&COMPANY_STATUS=2,4,5,7,8'
+        request_headers = {
+            'X-Requested-With': 'XMLHttpRequest',
+            'User-Agent':
+            'Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) '
+            'Chrome/56.0.2924.87 Safari/537.36', 'Referer': 'http://www.sse.com.cn/assortment/stock/list/share/'}
+        req = request.Request(sse_stock_list_url, headers=request_headers)
+        result = request.urlopen(req).read()
+        df = pd.read_excel(io.BytesIO(result), dtype={'A股代码': str, 'B股代码': str})
+        df.to_sql('ShseTraded', MTDB.conn(), if_exists='replace', index=False)
+
+    def download_hkse_traded_symbols():
+        df = pd.read_excel(
+            'https://www.hkex.com.hk/eng/services/trading/securities/securitieslists/ListOfSecurities.xlsx', skiprows=2,
+            dtype={'Stock Code': str})
+        df.to_sql('HkseTraded', MTDB.conn(), if_exists='replace', index=False)
+
+    steps = [
+        (download_nasdaq_traded_symbols, 'select Symbol as ticker, "Security Name" as name from NasdaqTraded', 'NASDAQ', ''),
+        (download_shse_traded_symbols, 'select A股代码 as ticker, 证券简称 as name from ShseTraded', 'SHSE', 'SH'),
+        (download_szse_traded_symbols, 'select A股代码 as ticker, A股简称 as name from SzseTraded', 'SZSE', 'SZ'),
+        (download_szse_traded_etfs, 'select 基金代码 as ticker, 基金简称 as name from SzseTradedEtf', 'SZSE', 'SZ'),
+        (download_hkse_traded_symbols, 'select "Stock Code" as ticker, "Name of Securities" as name from HkseTraded', 'HKSE', 'HK'),
+    ]
+    MTDB.conn().execute('drop table if exists TickerExchange')
+    t = tqdm(steps, total=len(steps), unit="step", desc='Downloading stock symbols', leave=False)
+    for downloader, sql, exchange, yahoo_modifier in t:
+        downloader()
+        df = pd.read_sql(sql, MTDB.conn())
+        df['exchange'] = exchange
+        df['yahoo_modifier'] = yahoo_modifier
+        df.to_sql('Ticker', MTDB.conn(), if_exists='append', index=False)
+    t.close()

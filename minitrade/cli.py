@@ -322,8 +322,8 @@ def init():
         conn.executescript(sql)
     conn.close()
     # populate nasdaq tickers
-    from minitrade.datasource import populate_nasdaq_traded_symbols
-    populate_nasdaq_traded_symbols()
+    from minitrade.datasource import download_tickers
+    download_tickers()
     # download and extract IB gateway
     click.secho(f'Installing Interactive Brokers gateway...')
     ib_loc=os.path.join(minitrade_root, 'ibgateway')
