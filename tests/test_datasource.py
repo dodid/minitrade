@@ -1,7 +1,7 @@
 from .fixture import *
 
 
-def test_get_data_source(get_tickers):
+def test_get_data_source():
     supported = QuoteSource.AVAILABLE_SOURCES
     assert 'Yahoo' in supported
     assert 'EastMoney' in supported
@@ -126,3 +126,11 @@ def test_yahoo_get_multiple_tickers():
 
     with pytest.raises(Exception):
         yahoo.daily_bar('AAPL , GOOG,META ')
+
+
+def test_download_tickers():
+    download_tickers()
+    df = pd.read_sql('select * from Ticker', MTDB.conn())
+    assert df.shape[0] > 10000
+    assert df.shape[1] == 5
+    assert df.columns.to_list() == ['ticker', 'name', 'calendar', 'timezone', 'yahoo_modifier']
