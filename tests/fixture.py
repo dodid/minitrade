@@ -28,6 +28,11 @@ def clean_db():
 
 
 @pytest.fixture
+def get_tickers():
+    download_tickers()
+
+
+@pytest.fixture
 def clean_strategy():
     '''Delete all files in stategy directory'''
     st_dir = expanduser('~/.minitrade/strategy')

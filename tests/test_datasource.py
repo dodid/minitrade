@@ -1,7 +1,7 @@
 from .fixture import *
 
 
-def test_get_data_source():
+def test_get_data_source(get_tickers):
     supported = QuoteSource.AVAILABLE_SOURCES
     assert 'Yahoo' in supported
     assert 'EastMoney' in supported
@@ -55,21 +55,36 @@ def test_yahoo_get_single_ticker():
     yahoo = QuoteSource.get_source('Yahoo')
     start = '2000-01-03'
     end, prev_close = '2022-12-10', '2022-12-09'
-    df = yahoo.daily_bar('AAPL', start=start, end=end)
-    assert list(df.columns.levels[0]) == ['AAPL']
-    assert list(df.columns.levels[1]) == 'Open,High,Low,Close,Volume'.split(',')
-    assert isinstance(df.index, pd.DatetimeIndex)
-    assert df.index[0].strftime('%Y-%m-%d') == start
-    assert df.index[-1].strftime('%Y-%m-%d') == prev_close
-    assert df.notna().all(axis=None) == True
+    df1 = yahoo.daily_bar('AAPL', start=start, end=end)
+    assert list(df1.columns.levels[0]) == ['AAPL']
+    assert list(df1.columns.levels[1]) == 'Open,High,Low,Close,Volume'.split(',')
+    assert isinstance(df1.index, pd.DatetimeIndex)
+    assert df1.index[0].strftime('%Y-%m-%d') == start
+    assert df1.index[-1].strftime('%Y-%m-%d') == prev_close
+    assert df1.notna().all(axis=None) == True
 
     # test no end date
-    df = yahoo.daily_bar('AAPL', start=start)
-    assert list(df.columns.levels[0]) == ['AAPL']
-    assert list(df.columns.levels[1]) == 'Open,High,Low,Close,Volume'.split(',')
-    assert isinstance(df.index, pd.DatetimeIndex)
-    assert df.index[0].strftime('%Y-%m-%d') == start
-    assert df.notna().all(axis=None) == True
+    df1 = yahoo.daily_bar('AAPL', start=start)
+    assert list(df1.columns.levels[0]) == ['AAPL']
+    assert list(df1.columns.levels[1]) == 'Open,High,Low,Close,Volume'.split(',')
+    assert isinstance(df1.index, pd.DatetimeIndex)
+    assert df1.index[0].strftime('%Y-%m-%d') == start
+    assert df1.notna().all(axis=None) == True
+
+    # test spot price in trading hours
+    if yahoo.is_trading_now('SPY'):
+        df1 = yahoo.daily_bar(['SPY'], start=start)
+        assert df1.index[0].strftime('%Y-%m-%d') == start
+        assert df1.index[-1].strftime('%Y-%m-%d') == yahoo.today('SPY').strftime('%Y-%m-%d')
+        assert df1.notna().all(axis=None) == True
+        time.sleep(2)
+        if yahoo.is_trading_now('SPY'):
+            df2 = yahoo.daily_bar(['SPY'], start=start)
+            assert df2.index[0].strftime('%Y-%m-%d') == start
+            assert df2.index[-1].strftime('%Y-%m-%d') == yahoo.today('SPY').strftime('%Y-%m-%d')
+            assert df2.notna().all(axis=None) == True
+            assert df1.iloc[:-1].equals(df2.iloc[:-1]) == True
+            assert df1.iloc[-1].equals(df2.iloc[-1]) == False
 
 
 # @pytest.mark.skip(reason="take too long to test, only run manually")
@@ -111,9 +126,3 @@ def test_yahoo_get_multiple_tickers():
 
     with pytest.raises(Exception):
         yahoo.daily_bar('AAPL , GOOG,META ')
-
-
-def test_get_nasdaq_traded(clean_db):
-    # @pytest.mark.skip(reason="take too long to test, only run manually")
-    populate_nasdaq_traded_symbols()
-    assert MTDB.get_one('NasdaqTraded', 'symbol', 'SPY') is not None

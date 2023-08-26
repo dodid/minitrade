@@ -3,10 +3,13 @@ from __future__ import annotations
 import io
 import logging
 from abc import ABC, abstractmethod
+from datetime import datetime, timedelta
 from typing import Any
 from urllib import request
+from zoneinfo import ZoneInfo
 
 import pandas as pd
+import pandas_market_calendars as mcal
 from tqdm.auto import tqdm
 
 from minitrade.utils.mtdb import MTDB
@@ -51,6 +54,23 @@ class QuoteSource(ABC):
             return EastMoneyQuoteSource()
         else:
             raise AttributeError(f'Quote source {name} is not supported')
+
+    def today(self, ticker: str) -> datetime:
+        '''Get today's date in a ticker's local timezone.'''
+        tk = MTDB.get_one('Ticker', 'ticker', ticker)
+        dt = datetime.now(ZoneInfo(tk['timezone'])).replace(hour=0, minute=0, second=0, microsecond=0)
+        return dt
+
+    def is_trading_now(self, ticker: str) -> bool:
+        '''Check if a ticker is trading now.'''
+        tk = MTDB.get_one('Ticker', 'ticker', ticker)
+        calendar = mcal.get_calendar(tk['calendar'])
+        today = datetime.now(ZoneInfo(tk['timezone']))
+        schedule = calendar.schedule(
+            start_date=(today - timedelta(days=30)).strftime('%Y-%m-%d'),
+            end_date=(today + timedelta(days=30)).strftime('%Y-%m-%d')
+        )
+        return calendar.is_open_now(schedule, only_rth=True)
 
     @abstractmethod
     def _spot(self, tickers: list[str]) -> pd.Series:
@@ -153,18 +173,19 @@ def download_tickers():
         df.to_sql('HkseTraded', MTDB.conn(), if_exists='replace', index=False)
 
     steps = [
-        (download_nasdaq_traded_symbols, 'select Symbol as ticker, "Security Name" as name from NasdaqTraded', 'NASDAQ', ''),
-        (download_shse_traded_symbols, 'select A股代码 as ticker, 证券简称 as name from ShseTraded', 'SHSE', 'SH'),
-        (download_szse_traded_symbols, 'select A股代码 as ticker, A股简称 as name from SzseTraded', 'SZSE', 'SZ'),
-        (download_szse_traded_etfs, 'select 基金代码 as ticker, 基金简称 as name from SzseTradedEtf', 'SZSE', 'SZ'),
-        (download_hkse_traded_symbols, 'select "Stock Code" as ticker, "Name of Securities" as name from HkseTraded', 'HKSE', 'HK'),
+        (download_nasdaq_traded_symbols, 'select Symbol as ticker, "Security Name" as name from NasdaqTraded', 'NASDAQ', 'America/New_York', ''),
+        (download_shse_traded_symbols, 'select A股代码 as ticker, 证券简称 as name from ShseTraded', 'SSE', 'Asia/Shanghai', 'SH'),
+        (download_szse_traded_symbols, 'select A股代码 as ticker, A股简称 as name from SzseTraded', 'SSE', 'Asia/Shanghai', 'SZ'),
+        (download_szse_traded_etfs, 'select 基金代码 as ticker, 基金简称 as name from SzseTradedEtf', 'SSE', 'Asia/Shanghai', 'SZ'),
+        (download_hkse_traded_symbols, 'select "Stock Code" as ticker, "Name of Securities" as name from HkseTraded', 'HKEX', 'Asia/Hongkong', 'HK'),
     ]
-    MTDB.conn().execute('drop table if exists TickerExchange')
+    MTDB.conn().execute('drop table if exists Ticker')
     t = tqdm(steps, total=len(steps), unit="step", desc='Downloading stock symbols', leave=False)
-    for downloader, sql, exchange, yahoo_modifier in t:
+    for downloader, sql, calendar, timezone, yahoo_modifier in t:
         downloader()
         df = pd.read_sql(sql, MTDB.conn())
-        df['exchange'] = exchange
+        df['calendar'] = calendar
+        df['timezone'] = timezone
         df['yahoo_modifier'] = yahoo_modifier
         df.to_sql('Ticker', MTDB.conn(), if_exists='append', index=False)
     t.close()
