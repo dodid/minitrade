@@ -20,11 +20,11 @@ jobs:
           python-version: ${{ matrix.python-version }}
       - name: Install dependencies
         run: |
-          sudo apt install -y default-jre
           wget -q -O - https://dl-ssl.google.com/linux/linux_signing_key.pub | sudo apt-key add - 
           sudo sh -c 'echo "deb https://dl.google.com/linux/chrome/deb/ stable main" >> /etc/apt/sources.list.d/google.list'
           sudo apt update
           sudo apt install -y google-chrome-stable
+          sudo apt install -y default-jre
           python -m pip install --upgrade pip
           pip install pytest 
       - name: Install and initialize minitrade
