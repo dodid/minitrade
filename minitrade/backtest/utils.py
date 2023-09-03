@@ -40,6 +40,7 @@ __all__ = [
     'backtest_strategy_parameters',
     'backtest_strategy_on_portfolios',
     'plot_heatmap',
+    'calculate_positions',
     'calculate_trade_stats',
 ]
 
@@ -144,6 +145,20 @@ def plot_heatmap(heatmap: pd.DataFrame, smooth: int | None = None):
         sns.heatmap(pg, cmap='viridis')
         plt.savefig(f'performance_{i}-{i+len(pg)}.png', bbox_inches='tight')
         plt.show()
+
+
+def calculate_positions(plan: 'TradePlan', orders: list[dict]):
+    '''Calculate the final portfolio based on initial portfolio and order executed.'''
+    tickers = plan.ticker_css.split(',')
+    positions = {ticker: 0 for ticker in tickers}
+    cash = plan.initial_cash
+    if plan.initial_holding:
+        for ticker, size in plan.initial_holding.items():
+            positions[ticker] += size
+    for order in orders:
+        positions[order['ticker']] += order['size']
+        cash -= order['size'] * order['entry_price'] + order['commission']
+    return positions, cash
 
 
 def calculate_trade_stats(data: pd.DataFrame, cash: int, orders: list[dict], holding: dict = {}):

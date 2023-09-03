@@ -9,7 +9,7 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from fastapi import FastAPI, HTTPException, Response
 from pydantic import BaseModel
 
-from minitrade.trader import BacktestRunner, TradePlan, Trader
+from minitrade.trader import BacktestLog, BacktestRunner, TradePlan, Trader
 from minitrade.utils.config import config
 from minitrade.utils.telegram import TelegramBot
 
@@ -19,7 +19,8 @@ if not bot:
     logging.warn('Telegram bot not started')
 scheduler = AsyncIOScheduler(
     # run job sequentially. yfinance lib may throw "Tkr {} tz already in cache" exception
-    # when multiple processes run in parallel
+    # when multiple processes run in parallel. Also jobs are not designed/protected against
+    # race conditions.
     executors={'default': ProcessPoolExecutor(1)},
     job_defaults={'coalesce': True, 'max_instances': 1}
 )
@@ -34,9 +35,10 @@ def __call_scheduler(method: str, path: str, params: dict | None = None):
         raise RuntimeError(f'Scheduler {method} {url} {params} returns {resp.status_code} {resp.text}')
 
 
-def run_trader_after_backtest(plan: TradePlan):
-    BacktestRunner(plan).execute()
+def run_trader_after_backtest(plan: TradePlan) -> BacktestLog:
+    log = BacktestRunner(plan).execute()
     __call_scheduler('PUT', '/trader')
+    return log
 
 
 def schedule_plan(plan: TradePlan) -> Job | None:
@@ -153,5 +155,5 @@ async def post_messages(data: Message):
 def put_trade():
     ''' Run trader immediately'''
     job = scheduler.get_job(job_id='trader_runner')
-    job.modify(next_run_time=datetime.now() + timedelta(minutes=1))
+    job.modify(next_run_time=datetime.now() + timedelta(seconds=1))
     return Response(status_code=204)

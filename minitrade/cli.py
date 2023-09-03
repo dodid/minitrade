@@ -274,7 +274,9 @@ def ib_diagnose():
         gateway.start()
         time.sleep(3)
         alias = input('Please enter the IB account alias to be diagnosed: ')
-        if requests.put(f'http://localhost:{config.brokers.ib.gateway_admin_port}/ibgateway/{alias}').status_code != 200:
+        res = requests.put(f'http://localhost:{config.brokers.ib.gateway_admin_port}/ibgateway/{alias}')
+        click.secho(f'Login status: {res.text}', fg='blue')
+        if res.status_code != 200:
             raise RuntimeError('IB gateway login failed')
         gateway.terminate()
         time.sleep(1)

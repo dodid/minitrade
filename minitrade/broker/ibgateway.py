@@ -185,12 +185,14 @@ def login_ibgateway(instance: GatewayInstance, account: BrokerAccount) -> None:
         driver.find_element(By.CSS_SELECTOR, ".form-group:nth-child(1) > .btn").click()
         logger.debug(f'{account.username} submitted login form')
         time.sleep(3)
+
         try:
             manual_2fa = driver.find_element(
                 By.CSS_SELECTOR, '.text-center > .xyz-showchallenge > small').is_displayed()
         except Exception:
             manual_2fa = False
         logger.debug(f'{account.username} manual 2fa = {manual_2fa}')
+
         if manual_2fa:
             driver.find_element(By.CSS_SELECTOR, ".text-center > .xyz-showchallenge > small").click()
             logger.debug(f'{account.username} switched to logging in by challenge code')
@@ -208,16 +210,29 @@ def login_ibgateway(instance: GatewayInstance, account: BrokerAccount) -> None:
                     logger.debug(f'{account.username} submitted challenge response')
                     WebDriverWait(driver, timeout=60).until(lambda d: d.current_url.startswith(redirect_url))
                     logger.debug(f'{account.username} login succeeded')
-                    return
+                    break
                 else:
                     if _ % 10 == 0:
                         logger.debug(f'{account.username} waiting for challenge response ({_}s)')
                     time.sleep(1)
-            logger.debug(f'{account.username} challenge response timeout')
+            else:
+                logger.debug(f'{account.username} challenge response timeout')
+                raise RuntimeError(f'Challenge response timeout for {account.username}')
         else:
             logger.debug(f'{account.username} login initiated')
             WebDriverWait(driver, timeout=60).until(lambda d: d.current_url.startswith(redirect_url))
             logger.debug(f'{account.username} login succeeded')
+
+        for i in range(10):
+            status = ping_ibgateway(account.username, instance)
+            if status['authenticated'] and status['connected']:
+                app.registry[account.username] = instance
+                return status
+            else:
+                logger.debug(f'{account.username} waiting for auth status to be ready ({i}s)')
+                time.sleep(1)
+        else:
+            raise RuntimeError(f'Gateway auth timeout for {account.username}')
 
 
 async def ibgateway_keepalive() -> None:
@@ -326,11 +341,7 @@ def login_gateway_with_account(account=Depends(get_account)):
         instance = launch_ibgateway()
         logger.debug(f'{account.username} started new gateway: {instance}')
         time.sleep(3)   # allow gateway instance to fully launch
-        login_ibgateway(instance, account)
-        app.registry[account.username] = instance
-        time.sleep(5)   # wait for authentication state to settle
-        status = ping_ibgateway(account.username, instance)
-        return status
+        return login_ibgateway(instance, account)
     except Exception as e:
         logger.exception(f'{account.username} gateway error: {e}')
         if instance:

@@ -6,20 +6,31 @@ from zoneinfo import ZoneInfo
 import pandas as pd
 import streamlit as st
 from matplotlib import pyplot as plt
+from tabulate import tabulate
 
 from minitrade.backtest import calculate_trade_stats
 from minitrade.broker import Broker, BrokerAccount
 from minitrade.datasource import QuoteSource
 from minitrade.trader import (BacktestLog, BacktestRunner, StrategyManager,
                               TradePlan)
+from minitrade.trader.scheduler import run_trader_after_backtest
 from minitrade.utils.mtdb import MTDB
 
 st.set_page_config(page_title='Trading', layout='wide')
 
 
-def market_timezone_selectbox():
-    major_market_timezones = ['America/New_York', 'Asia/Shanghai', 'Asia/Hong_Kong']
-    return st.selectbox('Select market local timezone', options=major_market_timezones)
+def get_market_calendar_and_timezone(ticker_css: str):
+    ''' Get market calendar and timezone from tickers '''
+    if ticker_css.strip() == '':
+        return None, None
+    rows = [MTDB.get_one('Ticker', 'ticker', t) for t in ticker_css.split(',')]
+    if not all(rows):
+        raise RuntimeError('Not all tickers are recoginized.')
+    schedules = set([r['calendar'] for r in rows if r])
+    zones = set([r['timezone'] for r in rows if r])
+    if len(schedules) > 1 or len(zones) > 1:
+        raise RuntimeError('Cross market trading is not supported.')
+    return list(schedules)[0], list(zones)[0]
 
 
 def ticker_resolver(account: BrokerAccount, ticker_css: str) -> dict:
@@ -54,25 +65,38 @@ def show_create_trade_plan_form() -> TradePlan | None:
     strategy_file = st.selectbox('Pick a strategy', StrategyManager.list())
     ticker_css = st.text_input(
         'Define the asset space (a list of tickers separated by comma without space)', placeholder='e.g. AAPL,GOOG')
+    try:
+        market_calendar, market_timezone = get_market_calendar_and_timezone(ticker_css)
+    except Exception as e:
+        st.error(e)
     data_source = st.selectbox('Select a data source', QuoteSource.AVAILABLE_SOURCES)
-    market_timezone = market_timezone_selectbox()
     backtest_start_date = st.date_input(
         'Pick a backtest start date (run backtest from that date to give enough lead time to calculate indicators)',
-        value=datetime.today() - timedelta(days=110))
+        value=datetime.today() - timedelta(days=30))
     trade_start_date = st.date_input(
         'Pick a trade start date (trade signal before that is surpressed)', min_value=datetime.now().date())
     c1, c2 = st.columns([1, 3])
-    entry_type = c1.selectbox(
-        'Select order entry type', ['TOO', 'TOC'],
-        format_func=lambda x: {'TOO': 'Trade on open (TOO)', 'TOC': 'Trade on close (TOC)'}[x])
+    entry_type = c1.selectbox('Select order entry type', ['TOO', 'TOC', 'TRG'], format_func=lambda x: {
+        'TOO': 'Trade on open (TOO)', 'TOC': 'Trade on close (TOC)', 'TRG': 'Trade regular hours (TRG)'}[x])
     trade_time_of_day = c2.time_input(
         'Pick when backtest should run (after market close for TOO and before market close for TOC, market local time)',
-        value=time(19, 30) if entry_type == 'TOO' else time(14, 30))
+        value=time(19, 30) if entry_type == 'TOO' else time(15, 30))
     initial_cash = st.number_input('Set the cash amount to invest', value=0)
     initial_holding = st.text_input(
         'Set the preexisting asset positions (number of shares you already own and to be considered in the strategy)',
         placeholder='e.g. AAPL:100,GOOG:100') or None
     name = st.text_input('Name the trade plan')
+    strict = st.radio('Select backtest mode', ['Strict', 'Incremental'], index=0) == 'Strict'
+    st.info(
+        'In strict mode, repeated backtests are expected to produce the exact same result, and orders '
+        'generated from backtests are expected to be executed successfully at all time. This attempts '
+        'to trade a strategy as faithfully as possible. However, it may suffer from multiple external '
+        'changes, e.g. data change due to dividend and stock split, failed order execution, etc., '
+        'in which case, trading will fail to proceed, and manual intervention is required. '
+        'In incremental mode, backtests will be run incrementally on the latest data only and in observation of the '
+        'actual portfolio status. Strategies must be designed to run incrementally, i.e. not dependent on previous runs. '
+        'This mode is more robust to external changes, but performance may deviate from the original strategy')
+
     tickers = ticker_resolver(account, ticker_css)
     dryrun = st.button('Save and dry run')
 
@@ -91,6 +115,7 @@ def show_create_trade_plan_form() -> TradePlan | None:
                 name=name,
                 strategy_file=strategy_file,
                 ticker_css=ticker_css.replace(' ', ''),
+                market_calendar=market_calendar,
                 market_timezone=market_timezone,
                 data_source=data_source,
                 backtest_start_date=backtest_start_date.strftime('%Y-%m-%d'),
@@ -100,6 +125,7 @@ def show_create_trade_plan_form() -> TradePlan | None:
                 broker_account=account.alias if account else None,
                 initial_cash=initial_cash,
                 initial_holding=initial_holding,
+                strict=strict,
                 enabled=False,
                 create_time=datetime.utcnow(),
                 update_time=None,
@@ -112,23 +138,26 @@ def display_run(plan: TradePlan, log: BacktestLog):
     log_status = '❌' if log.error else '✅' if orders else '🟢'
     label = f'{log_status} {log.log_time} [{log.id}]' + (f' **{len(orders)} orders**' if orders else '')
     with st.expander(label):
-        tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs(['Result', 'Error', 'Log', 'Orders', 'Positions', 'Data'])
+        tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs(
+            ['Params', 'Data', 'Result', 'Error', 'Log', 'Orders', 'Positions'])
+        if log.params:
+            tab1.write(log.params)
+        tab2.write(log.data)
         if log.result is not None:
             df = log.result
-            df = df[~df.index.str.startswith('_')].T
-            tab1.write(df)
+            df = df[~df.index.str.startswith('_')]
+            tab3.text(tabulate(df))
             if '_positions' in log.result.index:
-                tab5.write(log.result.loc['_positions'][0])
-        tab2.code(log.exception)
-        tab3.caption('Log - stdout')
+                tab7.write(log.result.loc['_positions'][0])
+        tab4.code(log.exception)
+        tab5.caption('Log - stdout')
         if log.stdout:
-            tab3.text(log.stdout)
-        tab3.caption('Log - stderr')
+            tab5.text(log.stdout)
+        tab5.caption('Log - stderr')
         if log.stderr:
-            tab3.text(log.stderr)
+            tab5.text(log.stderr)
         if orders:
-            tab4.write(pd.DataFrame(orders))
-        tab6.write(log.data)
+            tab6.write(pd.DataFrame(orders))
 
 
 def save_plan_and_dryrun(plan: TradePlan) -> None:
@@ -152,8 +181,7 @@ def show_trade_plan_selector() -> TradePlan | None:
 
 
 def run_trade_plan_once(plan: TradePlan) -> None:
-    runner = BacktestRunner(plan)
-    log = runner.execute()
+    log = run_trader_after_backtest(plan)
     if log is not None and not log.error:
         st.success(f'Backtest {log.id} finished successfully')
     else:

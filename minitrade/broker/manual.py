@@ -8,6 +8,7 @@ import pandas as pd
 
 from minitrade.broker import Broker, BrokerAccount
 from minitrade.broker.base import OrderValidator
+from minitrade.trader import RawOrder, TradePlan
 from minitrade.utils.mtdb import MTDB
 
 if typing.TYPE_CHECKING:
@@ -36,15 +37,22 @@ class ManualBroker(Broker):
         order['broker_order_id'] = order_id
         order['submit_time'] = datetime.utcnow()
         MTDB.save(order, 'ManualTrade')
-        return MTDB.uniqueid()
+        return order_id
+
+    def cancel_order(self, plan: TradePlan, order: RawOrder = None) -> bool:
+        pass
 
     def get_account_info(self) -> dict:
         return {'about': 'A mock broker that assumes you will submit orders manually'}
 
     def get_portfolio(self) -> pd.DataFrame | None:
         trades = MTDB.get_all('ManualTrade', cls=dict)
-        df = pd.DataFrame(trades)
-        return df.groupby('ticker')['size'].sum() if len(df) > 0 else None
+        if trades:
+            df = pd.DataFrame(trades)
+            df = df[df['trade_time'].notnull()]     # only count filled trades
+            return df.groupby('ticker')['size'].sum() if len(df) > 0 else None
+        else:
+            return None
 
     def download_trades(self) -> pd.DataFrame | None:
         trades = MTDB.get_all('ManualTrade', orderby=('submit_time', False), limit=10, cls=dict)

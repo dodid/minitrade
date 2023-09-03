@@ -30,6 +30,7 @@ def test_order_validator():
         name='test',
         strategy_file='test.py',
         ticker_css='valid',
+        market_calendar='SSE',
         market_timezone='Asia/Shanghai',
         data_source='EastMoney',
         backtest_start_date='2023-01-01',
@@ -65,7 +66,7 @@ def test_order_validator():
 
     run_log = BacktestLog(
         id='valid', plan_id=plan.id, plan_name=plan.name, plan=plan, plan_strategy=plan.strategy_file, data=None,
-        strategy_code=None, result=None, exception=None, stdout=None, stderr=None, log_time=datetime.now())
+        strategy_code=None, result=None, exception=None, stdout=None, stderr=None, log_time=datetime.now(), params=None)
     run_log.save()
 
     order = RawOrder(id='valid', plan_id='valid', run_id='valid', ticker='valid', side='Buy',
@@ -121,6 +122,7 @@ def test_ib_order_validator():
         name='test',
         strategy_file='test.py',
         ticker_css='AAPL',
+        market_calendar='NASDAQ',
         market_timezone='America/New_York',
         data_source='Yahoo',
         backtest_start_date='2023-01-01',
@@ -137,7 +139,6 @@ def test_ib_order_validator():
         broker_ticker_map={'AAPL': 265598}
     )
     MTDB.save(plan, 'TradePlan')
-    MTDB.save({'symbol': 'AAPL', 'security_name': 'APPLE'}, 'NasdaqTraded')
     validator = InteractiveBrokersValidator(plan, broker, pytest_now=datetime(
         2023, 1, 3, 18, 0, tzinfo=ZoneInfo(plan.market_timezone)))
     order = RawOrder(id='invalid', plan_id='invalid', run_id='invalid', ticker='invalid', side='invalid',
@@ -169,7 +170,7 @@ def test_ib_order_validator():
 
     run_log = BacktestLog(
         id='valid', plan_id=plan.id, plan_name=plan.name, plan=plan, plan_strategy=plan.strategy_file, data=None,
-        strategy_code=None, result=None, exception=None, stdout=None, stderr=None, log_time=datetime.now())
+        strategy_code=None, result=None, exception=None, stdout=None, stderr=None, log_time=datetime.now(), params=None)
     run_log.save()
 
     order = RawOrder(id='valid', plan_id='valid', run_id='valid', ticker='AAPL', side='Buy', size=100, signal_time=datetime(

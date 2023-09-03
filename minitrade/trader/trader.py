@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+import html
 import importlib
 import json
 import logging
@@ -16,10 +17,12 @@ from zoneinfo import ZoneInfo
 
 import numpy as np
 import pandas as pd
+import pandas_market_calendars as mcal
 import requests
 from tabulate import tabulate
 
 from minitrade.backtest import Backtest, Strategy
+from minitrade.backtest.utils import calculate_positions
 from minitrade.broker import Broker, BrokerAccount
 from minitrade.datasource import QuoteSource
 from minitrade.utils.config import config
@@ -70,6 +73,9 @@ class TradePlan:
     ticker_css: str
     '''Asset universe as a list of tickers in form of a comman separated string'''
 
+    market_calendar: str
+    '''Market calendar name as in pandas_market_calendars.get_calendar_names()'''
+
     market_timezone: str
     '''Timezone of the market where the tickers are traded'''
 
@@ -100,6 +106,9 @@ class TradePlan:
 
     initial_holding: dict | None = None
     '''Asset positions to start with'''
+
+    strict: bool = True
+    '''If True, plan is traded in strict mode'''
 
     enabled: bool = False
     '''If the trade plan is enabled for trading'''
@@ -203,6 +212,15 @@ class TradePlan:
             return MTDB.get_all('RawOrder', where={'plan_id': self.id, 'run_id': run_id}, cls=RawOrder)
         else:
             return MTDB.get_all('RawOrder', 'plan_id', self.id, cls=RawOrder)
+
+    def cancel_pending_orders(self) -> None:
+        '''Cancel all unsubmitted orders associated with a trade plan.
+        '''
+        orders = self.get_orders()
+        for order in orders:
+            if not order.broker_order_id:
+                order.cancelled = True
+                order.save()
 
     def list_logs(self) -> list[BacktestLog]:
         '''Return all backtest history for this trade plan.
@@ -360,6 +378,9 @@ class RawOrder:
     entry_type: str
     '''Type of order entry, 'TOC' for trade-on-close order, 'TOO' for trade-on-open order'''
 
+    cancelled: bool = False
+    '''True if the order is cancelled before submitting.'''
+
     broker_order_id: str | None
     '''Broker assigned order ID after the raw order is submitted.'''
 
@@ -400,6 +421,9 @@ class BacktestLog:
 
     strategy_code: str | None
     '''Strategy code snapshot'''
+
+    params: str | None
+    '''Backtest parameters'''
 
     result: pd.Series | None = None
     '''Backtest result'''
@@ -451,23 +475,25 @@ class BacktestRunner:
         self.code = None
         self.strategy = None
         self.result = None
+        self.params = None
 
     def _check_data(self, data: pd.DataFrame):
         '''Check if price data is valid.'''
         # Check if data is invariant with previous backtest data.
-        logs = self.plan.list_logs()
-        log = next((l for l in logs if l.data is not None and not l.error), None)
-        if log:
-            # exclude the last data point which may change intraday
-            # only check for price change as volume data from Yahoo do change sometimes
-            prefix_len = len(log.data) - 1
-            for col in ['Open', 'High', 'Low', 'Close']:
-                if not np.allclose(
-                        log.data.xs(col, 1, 1).iloc[: prefix_len],
-                        data.xs(col, 1, 1).iloc[: prefix_len],
-                        rtol=1e-5):
-                    raise RuntimeError(
-                        'Data change detected. If this is due to dividend or stock split, please start a new trade plan.')
+        if self.plan.strict:
+            logs = self.plan.list_logs()
+            log = next((l for l in logs if l.data is not None and not l.error), None)
+            if log:
+                # exclude the last data point which may change intraday
+                # only check for price change as volume data from Yahoo do change sometimes
+                prefix_len = len(log.data) - 1
+                for col in ['Open', 'High', 'Low', 'Close']:
+                    if not np.allclose(
+                            log.data.xs(col, 1, 1).iloc[: prefix_len],
+                            data.xs(col, 1, 1).iloc[: prefix_len],
+                            rtol=1e-5):
+                        raise RuntimeError(
+                            'Data change detected. If this is due to dividend or stock split, please start a new trade plan.')
         # Check if most recent data are actually updated, otherwise issue a warning
         if len(data) > 1:
             same = np.isclose(data.iloc[-1], data.iloc[-2], rtol=1e-5)
@@ -488,6 +514,31 @@ class BacktestRunner:
             Backtest result as pd.Series or None if backtest is not successful
         '''
 
+        def _record_backtest_params(**params):
+            '''Record backtest run to database.'''
+            bt = Backtest(**params)
+            params.pop('strategy')
+            params.pop('data')
+            self.params = params
+            return bt
+
+        def _get_trade_start_date():
+            '''Trade start date is today if today is a valid trading day and it's after market open time. 
+            Otherwise, it's the last valid trading day.
+            '''
+            calendar = mcal.get_calendar(self.plan.market_calendar)
+            today = datetime.now(ZoneInfo(self.plan.market_timezone))
+            valid_days = calendar.valid_days(start_date=(today - timedelta(days=30)).strftime('%Y-%m-%d'),
+                                             end_date=today.strftime('%Y-%m-%d'), tz=self.plan.market_timezone)
+            if today.replace(hour=0, minute=0, second=0, microsecond=0) in valid_days:
+                if today.time() > calendar.open_time:
+                    trade_start_date = today.strftime('%Y-%m-%d')
+                else:
+                    trade_start_date = valid_days[-2].strftime('%Y-%m-%d')
+            else:
+                trade_start_date = valid_days[-1].strftime('%Y-%m-%d')
+            return trade_start_date
+
         exception = None
         try:
             self.run_id = run_id if run_id else MTDB.uniqueid()
@@ -496,27 +547,54 @@ class BacktestRunner:
             self.code = StrategyManager.read(self.plan.strategy_file)
             self.strategy = StrategyManager.load(self.plan.strategy_file)
             self._check_data(self.data)
-            bt = Backtest(strategy=self.strategy,
-                          data=self.data,
-                          cash=self.plan.initial_cash,
-                          holding=self.plan.initial_holding,
-                          commission=self.plan.commission_rate,
-                          trade_on_close=self.plan.entry_type == 'TOC',
-                          trade_start_date=self.plan.trade_start_date,
-                          **kwargs)
-            self.result = bt.run()
+            if self.plan.strict:
+                bt = _record_backtest_params(strategy=self.strategy,
+                                             data=self.data,
+                                             cash=self.plan.initial_cash,
+                                             holding=self.plan.initial_holding,
+                                             commission=self.plan.commission_rate,
+                                             trade_on_close=self.plan.entry_type == 'TOC',
+                                             trade_start_date=self.plan.trade_start_date,
+                                             **kwargs)
+                self.result = bt.run()
+            else:
+                account = BrokerAccount.get_account(self.plan)
+                broker = Broker.get_broker(account)
+                # get the latest portfolio info from broker
+                broker.connect()
+                broker.download_orders()
+                broker.download_trades()
+                orders = self.plan.get_orders()
+                trades = broker.format_trades(orders)
+                current_holding, current_cash = calculate_positions(self.plan, trades)
+                # get backtest start date
+                trade_start = _get_trade_start_date()
+                # cancel all raw orders not yet submitted
+                self.plan.cancel_pending_orders()
+                # cancel all orders submitted but not yet filled
+                broker.cancel_order(self.plan)
+                # run backtest
+                bt = _record_backtest_params(strategy=self.strategy,
+                                             data=self.data,
+                                             cash=current_cash,
+                                             holding=current_holding,
+                                             commission=self.plan.commission_rate,
+                                             trade_on_close=self.plan.entry_type == 'TOC',
+                                             trade_start_date=trade_start,
+                                             **kwargs)
+                self.result = bt.run()
             if self.result is not None and not dryrun and self.plan.broker_account is not None:
-                self._record_orders()
+                self._record_orders(ignore_run_id=self.plan.strict)
             return self.result
         except Exception:
             exception = traceback.format_exc()
         finally:
             self._log_backtest_run(exception=exception)
 
-    def _record_orders(self) -> None:
+    def _record_orders(self, ignore_run_id) -> None:
         '''Record raw orders from a backtest run to database.
 
-        Backtest is expected to be repeatable, i.e., the orders generated by two backtest runs
+        Backtest is expected to be repeatable in strict mode, i.e., the orders generated by two backtest runs
         are exactly the same for the period when the two runs overlap. Then the backtest run on
         a later day will possibly generates some new orders based on new data not seen by the 
         earlier run. Such new orders will be recorded in associated with the later run.
@@ -524,8 +602,11 @@ class BacktestRunner:
 
         def hash(s: pd.Series):
             # include fields that can uniquely identify an order
-            signature = s.loc[['plan_id', 'ticker', 'size', 'signal_time',
-                               'entry_type']].to_json(date_format='iso').encode('utf-8')
+            if ignore_run_id:
+                df = s.loc[['plan_id', 'ticker', 'size', 'signal_time', 'entry_type']]
+            else:
+                df = s.loc[['run_id', 'plan_id', 'ticker', 'size', 'signal_time', 'entry_type']]
+            signature = df.to_json(date_format='iso').encode('utf-8')
             return hashlib.md5(signature).hexdigest()
 
         # record orders from the backtest result to database
@@ -535,6 +616,7 @@ class BacktestRunner:
         orders['plan_id'] = self.plan.id
         orders['run_id'] = self.run_id
         orders['id'] = orders.apply(lambda x: hash(x), axis=1)
+        orders['cancelled'] = False
         MTDB.save(orders.to_dict('records'), 'RawOrder', on_conflict='ignore')
 
     def execute(self, dryrun: bool = False) -> BacktestLog:
@@ -581,6 +663,7 @@ class BacktestRunner:
                 plan=self.plan,
                 data=self.data,
                 strategy_code=self.code,
+                params=self.params,
                 result=self.result,
                 exception=exception,
                 stdout=stdout,
@@ -639,31 +722,31 @@ class BacktestRunner:
             }
 
             message = [f'<b>{plan_subject}</b>']
-            message.append(f'<pre>{tabulate(summary, headers="keys")}</pre>')
+            message.append(f'<pre>{html.escape(tabulate(summary, headers="keys"))}</pre>')
 
             if orders:
                 plan_orders = tabulate([[o.side, o.ticker, abs(o.size)] for o in orders])
-                message.append(f'<b>Orders</b>\n<pre>{plan_orders}</pre>')
+                message.append(f'<b>Orders</b>\n<pre>{html.escape(plan_orders)}</pre>')
             else:
                 message.append(f'<b>Orders</b>\n<pre>No order generated</pre>')
 
             if plan_positions:
-                message.append(f'<b>Positions</b>\n<pre>{plan_positions}</pre>')
+                message.append(f'<b>Positions</b>\n<pre>{html.escape(plan_positions)}</pre>')
 
             if plan_data:
-                message.append(f'<b>Data</b>\n<pre>{plan_data}</pre>')
+                message.append(f'<b>Data</b>\n<pre>{html.escape(plan_data)}</pre>')
 
             if plan_result:
-                message.append(f'<b>Result</b>\n<pre>{plan_result}</pre>')
+                message.append(f'<b>Result</b>\n<pre>{html.escape(plan_result)}</pre>')
 
             if plan_exception:
-                message.append(f'<b>Exception</b>\n<pre>{plan_exception}</pre>')
+                message.append(f'<b>Exception</b>\n<pre>{html.escape(plan_exception)}</pre>')
 
             if plan_stderr:
-                message.append(f'<u>Stderr</u>\n<pre>{plan_stderr}</pre>')
+                message.append(f'<b>Stderr</b>\n<pre>{html.escape(plan_stderr)}</pre>')
 
             if plan_stdout:
-                message.append(f'<u>Stdout</u>\n<pre>{plan_stdout}</pre>')
+                message.append(f'<b>Stdout</b>\n<pre>{html.escape(plan_stdout)}</pre>')
 
             message = '\n\n'.join(message)
             send_telegram_message(html=message)
@@ -695,7 +778,7 @@ class Trader:
             plan: Trade plan
         '''
         orders = MTDB.get_all(
-            'RawOrder', where={'plan_id': plan.id, 'broker_order_id': None},
+            'RawOrder', where={'plan_id': plan.id, 'broker_order_id': None, 'cancelled': False},
             orderby='signal_time', cls=RawOrder)
 
         if not orders:
@@ -728,7 +811,7 @@ class Trader:
                     order.save()
                 except Exception as e:
                     summary.append(f'<pre>#{i} {order.ticker} {order.side} {abs(order.size)} ERROR</pre>')
-                    summary.append(f'<pre>  - {str(e)}</pre>')
+                    summary.append(f'<pre>  - {html.escape(str(e))}</pre>')
                     summary.append('Order processing aborted')
                     break
                 else:

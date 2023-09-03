@@ -262,6 +262,19 @@ class Broker(ABC):
         raise NotImplementedError()
 
     @abstractmethod
+    def cancel_order(self, plan: TradePlan, order: RawOrder = None) -> bool:
+        '''Cancel a specific order or all pending orders of a trade plan if `order` is None.
+
+        Args:
+            plan: A trade plan
+            order: A `RawOrder` to be cancelled
+
+        Raises:
+            RuntimeError if error occurs during cancellation
+        '''
+        raise NotImplementedError()
+
+    @abstractmethod
     def get_account_info(self) -> dict:
         '''Get broker account meta info
 

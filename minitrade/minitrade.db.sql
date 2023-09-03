@@ -68,6 +68,7 @@ CREATE TABLE IF NOT EXISTS "RawOrder" (
 	"size" BIGINT NOT NULL,
 	"signal_time" DATETIME NOT NULL,
 	"entry_type" TEXT NOT NULL,
+	"cancelled" BOOLEAN NOT NULL,
 	"broker_order_id" TEXT,
 	PRIMARY KEY("id")
 );
@@ -79,6 +80,7 @@ CREATE TABLE IF NOT EXISTS "TradePlan" (
 	"name" TEXT NOT NULL COLLATE NOCASE,
 	"strategy_file" TEXT NOT NULL,
 	"ticker_css" TEXT NOT NULL,
+	"market_calendar" TEXT NOT NULL,
 	"market_timezone" TEXT NOT NULL,
 	"data_source" TEXT NOT NULL,
 	"backtest_start_date" TEXT NOT NULL,
@@ -89,6 +91,7 @@ CREATE TABLE IF NOT EXISTS "TradePlan" (
 	"commission_rate" FLOAT NOT NULL,
 	"initial_cash" FLOAT NOT NULL,
 	"initial_holding" JSON,
+	"strict" BOOLEAN NOT NULL,
 	"enabled" BOOLEAN NOT NULL,
 	"create_time" DATETIME NOT NULL,
 	"update_time" DATETIME,
@@ -107,6 +110,7 @@ CREATE TABLE IF NOT EXISTS "BacktestLog" (
 	"plan" JSON NOT NULL,
 	"data" TEXT_QUOTEDATA,
 	"strategy_code" TEXT,
+	"params" JSON,
 	"result" TEXT_SERIES,
 	"exception" TEXT,
 	"stdout" TEXT,
@@ -191,26 +195,6 @@ CREATE TABLE IF NOT EXISTS "IbOrder" (
 	PRIMARY KEY("orderId")
 );
 
-DROP TABLE IF EXISTS "NasdaqTraded";
-
-CREATE TABLE IF NOT EXISTS "NasdaqTraded" (
-	"nasdaq_traded" TEXT,
-	"symbol" TEXT NOT NULL,
-	"security_name" TEXT NOT NULL,
-	-- N:NYSE, P:NYSEARCA, Z:BATS, Q:NASDAQ, A:NYSEAMERICAN 
-	-- https://www.interactivebrokers.com/en/index.php?conf=am&f=1562
-	"listing_exchange" TEXT,
-	"market_category" INT,
-	"etf" TEXT,
-	"round_lot_size" TEXT,
-	"test_issue" TEXT,
-	"financial_status" TEXT,
-	"cqs_symbol" TEXT,
-	"nasdaq_symbol" TEXT,
-	"nextshares" TEXT,
-	PRIMARY KEY("symbol")
-);
-
 DROP TABLE IF EXISTS "ManualTrade";
 
 CREATE TABLE IF NOT EXISTS "ManualTrade" (
@@ -222,6 +206,7 @@ CREATE TABLE IF NOT EXISTS "ManualTrade" (
 	"size" BIGINT NOT NULL,
 	"signal_time" DATETIME NOT NULL,
 	"entry_type" TEXT NOT NULL,
+	"cancelled" BOOLEAN NOT NULL,
 	"broker_order_id" TEXT NOT NULL,
 	"submit_time" DATETIME NOT NULL,
 	"price" FLOAT,

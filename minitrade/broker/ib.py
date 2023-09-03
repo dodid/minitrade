@@ -80,20 +80,19 @@ class InteractiveBrokers(Broker):
         try:
             status = self.__call_ibgateway_admin('GET', f'/ibgateway/{self.account.alias}')
             if status and status['account'] == self.account.username:
-                self._port = status['port']
                 if status['authenticated']:
+                    self._port = status['port']
                     return True
                 else:
                     # if not authenticated, try reauthenticate
                     self.__call_ibgateway('POST', '/iserver/reauthenticate')
-                    # wait for reauthentication to finish
-                    time.sleep(5)
-                    # try getting status again
-                    status = self.__call_ibgateway_admin('GET', f'/ibgateway/{self.account.alias}')
-                    if status:
-                        self._port = status['port']
-                    # return the renewed status as is
-                    return status and self.account.username == status['account'] and status['authenticated']
+                    for _ in range(10):
+                        status = self.__call_ibgateway_admin('GET', f'/ibgateway/{self.account.alias}')
+                        if status and status['authenticated']:
+                            self._port = status['port']
+                            return True
+                        else:
+                            time.sleep(1)
         except Exception:
             logger.exception(f'Checking broker status failed for {self.account.alias}')
         return False
@@ -101,10 +100,8 @@ class InteractiveBrokers(Broker):
     def connect(self):
         if not self.is_ready():
             try:
-                self.__call_ibgateway_admin('PUT', f'/ibgateway/{self.account.alias}')
-                time.sleep(5)   # wait a few seconds for gateway to be authenticated
-                if not self.is_ready():
-                    raise ConnectionError('Login failed for {self.account.alias}')
+                status = self.__call_ibgateway_admin('PUT', f'/ibgateway/{self.account.alias}')
+                self._port = status['port']
             except Exception as e:
                 raise ConnectionError(f'Login failed for {self.account.alias}') from e
         self.get_account_info()
@@ -144,11 +141,12 @@ class InteractiveBrokers(Broker):
 
     def download_orders(self) -> pd.DataFrame | None:
         # the list may be incomplete, no definitive document is available
-        whitelist = ['acct', 'exchange', 'conidex', 'conid', 'orderId', 'cashCcy', 'sizeAndFills', 'orderDesc',
-                     'description1', 'description2', 'ticker', 'secType', 'listingExchange', 'remainingQuantity',
-                     'filledQuantity', 'companyName', 'status', 'order_ccp_status', 'origOrderType', 'supportsTaxOpt',
-                     'lastExecutionTime', 'orderType', 'bgColor', 'fgColor', 'order_ref', 'timeInForce',
-                     'lastExecutionTime_r', 'side', 'order_cancellation_by_system_reason', 'outsideRTH', 'price']
+        whitelist = [
+            'acct', 'exchange', 'conidex', 'conid', 'orderId', 'cashCcy', 'sizeAndFills', 'orderDesc', 'description1',
+            'description2', 'ticker', 'secType', 'listingExchange', 'remainingQuantity', 'filledQuantity',
+            'companyName', 'status', 'order_ccp_status', 'avgPrice', 'origOrderType', 'supportsTaxOpt',
+            'lastExecutionTime', 'orderType', 'bgColor', 'fgColor', 'order_ref', 'timeInForce', 'lastExecutionTime_r',
+            'side', 'order_cancellation_by_system_reason', 'outsideRTH', 'price']
         orders = self.__call_ibgateway('GET', '/iserver/account/orders')
         if orders and orders['orders']:
             MTDB.save(orders['orders'], 'IbOrder', on_conflict='update', whitelist=whitelist)
@@ -178,13 +176,13 @@ class InteractiveBrokers(Broker):
             result = self.__call_ibgateway(
                 'POST', f'/iserver/account/{self.account_id}/orders', json={'orders': [ib_order]})
             results.append(result)
-            logger.info(f'Submit order response: {result}')
+            print(f'Submit order response: {result}')
             # Sometimes IB needs additional confirmation before submitting order. Confirm yes to the message.
             # https://interactivebrokers.github.io/cpwebapi/endpoints
             while 'id' in result[0]:
                 result = self.__call_ibgateway('POST', f'/iserver/reply/{result[0]["id"]}', json={'confirmed': True})
                 results.append(result)
-                logger.info(f'Confirm order response: {result}')
+                print(f'Confirm order response: {result}')
             broker_order_id = result[0]['order_id']
             return broker_order_id
         except Exception as e:
@@ -192,6 +190,22 @@ class InteractiveBrokers(Broker):
             raise RuntimeError(f'Placing order failed for {self.account.alias} order {order}') from e
         finally:
             self.__log_order(self.account_id, plan, order, ib_order, results, ex, broker_order_id)
+
+    def cancel_order(self, plan: TradePlan, order: RawOrder = None) -> bool:
+        order_refs = [o.id for o in plan.get_orders()] if order is None else [order.id]
+        broker_orders = self.download_orders()
+        if broker_orders is not None:
+            broker_orders.set_index('orderId', drop=True, inplace=True)
+            broker_orders = broker_orders[broker_orders['order_ref'].isin(order_refs)]
+            for order_id, order in broker_orders.iterrows():
+                if order['status'] in ['Cancelled', 'Filled']:
+                    continue
+                try:
+                    result = self.__call_ibgateway(
+                        'DELETE', f'/iserver/account/{self.account_id}/order/{order_id}')
+                    print(f'Cancel order {order_id}: {result}')
+                except Exception as e:
+                    raise RuntimeError(f'Cancelling order failed for order {order_id}') from e
 
     def __log_order(self, account_id: str, plan: TradePlan, order: RawOrder, iborder: dict,
                     result: Any, exception: str, broker_order_id: str):
@@ -243,6 +257,27 @@ class InteractiveBrokers(Broker):
                 trades.append(trade)
         return trades
 
+    def daily_bar(self, plan: TradePlan, ticker: str, start: str, end: str = None) -> pd.DataFrame:
+        conid = plan.broker_instrument_id(ticker)
+        period = (datetime.now().date() - datetime.strptime(start, '%Y-%m-%d').date()).days
+        bars = self.__call_ibgateway(
+            'GET', f'/iserver/marketdata/history?conid={conid}&period={period}d&bar=1d&outsideRth=0')
+        df = pd.DataFrame(bars['data'])
+        df['Date'] = pd.to_datetime(df['t'], unit='ms', utc=True).dt.tz_convert(plan.market_timezone)
+        df.set_index('Date', inplace=True, drop=True)
+        df.rename(columns={'o': 'Open', 'c': 'Close', 'h': 'High', 'l': 'Low', 'v': 'Volume'}, inplace=True)
+        df = df[['Open', 'High', 'Low', 'Close', 'Volume']]
+        df = df[start:end]
+        return df
+
+    def spot(self, plan: TradePlan, tickers: list[str]) -> pd.DataFrame:
+        conids = [plan.broker_instrument_id(t) for t in tickers]
+        prices = self.__call_ibgateway('GET', f'/iserver/marketdata/snapshot?conids={",".join(str(conids))}')
+        print(prices)
+        df = pd.DataFrame(prices)
+        print(df)
+        return df
+
 
 class InteractiveBrokersValidator(OrderValidator):
 
@@ -252,6 +287,7 @@ class InteractiveBrokersValidator(OrderValidator):
         self.pytest_now = pytest_now  # allow injecting fake current time for pytest
         self.tests.extend([
             self.order_size_is_within_limit,
+            self.order_type_is_supported,
             self.order_in_time_window,
             self.order_not_in_finished_trades,
             self.order_not_in_open_orders,
@@ -260,11 +296,18 @@ class InteractiveBrokersValidator(OrderValidator):
     def order_size_is_within_limit(self, order: RawOrder):
         self._assert_less_than(abs(order.size), 10000, 'Order size is too big')
 
+    def order_type_is_supported(self, order: RawOrder):
+        plan = TradePlan.get_plan(order.plan_id)
+        if plan.strict:
+            # only support TOC/TOO orders in strict mode since others are not repeatable
+            self._assert_is_in(order.entry_type, ['TOO', 'TOC'], 'Order type is not supported in strict mode')
+
     def order_in_time_window(self, order: RawOrder):
         plan = TradePlan.get_plan(order.plan_id)
         now = self.pytest_now or datetime.now(tz=ZoneInfo(plan.market_timezone))
-        usmarket = MTDB.get_one('NasdaqTraded', 'symbol', order.ticker) is not None
-        self._assert_equal(usmarket, True, 'Only U.S. market is supported for now')
+        ticker = MTDB.get_one('Ticker', 'ticker', order.ticker)
+        self._assert_not_null(ticker, f'Unknown ticker {order.ticker}')
+        self._assert_equal(ticker['timezone'], 'America/New_York', 'Only U.S. market is supported for now')
         market_open, market_close = timedelta(hours=9, minutes=30), timedelta(hours=16)
         if order.entry_type == 'TOO':
             # TOO order submit window is between market close on signal_time date and
@@ -278,6 +321,9 @@ class InteractiveBrokersValidator(OrderValidator):
             # TOC order submit window is before market close on signal_time date
             self._assert_less_than(now, order.signal_time + market_close,
                                    'TOC order must be submitted before market close')
+        elif order.entry_type == 'TRG':
+            # TRG order can be submitted anytime
+            pass
         else:
             self._assert(False, f'Unknown order entry type: {order.entry_type}')
 

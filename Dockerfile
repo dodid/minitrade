@@ -21,7 +21,7 @@ RUN minitrade init
 
 WORKDIR /root
 
-COPY restart.sh /root/restart.sh
+COPY mtctl.sh /root/mtctl.sh
 
-CMD /root/restart.sh
+CMD /root/mtctl.sh start
 EXPOSE 8501 6666 6667

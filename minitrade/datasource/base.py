@@ -52,6 +52,9 @@ class QuoteSource(ABC):
         elif name == 'EastMoney':
             from .eastmoney import EastMoneyQuoteSource
             return EastMoneyQuoteSource()
+        elif name == 'IB':
+            from .ib import InteractiveBrokersQuoteSource
+            return InteractiveBrokersQuoteSource(**kwargs)
         else:
             raise AttributeError(f'Quote source {name} is not supported')
 

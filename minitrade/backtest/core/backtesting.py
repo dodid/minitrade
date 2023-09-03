@@ -918,10 +918,11 @@ class _Broker:
                 (self._data.index.tz_localize(None) < self._trade_start_date).sum(),
                 len(self._data)-1) if self._trade_start_date else 0
             for ticker, size in self._holding.items():
-                self.trades[ticker].append(Trade(self, ticker=ticker, size=size, entry_price=self._data[
-                    ticker, 'Close'][trade_start_bar], entry_bar=0, tag='preexisting'))
-                # add the cost for preexisting positions to initial cash
-                self._cash += size * self._data[ticker, 'Close'][trade_start_bar]
+                if size:
+                    self.trades[ticker].append(Trade(self, ticker=ticker, size=size, entry_price=self._data[
+                        ticker, 'Close'][trade_start_bar], entry_bar=0, tag='preexisting'))
+                    # add the cost for preexisting positions to initial cash
+                    self._cash += size * self._data[ticker, 'Close'][trade_start_bar]
         self.positions: Dict[str, Position] = {ticker: Position(self, ticker) for ticker in self._data.tickers}
         self.closed_trades: List[Trade] = []
 
@@ -1297,7 +1298,7 @@ class Backtest:
                  strategy: Type[Strategy],
                  *,
                  cash: float = 10_000,
-                 holding: list = [],
+                 holding: dict = {},
                  commission: float = .0,
                  margin: float = 1.,
                  trade_on_close=False,
