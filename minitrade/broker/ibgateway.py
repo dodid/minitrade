@@ -1,5 +1,7 @@
 import asyncio
 import logging
+import os
+import signal
 import socket
 import subprocess
 import time
@@ -134,7 +136,7 @@ def ping_ibgateway(username: str, instance: GatewayInstance) -> dict:
         tickle = __call_ibgateway(instance, 'GET', '/tickle', timeout=5)
         logger.debug(f'{username} gateway tickle: {tickle}')
         sso = __call_ibgateway(instance, 'GET', '/sso/validate', timeout=5)
-        logger.debug(f'{username} gateway sso: {tickle}')
+        logger.debug(f'{username} gateway sso: {sso}')
         if sso and tickle:
             return {
                 'pid': instance.pid,
@@ -362,6 +364,17 @@ def exit_gateway(account=Depends(get_account)):
     instance = app.registry.get(account.username, None)
     if instance:
         kill_ibgateway(account.username, instance)
+    return Response(status_code=204)
+
+
+@app.delete('/')
+def exit_gateway_admin():
+    ''' Exit all gateway instances and quit the app
+
+    Returns:
+        204
+    '''
+    os.kill(os.getpid(), signal.SIGTERM)
     return Response(status_code=204)
 
 

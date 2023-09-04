@@ -1,4 +1,5 @@
 import hashlib
+import json
 import os
 import pkgutil
 import platform
@@ -51,7 +52,7 @@ def mtcli(ctx):
 
 @mtcli.group()
 def ib():
-    '''Control the execution of IB gateway'''
+    '''Manage the execution of IB gateway'''
     pass
 
 
@@ -69,32 +70,48 @@ def ib_start_inner(log_level=None):
 
 @ib.command('start')
 def ib_start():
+    '''Start IB gateway'''
     ib_start_inner()
+
+
+@ib.command('stop')
+def ib_stop():
+    '''Stop IB gateway'''
+    __call_ibgateway_admin('DELETE', '/')
 
 
 @ib.command('status')
 def ib_status():
+    '''Check IB gateway status'''
     status = __call_ibgateway_admin('GET', '/ibgateway')
-    click.echo(status)
+    click.echo(json.dumps(status, indent=2))
 
 
 @ib.command('login')
 @click.option('-a', '--alias', prompt='Alias', help='IB account alias')
 def ib_login(alias):
+    '''Login IB gateway to a particular account'''
     status = __call_ibgateway_admin('PUT', f'/ibgateway/{alias}')
     click.echo(status)
 
 
 @ib.command('logout')
 def ib_logout():
+    '''Logout IB gateway from all accounts'''
     accounts = __call_ibgateway_admin('GET', '/ibgateway')
     for a in accounts:
         click.echo(a)
         __call_ibgateway_admin('DELETE', f'/ibgateway/{a["account"]}')
 
 
-@mtcli.command()
+@mtcli.group()
 def web():
+    '''Manage web UI'''
+    pass
+
+
+@web.command('start')
+def web_start():
     '''Launch web UI'''
     from streamlit.web.cli import main
     cd = os.path.dirname(os.path.realpath(__file__))
@@ -137,6 +154,7 @@ def __call_scheduler(method: str, path: str, params: dict | None = None):
 
 @scheduler.command('start')
 def scheduler_start():
+    '''Start scheduler'''
     import uvicorn
 
     from minitrade.utils.config import config
@@ -148,15 +166,23 @@ def scheduler_start():
     )
 
 
+@scheduler.command('stop')
+def scheduler_stop():
+    '''Stop scheduler'''
+    __call_scheduler('DELETE', '/')
+
+
 @scheduler.command('status')
 def scheduler_status():
+    '''Check scheduler status'''
     status = __call_scheduler('GET', '/jobs')
-    click.echo(status)
+    click.echo(json.dumps(status, indent=2))
 
 
 @scheduler.command('schedule')
 @click.argument('plan_id')
 def scheduler_schedule(plan_id):
+    '''Schedule a trade plan'''
     status = __call_scheduler('PUT', f'/jobs/{plan_id}')
     click.echo(status)
 
@@ -164,6 +190,7 @@ def scheduler_schedule(plan_id):
 @scheduler.command('unschedule')
 @click.argument('plan_id')
 def scheduler_unschedule(plan_id):
+    '''Unschedule a trade plan'''
     status = __call_scheduler('DELETE', f'/jobs/{plan_id}')
     click.echo(status)
 
@@ -225,7 +252,7 @@ def check_selenium():
         return False
 
 
-@mtcli.command()
+@ib.command('diagnose')
 def ib_diagnose():
     '''Diagnose IB login issues'''
     from minitrade.utils.config import config
@@ -289,7 +316,7 @@ def ib_diagnose():
 
 @mtcli.command()
 def init():
-    '''Initialize Minitrade for trading'''
+    '''Initialize Minitrade'''
     if platform.system() == 'Linux':
         click.secho('Checking prerequisites:')
         prerequisites = [

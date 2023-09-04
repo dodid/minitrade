@@ -1,5 +1,7 @@
 
 import logging
+import os
+import signal
 from datetime import datetime, time, timedelta
 
 import requests
@@ -156,4 +158,11 @@ def put_trade():
     ''' Run trader immediately'''
     job = scheduler.get_job(job_id='trader_runner')
     job.modify(next_run_time=datetime.now() + timedelta(seconds=1))
+    return Response(status_code=204)
+
+
+@app.delete('/')
+def exit_scheduler():
+    ''' Stop the scheduler '''
+    os.kill(os.getpid(), signal.SIGTERM)
     return Response(status_code=204)
