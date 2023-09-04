@@ -302,12 +302,13 @@ def init():
             sys.exit(1)
 
     minitrade_root = expanduser('~/.minitrade')
-    click.secho(
-        f'Warning: Minitrade is already initialized in {minitrade_root}. '
-        'Please backup your data before proceeding. '
-        'You will lose all existing strategies and trading history if you continue.',
-        fg='red')
-    click.confirm('Do you want to continue?', abort=True)
+    if os.path.exists(minitrade_root):
+        click.secho(
+            f'Warning: Minitrade is already initialized in {minitrade_root}. '
+            'Please backup your data before proceeding. '
+            'You will lose all existing strategies and trading history if you continue.',
+            fg='red')
+        click.confirm('Do you want to continue?', abort=True)
 
     # init dirs
     click.secho(f'Setting up directories...')
@@ -324,7 +325,7 @@ def init():
     with sqlite3.connect(db_loc) as conn:
         conn.executescript(sql)
     conn.close()
-    # populate nasdaq tickers
+    # populate tickers
     from minitrade.datasource import download_tickers
     download_tickers()
     # download and extract IB gateway
