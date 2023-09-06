@@ -1,5 +1,6 @@
 
 import asyncio
+import logging
 
 import requests
 from telegram import Update
@@ -8,6 +9,8 @@ from telegram.ext import (ApplicationBuilder, CommandHandler, ContextTypes,
 
 from minitrade.broker import Broker, BrokerAccount
 from minitrade.utils.config import config
+
+logging.getLogger("httpx").setLevel(logging.WARNING)
 
 
 def send_telegram_message(*text, html: str = ''):

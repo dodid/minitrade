@@ -798,30 +798,35 @@ class Trader:
             return
 
         run_id = MTDB.uniqueid()
-        summary = [f'<b>Trader ## {plan.name} ##</b>', f'<pre>{len(orders)} orders</pre>']
+        summary = [f'<b>Trader ## {plan.name} ##</b>', '<pre> </pre>']
 
         try:
             # download the latest orders and trades from broker before submitting new orders
             broker.download_orders()
             broker.download_trades()
+            # submit orders
+            status = [[o.ticker, o.side, abs(o.size), 'ABORT'] for o in orders]
+            ex = None
             for i, order in enumerate(orders):
                 try:
-                    broker_order_id = broker.submit_order(plan, order)
-                    order.broker_order_id = broker_order_id
+                    order.broker_order_id = broker.submit_order(plan, order)
                     order.save()
-                except Exception as e:
-                    summary.append(f'<pre>#{i} {order.ticker} {order.side} {abs(order.size)} ERROR</pre>')
-                    summary.append(f'<pre>  - {html.escape(str(e))}</pre>')
-                    summary.append('Order processing aborted')
+                except Exception:
+                    status[i][3] = 'ERROR'
+                    ex = traceback.format_exc()
                     break
                 else:
-                    summary.append(f'<pre>#{i} {order.ticker} {order.side} {abs(order.size)} OK</pre>')
+                    status[i][3] = 'OK'
+            summary.append(
+                f'<b>Submit orders</b>\n<pre>{html.escape(tabulate(status))}</pre>')
+            if ex:
+                summary.append(f'<b>Exception</b>\n<pre>{html.escape(ex)}</pre>')
             # download orders and trades after submitting new orders
             broker.download_orders()
             broker.download_trades()
         except Exception:
             ex = traceback.format_exc()
-            summary.append(ex)
+            summary.append(f'<b>Exception</b>\n<pre>{html.escape(ex)}</pre>')
         finally:
             self._log_trader_run(run_id, summary, start_time)
 
