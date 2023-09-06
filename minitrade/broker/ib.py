@@ -80,8 +80,8 @@ class InteractiveBrokers(Broker):
         try:
             status = self.__call_ibgateway_admin('GET', f'/ibgateway/{self.account.alias}')
             if status and status['account'] == self.account.username:
+                self._port = status['port']
                 if status['authenticated']:
-                    self._port = status['port']
                     return True
                 else:
                     # if not authenticated, try reauthenticate
