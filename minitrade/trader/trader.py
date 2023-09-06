@@ -798,7 +798,7 @@ class Trader:
             return
 
         run_id = MTDB.uniqueid()
-        summary = [f'<b>Trader ## {plan.name} ##</b>', '<pre> </pre>']
+        summary = [f'<b>Trader ## {plan.name} ##</b><pre> </pre>']
 
         try:
             # download the latest orders and trades from broker before submitting new orders
