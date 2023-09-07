@@ -67,7 +67,6 @@ CREATE TABLE IF NOT EXISTS "RawOrder" (
 	"side" TEXT NOT NULL,
 	"size" BIGINT NOT NULL,
 	"signal_time" DATETIME NOT NULL,
-	"entry_type" TEXT NOT NULL,
 	"cancelled" BOOLEAN NOT NULL,
 	"broker_order_id" TEXT,
 	PRIMARY KEY("id")
@@ -205,7 +204,6 @@ CREATE TABLE IF NOT EXISTS "ManualTrade" (
 	"side" TEXT NOT NULL,
 	"size" BIGINT NOT NULL,
 	"signal_time" DATETIME NOT NULL,
-	"entry_type" TEXT NOT NULL,
 	"cancelled" BOOLEAN NOT NULL,
 	"broker_order_id" TEXT NOT NULL,
 	"submit_time" DATETIME NOT NULL,

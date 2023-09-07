@@ -56,7 +56,6 @@ def compute_stats(
             'Ticker': [t.ticker for t in orders],
             'Side': ['Buy' if t.size > 0 else 'Sell' for t in orders],
             'Size': [int(t.size) for t in orders],
-            'EntryType': [t.entry_type for t in orders],
         }).set_index('SignalTime')
 
     equity_df = pd.concat([equity, pd.DataFrame({'DrawdownPct': dd, 'DrawdownDuration': dd_dur}, index=index)], axis=1)

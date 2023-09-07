@@ -161,7 +161,7 @@ class InteractiveBrokers(Broker):
                 'acctId': self.account_id,
                 'conid': plan.broker_instrument_id(order.ticker),
                 'cOID': order.id,
-                'orderType': 'MOC' if order.entry_type == 'TOC' else 'MKT',
+                'orderType': 'MOC' if plan.entry_type == 'TOC' else 'MKT',
                 'listingExchange': 'SMART',
                 'outsideRTH': False,
                 'side': order.side.upper(),
@@ -300,7 +300,7 @@ class InteractiveBrokersValidator(OrderValidator):
         plan = TradePlan.get_plan(order.plan_id)
         if plan.strict:
             # only support TOC/TOO orders in strict mode since others are not repeatable
-            self._assert_is_in(order.entry_type, ['TOO', 'TOC'], 'Order type is not supported in strict mode')
+            self._assert_is_in(plan.entry_type, ['TOO', 'TOC'], 'Order type is not supported in strict mode')
 
     def order_in_time_window(self, order: RawOrder):
         plan = TradePlan.get_plan(order.plan_id)
@@ -309,7 +309,7 @@ class InteractiveBrokersValidator(OrderValidator):
         self._assert_not_null(ticker, f'Unknown ticker {order.ticker}')
         self._assert_equal(ticker['timezone'], 'America/New_York', 'Only U.S. market is supported for now')
         market_open, market_close = timedelta(hours=9, minutes=30), timedelta(hours=16)
-        if order.entry_type == 'TOO':
+        if plan.entry_type == 'TOO':
             # TOO order submit window is between market close on signal_time date and
             # before next market open, considering weekends but not holidays
             self._assert_less_than(order.signal_time + market_close, now,
@@ -317,15 +317,15 @@ class InteractiveBrokersValidator(OrderValidator):
             self._assert_less_than(
                 now, order.signal_time + market_open + timedelta(days=1 if order.signal_time.weekday() < 4 else 3),
                 'TOO order must be submitted before next market open')
-        elif order.entry_type == 'TOC':
+        elif plan.entry_type == 'TOC':
             # TOC order submit window is before market close on signal_time date
             self._assert_less_than(now, order.signal_time + market_close,
                                    'TOC order must be submitted before market close')
-        elif order.entry_type == 'TRG':
+        elif plan.entry_type == 'TRG':
             # TRG order can be submitted anytime
             pass
         else:
-            self._assert(False, f'Unknown order entry type: {order.entry_type}')
+            self._assert(False, f'Unknown order entry type: {plan.entry_type}')
 
     def order_not_in_open_orders(self, order: RawOrder):
         broker_order = self.broker.find_order(order)

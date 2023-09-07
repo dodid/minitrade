@@ -48,7 +48,7 @@ def test_order_validator():
     )
     validator = OrderValidator(plan)
     order = RawOrder(id='invalid', plan_id='invalid', run_id='invalid', ticker='invalid', side='invalid',
-                     size=0, signal_time=datetime.now(), entry_type='invalid', broker_order_id=1)
+                     size=0, signal_time=datetime.now(), broker_order_id=1)
     with pytest.raises(AttributeError):
         validator.order_has_correct_plan_id(order)
     with pytest.raises(AttributeError):
@@ -70,12 +70,12 @@ def test_order_validator():
     run_log.save()
 
     order = RawOrder(id='valid', plan_id='valid', run_id='valid', ticker='valid', side='Buy',
-                     size=100, signal_time=datetime.now(), entry_type='MOC', broker_order_id=None)
+                     size=100, signal_time=datetime.now(), broker_order_id=None)
     order.save()
     validator.validate(order)
 
     order = RawOrder(id='valid2', plan_id='valid', run_id='valid', ticker='valid', side='Sell',
-                     size=-100, signal_time=datetime.now(), entry_type='MOC', broker_order_id=None)
+                     size=-100, signal_time=datetime.now(), broker_order_id=None)
     order.save()
     validator.validate(order)
 
@@ -142,7 +142,7 @@ def test_ib_order_validator():
     validator = InteractiveBrokersValidator(plan, broker, pytest_now=datetime(
         2023, 1, 3, 18, 0, tzinfo=ZoneInfo(plan.market_timezone)))
     order = RawOrder(id='invalid', plan_id='invalid', run_id='invalid', ticker='invalid', side='invalid',
-                     size=10001, signal_time=datetime.now(), entry_type='invalid', broker_order_id=1)
+                     size=10001, signal_time=datetime.now(), broker_order_id=1)
     with pytest.raises(AttributeError):
         validator.order_has_correct_plan_id(order)
     with pytest.raises(AttributeError):
@@ -173,13 +173,13 @@ def test_ib_order_validator():
         strategy_code=None, result=None, exception=None, stdout=None, stderr=None, log_time=datetime.now(), params=None)
     run_log.save()
 
-    order = RawOrder(id='valid', plan_id='valid', run_id='valid', ticker='AAPL', side='Buy', size=100, signal_time=datetime(
-        2023, 1, 3, tzinfo=ZoneInfo(plan.market_timezone)), entry_type='TOO', broker_order_id=None)
+    order = RawOrder(id='valid', plan_id='valid', run_id='valid', ticker='AAPL', side='Buy', size=100,
+                     signal_time=datetime(2023, 1, 3, tzinfo=ZoneInfo(plan.market_timezone)), broker_order_id=None)
     order.save()
     validator.validate(order)
 
-    order = RawOrder(id='valid', plan_id='valid', run_id='valid', ticker='AAPL', side='Buy', size=100, signal_time=datetime(
-        2023, 1, 2, tzinfo=ZoneInfo(plan.market_timezone)), entry_type='TOO', broker_order_id=None)
+    order = RawOrder(id='valid', plan_id='valid', run_id='valid', ticker='AAPL', side='Buy', size=100,
+                     signal_time=datetime(2023, 1, 2, tzinfo=ZoneInfo(plan.market_timezone)), broker_order_id=None)
     order.save()
     with pytest.raises(RuntimeError):
         validator.validate(order)

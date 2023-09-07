@@ -38,7 +38,7 @@ scipy = "^1.11.1"
 minitrade-scikit-optimize = "^0.9.2"
 python-telegram-bot = {extras = ["socks"], version = "^20.4"}
 akshare = "^1.10.83"
-pandas-market-calendars = "^4.2.1"
+pandas-market-calendars = "4.2.1"
 
 
 [tool.poetry.group.dev.dependencies]

@@ -544,7 +544,6 @@ class Order:
                  tp_price: Optional[float] = None,
                  parent_trade: Optional['Trade'] = None,
                  entry_time: datetime = None,
-                 entry_type: str = None,
                  tag: object = None):
         self.__broker = broker
         self.__ticker = ticker
@@ -556,7 +555,6 @@ class Order:
         self.__tp_price = tp_price
         self.__parent_trade = parent_trade
         self.__entry_time = entry_time
-        self.__entry_type = entry_type
         self.__tag = tag
 
     def _replace(self, **kwargs):
@@ -694,11 +692,6 @@ class Order:
         """Time of when the order is created."""
         return self.__entry_time
 
-    @property
-    def entry_type(self) -> str:
-        """Type of order entry, 'TOO' for trade-on-open order, 'TOC' for trade-on-close order"""
-        return self.__entry_type
-
 
 class Trade:
     """
@@ -735,9 +728,8 @@ class Trade:
         """Place new `Order` to close `portion` of the trade at next market price."""
         assert 0 < portion <= 1, "portion must be a fraction between 0 and 1"
         size = copysign(max(1, round(abs(self.__size) * portion)), -self.__size)
-        entry_type = 'TOC' if self.__broker._trade_on_close else 'TOO'
         order = Order(self.__broker, self.__ticker, size, parent_trade=self,
-                      entry_time=self.__broker.now, entry_type=entry_type, tag=self.__tag)
+                      entry_time=self.__broker.now, tag=self.__tag)
         self.__broker.orders.insert(0, order)
 
     # Fields getters
@@ -1004,8 +996,7 @@ class _Broker:
                     "Short orders require: "
                     f"TP ({tp}) < LIMIT ({limit or stop or adjusted_price}) < SL ({sl})")
 
-        entry_type = 'TOC' if self._trade_on_close else 'TOO'
-        order = Order(self, ticker, size, limit, stop, sl, tp, trade, self.now, entry_type, tag)
+        order = Order(self, ticker, size, limit, stop, sl, tp, trade, self.now, tag=tag)
         # Put the new order in the order queue,
         # inserting SL/TP/trade-closing orders in-front
         if trade:

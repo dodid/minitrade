@@ -375,9 +375,6 @@ class RawOrder:
     signal_time: datetime
     '''Date on which the order signal is generated.'''
 
-    entry_type: str
-    '''Type of order entry, 'TOC' for trade-on-close order, 'TOO' for trade-on-open order'''
-
     cancelled: bool = False
     '''True if the order is cancelled before submitting.'''
 
@@ -603,16 +600,16 @@ class BacktestRunner:
         def hash(s: pd.Series):
             # include fields that can uniquely identify an order
             if ignore_run_id:
-                df = s.loc[['plan_id', 'ticker', 'size', 'signal_time', 'entry_type']]
+                df = s.loc[['plan_id', 'ticker', 'size', 'signal_time']]
             else:
-                df = s.loc[['run_id', 'plan_id', 'ticker', 'size', 'signal_time', 'entry_type']]
+                df = s.loc[['run_id', 'plan_id', 'ticker', 'size', 'signal_time']]
             signature = df.to_json(date_format='iso').encode('utf-8')
             return hashlib.md5(signature).hexdigest()
 
         # record orders from the backtest result to database
         orders: pd.DataFrame = self.result['_orders'].reset_index()
         orders.rename(columns={'SignalTime': 'signal_time', 'Ticker': 'ticker',
-                               'Side': 'side', 'Size': 'size', 'EntryType': 'entry_type'}, inplace=True)
+                               'Side': 'side', 'Size': 'size'}, inplace=True)
         orders['plan_id'] = self.plan.id
         orders['run_id'] = self.run_id
         orders['id'] = orders.apply(lambda x: hash(x), axis=1)
