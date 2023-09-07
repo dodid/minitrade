@@ -200,10 +200,11 @@ def login_ibgateway(instance: GatewayInstance, account: BrokerAccount) -> None:
             logger.debug(f'{account.username} switched to logging in by challenge code')
             challenge_code = driver.find_element(By.CSS_SELECTOR, '.xyz-goldchallenge').text
             logger.debug(f'{account.username} found challenge code: {challenge_code}')
-            send_telegram_message(f'Challenge code for "{account.username}":\n{challenge_code}')
-            send_telegram_message('Please respond in 2 minutes.')
+            send_telegram_message(html=f'Log in to <b>"{account.username}"</b>, challenge:\n'
+                                  f'<pre>{challenge_code}</pre>\n')
+            send_telegram_message('Please respond in 3 minutes.')
             logger.debug(f'{account.username} sent challenge code to telegram')
-            for _ in range(120):
+            for _ in range(180):
                 if challenge_response:
                     logger.debug(f'{account.username} got challenge response: {challenge_response}')
                     driver.find_element(By.NAME, "gold-response").send_keys(challenge_response)
@@ -219,9 +220,11 @@ def login_ibgateway(instance: GatewayInstance, account: BrokerAccount) -> None:
                     time.sleep(1)
             else:
                 logger.debug(f'{account.username} challenge response timeout')
+                send_telegram_message('Login timeout')
                 raise RuntimeError(f'Challenge response timeout for {account.username}')
         else:
             logger.debug(f'{account.username} login initiated')
+            send_telegram_message(html=f'Log in to <b>"{account.username}"</b>...')
             WebDriverWait(driver, timeout=60).until(lambda d: d.current_url.startswith(redirect_url))
             logger.debug(f'{account.username} login succeeded')
 
@@ -229,11 +232,13 @@ def login_ibgateway(instance: GatewayInstance, account: BrokerAccount) -> None:
             status = ping_ibgateway(account.username, instance)
             if status['authenticated'] and status['connected']:
                 app.registry[account.username] = instance
+                send_telegram_message('Login succeeded')
                 return status
             else:
                 logger.debug(f'{account.username} waiting for auth status to be ready ({i}s)')
                 time.sleep(1)
         else:
+            send_telegram_message('Login timeout')
             raise RuntimeError(f'Gateway auth timeout for {account.username}')
 
 
