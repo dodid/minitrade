@@ -1,3 +1,8 @@
+---
+hide:
+  - toc
+---
+
 # How to contribute
 
 I'm really glad you're reading this. While I develope this package for my personal use, I am happy to see it be useful for more people. 

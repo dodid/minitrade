@@ -45,9 +45,12 @@ nav:
   - Home:
       - index.md
       - install.md
+      - backtesting.md
       - strategy.md
+      - trading.md
       - cli.md
       - Compatibility: compatibility.md
+      - Contributing: contributing.md
   - "API Reference":
       - backtest.md
       - datasource.md
