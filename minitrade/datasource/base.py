@@ -122,7 +122,7 @@ class QuoteSource(ABC):
             if isinstance(tickers, str):
                 tickers = tickers.split(',')
             data = {ticker: self._daily_bar(ticker, start, end) for ticker in tickers}
-            df = pd.concat(data, axis=1).fillna(method='ffill')
+            df = pd.concat(data, axis=1).ffill()
             if align:
                 start_index = df[df.notna().all(axis=1)].index[0]
                 df = df.loc[start_index:, :]

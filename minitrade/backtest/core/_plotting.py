@@ -714,6 +714,7 @@ return this.labels[index] || "";
         f.min_border_bottom = 6
         f.min_border_right = 10
         f.outline_line_color = '#666666'
+        f.toolbar.logo = None
 
         f.add_tools(linked_crosshair)
         wheelzoom_tool = next(wz for wz in f.tools if isinstance(wz, WheelZoomTool))
@@ -727,7 +728,6 @@ return this.labels[index] || "";
         plots,
         ncols=1,
         toolbar_location='right',
-        toolbar_options=dict(logo=None),
         merge_tools=True,
         **kwargs  # type: ignore
     )
@@ -783,12 +783,12 @@ def plot_heatmaps(heatmap: pd.Series, agg: Union[Callable, str], ncols: int,
                  line_color=None,
                  fill_color=dict(field='_Value',
                                  transform=cmap))
+        fig.toolbar.logo = None
         plots.append(fig)
 
     fig = gridplot(
         plots,  # type: ignore
         ncols=ncols,
-        toolbar_options=dict(logo=None),
         toolbar_location='above',
         merge_tools=True,
     )

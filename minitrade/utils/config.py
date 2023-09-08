@@ -38,16 +38,16 @@ class SchedulerConfig(BaseModel):
 
 
 class ProviderConfigMailjet(BaseModel):
-    api_key: str | None
-    api_secret: str | None
-    sender: str | None
-    mailto: str | None
+    api_key: str | None = None
+    api_secret: str | None = None
+    sender: str | None = None
+    mailto: str | None = None
 
 
 class ProviderConfigTelegram(BaseModel):
-    token: str | None
-    chat_id: str | None
-    proxy: str | None
+    token: str | None = None
+    chat_id: str | None = None
+    proxy: str | None = None
 
 
 class ProviderConfig(BaseModel):
@@ -68,7 +68,7 @@ class GlobalConfig(BaseModel):
             with open(expanduser(config_yaml), 'r') as f:
                 yml = f.read()
             obj = yaml.safe_load(yml)
-            config = GlobalConfig.parse_obj(obj)
+            config = GlobalConfig.model_validate(obj)
             return config
         except Exception as e:
             raise RuntimeError('Loading configuration error') from e
@@ -76,7 +76,7 @@ class GlobalConfig(BaseModel):
     def save(self, config_yaml: str = '~/.minitrade/config.yaml'):
         ''' Save minitrade configuration '''
         with open(expanduser(config_yaml), 'w') as f:
-            f.write(yaml.safe_dump(self.dict()))
+            f.write(yaml.safe_dump(self.model_dump()))
 
 
 if 'pytest' not in sys.modules:

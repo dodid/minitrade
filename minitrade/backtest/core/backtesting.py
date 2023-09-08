@@ -46,7 +46,7 @@ __pdoc__ = {
 class Allocation:
     def __init__(self, tickers):
         self.tickers = tickers
-        self.alloc = pd.DataFrame({'s': False, 'c': 0, 'p': 0}, index=tickers)
+        self.alloc = pd.DataFrame({'s': False, 'c': 0., 'p': 0.}, index=tickers)
 
     def __str__(self):
         return self.alloc.to_string()
@@ -63,7 +63,7 @@ class Allocation:
 
     @current.setter
     def current(self, value):
-        if (value < 0).any() or value.sum() > 1:
+        if (value < 0).any() or value.sum() > 1.:
             raise AttributeError(f'Weight must be positive and sum up to less than 1. Got {value}')
         self.alloc['c'] = value
 
@@ -160,7 +160,7 @@ class Allocation:
             self.alloc.loc[selected, 's'] = False
         return self
 
-    def equal_weight(self, sum_: float = 1):
+    def equal_weight(self, sum_: float = 1.):
         '''Allocate equity value equally to the candidate pool.
 
         `sum_` should be between 0 and 1, with 1 means 100% of value should be allocated.
@@ -168,24 +168,24 @@ class Allocation:
         Args:
             sum_: Total weight that should be allocated. 
         '''
-        if sum_ > 1 or sum_ < 0:
+        if sum_ > 1. or sum_ < 0.:
             raise AttributeError(f'Total weight should be within [0, 1], given {sum_}')
         if self.alloc['s'].any():
             selected = self.alloc['s'].astype(int)
             self.alloc.loc[:, 'c'] = selected * sum_ / selected.sum()
         else:
-            self.alloc.loc[:, 'c'] = 0
+            self.alloc.loc[:, 'c'] = 0.
         return self
 
     def _next(self):
         self.alloc.loc[:, 's'] = False
         self.alloc.loc[:, 'p'] = self.alloc['c']
-        self.alloc.loc[:, 'c'] = 0
+        self.alloc.loc[:, 'c'] = 0.
 
     def _clear(self):
         self.alloc.loc[:, 's'] = False
-        self.alloc.loc[:, 'p'] = 0
-        self.alloc.loc[:, 'c'] = 0
+        self.alloc.loc[:, 'p'] = 0.
+        self.alloc.loc[:, 'c'] = 0.
 
 
 class Strategy(ABC):
