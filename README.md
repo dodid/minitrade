@@ -26,14 +26,14 @@ Minitrade requires `python=3.10.*`. Check out [Installation](https://dodid.githu
 
 ### Backtesting
 
-| ![Minitrade backtesting](https://imgur.com/YkLPeTv) |
-| --------------------------------------------------- |
+| ![Minitrade backtesting](https://imgur.com/YkLPeTv.jpg) |
+| ------------------------------------------------------- |
 
 ### Trading
 
-| ![Minitrade web UI - history](<https://imgur.com/ittnlk7>) |
-| ---------------------------------------------------------- |
-| ![Minitrade web UI - orders](<https://imgur.com/2DAZ2W1>)  |
+| ![Minitrade web UI - history](<https://imgur.com/ittnlk7.png>) |
+| -------------------------------------------------------------- |
+| ![Minitrade web UI - orders](<https://imgur.com/2DAZ2W1.png>)  |
 
 See more in [Documentation](https://dodid.github.io/minitrade/).
 
