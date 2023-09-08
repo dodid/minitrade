@@ -185,7 +185,7 @@ def test_ib_order_validator():
         validator.validate(order)
 
 
-def test_ib_broker_works(launch_ibgateway):
+def test_ib_broker_works(launch_scheduler, launch_ibgateway):
     # Got this error when running on mac. Use the following fix
     # https://stackoverflow.com/questions/50168647/multiprocessing-causes-python-to-crash-and-gives-an-error-may-have-been-in-progr
     # export OBJC_DISABLE_INITIALIZE_FORK_SAFETY=YES

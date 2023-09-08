@@ -176,7 +176,8 @@ def login_ibgateway(instance: GatewayInstance, account: BrokerAccount) -> None:
     options.add_argument("--no-sandbox")
     options.add_argument("--disable-gpu")
 
-    with webdriver.Chrome(options=options) as driver:
+    try:
+        driver = webdriver.Chrome(options=options)
         logger.debug(f'{account.username} loading {root_url}')
         driver.get(root_url)
         logger.debug(f'{account.username} page loaded {driver.current_url}')
@@ -240,6 +241,10 @@ def login_ibgateway(instance: GatewayInstance, account: BrokerAccount) -> None:
         else:
             send_telegram_message('Login timeout')
             raise RuntimeError(f'Gateway auth timeout for {account.username}')
+    finally:
+        if driver:
+            driver.close()
+            driver.quit()
 
 
 async def ibgateway_keepalive() -> None:

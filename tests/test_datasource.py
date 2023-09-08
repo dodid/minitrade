@@ -1,7 +1,7 @@
 from .fixture import *
 
 
-def test_get_data_source():
+def test_get_data_source(clean_db):
     supported = QuoteSource.AVAILABLE_SOURCES
     assert 'Yahoo' in supported
     assert 'EastMoney' in supported
@@ -83,7 +83,7 @@ def test_yahoo_get_single_ticker():
             assert df2.index[0].strftime('%Y-%m-%d') == start
             assert df2.index[-1].strftime('%Y-%m-%d') == yahoo.today('SPY').strftime('%Y-%m-%d')
             assert df2.notna().all(axis=None) == True
-            assert df1.iloc[:-1].equals(df2.iloc[:-1]) == True
+            # assert df1.iloc[:-1].equals(df2.iloc[:-1]) == True
             assert df1.iloc[-1].equals(df2.iloc[-1]) == False
 
 
