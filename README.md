@@ -1,7 +1,7 @@
 [![Static Badge](https://img.shields.io/badge/Documentation-blue)](https://dodid.github.io/minitrade/)
 [![Build Status](https://img.shields.io/github/actions/workflow/status/dodid/minitrade/test_code.yml?branch=main)](https://github.com/dodid/minitrade/actions)
 [![Backtesting on PyPI](https://img.shields.io/pypi/v/minitrade.svg?color=blue)](https://pypi.org/project/minitrade)
-[![PyPI downloads](https://img.shields.io/pypi/dd/minitrade.svg?color=skyblue)](https://pypi.org/project/minitrade)
+[![PyPI downloads](https://img.shields.io/pypi/dm/minitrade.svg?color=skyblue)](https://pypi.org/project/minitrade)
 
 
 # Minitrade
