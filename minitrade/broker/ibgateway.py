@@ -229,7 +229,7 @@ def login_ibgateway(instance: GatewayInstance, account: BrokerAccount) -> None:
             WebDriverWait(driver, timeout=60).until(lambda d: d.current_url.startswith(redirect_url))
             logger.debug(f'{account.username} login succeeded')
 
-        for i in range(10):
+        for i in range(20):
             status = ping_ibgateway(account.username, instance)
             if status['authenticated'] and status['connected']:
                 app.registry[account.username] = instance
