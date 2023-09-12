@@ -25,6 +25,9 @@ class EastMoneyQuoteSource(QuoteSource):
         df = df[['Open', 'High', 'Low', 'Close', 'Volume']]
         return df
 
+    def _minute_bar(self, ticker: str, start: str, end: str, interval: int):
+        raise NotImplementedError()
+
     def _spot(self, tickers):
         try:
             src = [ak.stock_zh_a_spot_em, ak.fund_etf_spot_em, ak.fund_lof_spot_em]

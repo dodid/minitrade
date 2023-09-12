@@ -93,7 +93,7 @@ class QuoteSource(ABC):
         return self._spot(tickers)
 
     @abstractmethod
-    def _daily_bar(self, ticker: str, start: str, end: str = None) -> pd.DataFrame:
+    def _daily_bar(self, ticker: str, start: str, end: str) -> pd.DataFrame:
         '''Same as `daily_bar()` for only one ticker.
 
         This should be overridden in subclass to provide an implemention.
@@ -130,6 +130,39 @@ class QuoteSource(ABC):
                     ohlc = ['Open', 'High', 'Low', 'Close']
                     for s in tickers:
                         df.loc[:, (s, ohlc)] = df.loc[:, (s, ohlc)] / df[s].loc[start_index, 'Close']
+            return df
+        except Exception:
+            raise AttributeError(f'Data error')
+
+    @abstractmethod
+    def _minute_bar(self, ticker: str, start: str, end: str, interval: int) -> pd.DataFrame:
+        '''Same as `minute_bar()` for only one ticker.
+
+        This should be overridden in subclass to provide an implemention.
+
+        Returns:
+            A dataframe with columns 'Open', 'High', 'Low', 'Close', 'Volume' indexed by datetime
+        '''
+        raise NotImplementedError()
+
+    def minute_bar(
+            self, tickers: list[str] | str, start: str = None, end: str = None, interval: int = 1) -> pd.DataFrame:
+        '''Read minute OHLCV data for a `ticker` starting from `start` date and ending on `end` date (both inclusive).
+
+        Args:
+            ticker: Ticker as a string
+            start: Start date in string format 'YYYY-MM-DD'
+            end: End date in string format 'YYYY-MM-DD'
+            interval: Interval in minutes
+
+        Returns:
+            A dataframe with columns 'Open', 'High', 'Low', 'Close', 'Volume' indexed by datetime
+        '''
+        try:
+            if isinstance(tickers, str):
+                tickers = tickers.split(',')
+            data = {ticker: self._minute_bar(ticker, start, end, interval) for ticker in tickers}
+            df = pd.concat(data, axis=1).ffill()
             return df
         except Exception:
             raise AttributeError(f'Data error')

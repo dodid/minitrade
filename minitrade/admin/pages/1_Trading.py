@@ -97,8 +97,8 @@ def show_create_trade_plan_form() -> TradePlan | None:
     entry_type = c1.selectbox('Select order entry type', ['TOO', 'TOC', 'TRG'], format_func=lambda x: {
         'TOO': 'Trade on open (TOO)', 'TOC': 'Trade on close (TOC)', 'TRG': 'Trade regular hours (TRG)'}[x])
     trade_time_of_day = c2.text_input(
-        'Set when backtest should run (in market local timezone as a list of HH\:MM[\:SS] separated by comma without space)',
-        placeholder='9:30,15:59:30')
+        'Set when backtest should run (in market local timezone as a list of HH\:MM[\:SS] separated by comma)',
+        placeholder='e.g. 9:30, 15:59:30, 9:30:01-16:00/30min')
     try:
         trade_time_of_day = parse_trade_time_of_day(trade_time_of_day)
         if trade_time_of_day:

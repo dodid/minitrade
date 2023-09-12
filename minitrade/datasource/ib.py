@@ -18,6 +18,9 @@ class InteractiveBrokersQuoteSource(QuoteSource):
         self.broker.connect()
         return self.broker.daily_bar(self.plan, ticker, start, end)
 
+    def _minute_bar(self, ticker: str, start: str, end: str, interval: int):
+        raise NotImplementedError()
+
     def _spot(self, tickers):
         self.broker.connect()
         return self.broker.spot(self.plan, tickers)

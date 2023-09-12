@@ -55,7 +55,7 @@ def schedule_plan(plan: TradePlan) -> Job | None:
             run_trader_after_backtest,
             trigger,
             [plan],
-            misfire_grace_time=60,
+            misfire_grace_time=180,
             coalesce=True,
             max_instances=1,
             id=plan.id,
