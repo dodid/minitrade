@@ -746,8 +746,11 @@ class BacktestRunner:
                 message.append(f'<b>Stdout</b>\n<pre>{html.escape(plan_stdout)}</pre>')
 
             message = '\n\n'.join(message)
-            send_telegram_message(html=message)
-            mailjet_send_email(plan_subject, message)
+            # send silent message if the plan runs multiple times a day and there is no error and no order generated
+            silent = not log.error and not orders and len(self.plan.trade_time_of_day.split(',')) > 1
+            send_telegram_message(html=message, silent=silent)
+            if not silent:
+                mailjet_send_email(plan_subject, message)
 
 
 @dataclass(kw_only=True)

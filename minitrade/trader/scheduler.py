@@ -8,6 +8,8 @@ import requests
 from apscheduler.executors.pool import ProcessPoolExecutor
 from apscheduler.job import Job
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
+from apscheduler.triggers.combining import OrTrigger
+from apscheduler.triggers.cron import CronTrigger
 from fastapi import FastAPI, HTTPException, Response
 from pydantic import BaseModel
 
@@ -46,17 +48,16 @@ def run_trader_after_backtest(plan: TradePlan) -> BacktestLog:
 def schedule_plan(plan: TradePlan) -> Job | None:
     ''' Schedule a trade plan'''
     if plan.enabled:
-        trade_time = time.fromisoformat(plan.trade_time_of_day)
+        trade_time = [datetime.strptime(t, '%H:%M:%S').time() for t in plan.trade_time_of_day.split(',')]
+        trigger = OrTrigger([CronTrigger(day_of_week='mon-fri', hour=t.hour, minute=t.minute,
+                             second=t.second, timezone=plan.market_timezone) for t in trade_time])
         job = scheduler.add_job(
             run_trader_after_backtest,
-            'cron',
+            trigger,
             [plan],
-            day_of_week='mon-fri',
-            hour=trade_time.hour,
-            minute=trade_time.minute,
-            second=trade_time.second,
-            timezone=plan.market_timezone,
-            misfire_grace_time=3600,
+            misfire_grace_time=60,
+            coalesce=True,
+            max_instances=1,
             id=plan.id,
             name=plan.name,
             replace_existing=True
@@ -144,12 +145,13 @@ def delete_jobs(plan_id: str):
 class Message(BaseModel):
     text: str | None = None
     html: str | None = None
+    silent: bool | None = False
 
 
 @app.post('/messages')
 async def post_messages(data: Message):
     '''Send Telegram message'''
-    bot and await bot.send_message(data.html or data.text, parse_mode='HTML' if data.html else None)
+    bot and await bot.send_message(data.html or data.text, parse_mode='HTML' if data.html else None, silent=data.silent)
     return Response(status_code=204)
 
 

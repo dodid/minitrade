@@ -387,8 +387,22 @@ class Strategy(ABC):
             "size must be a positive fraction of equity, or a positive whole number of units"
         return self._broker.new_order(ticker, -size, limit, stop, sl, tp, tag)
 
-    def rebalance(self, force_rebalance: bool = False):
-        self._broker.rebalance(self._alloc, force_rebalance)
+    def rebalance(self, force: bool = False, rtol: float = 0.01, atol: int = 0):
+        """
+        Rebalance the portfolio according to the current allocation plan.
+
+        Args:
+            force: If True, rebalance will be performed even if the current allocation
+                is the same as that of last cycle.
+            rtol: Relative tolerance of the difference between current and previous
+                allocation in term of total absolute value difference relative to total 
+                portfolio value. If the difference is smaller than `rtol`, rebalance will
+                not be performed.
+            atol: Absolute tolerance of the difference between current and previous
+                allocation in term of total absolute value difference. If the difference 
+                is smaller than `atol`, rebalance will not be performed.
+        """
+        self._broker.rebalance(alloc=self._alloc, force=force, rtol=rtol, atol=atol)
 
     @property
     def equity(self) -> float:
@@ -876,7 +890,7 @@ class Trade:
 
 class _Broker:
     def __init__(self, *, data: _Data, cash, holding, commission, margin, trade_on_close, hedging, exclusive_orders,
-                 trade_start_date, lot_size, fail_fast, rebalance_cash_reserve, rebalance_tolerance):
+                 trade_start_date, lot_size, fail_fast, rebalance_cash_reserve):
         assert 0 < cash, f"cash should be >0, is {cash}"
         assert -.1 <= commission < .1, \
             ("commission should be between -10% "
@@ -896,8 +910,6 @@ class _Broker:
         # percentage of total equity reserved as cash to account for order quantity rounding
         # and sudden price changes
         self._rebalance_cash_reserve = rebalance_cash_reserve
-        # minimal percentage value gap to the desired allocation to trigger an order
-        self._rebalance_tolerance = rebalance_tolerance
 
         self._equity = np.tile(np.nan, (len(data.index), len(data.tickers)+2))
         self.orders: List[Order] = []
@@ -922,13 +934,13 @@ class _Broker:
         pos = ','.join([f'{k}:{p.size}' for k, p in self.positions.items()])
         return f'<Broker: margin_available:{self.margin_available:.0f},{pos} ({len(self.all_trades)} trades)>'
 
-    def rebalance(self, alloc: Allocation, force_rebalance: bool = False):
+    def rebalance(self, alloc: Allocation, force: bool = False, rtol: float = 0.01, atol: int = 0):
         # ignore any trade actions before trade_start_date
         if self._trade_start_date and self.now.replace(tzinfo=None) < self._trade_start_date:
             alloc._clear()
             return
-        # rebalance if force_rebalance is true or portfolio weights have changed
-        if force_rebalance or alloc.modified:
+        # rebalance if force rebalance is true or portfolio weights have changed
+        if force or alloc.modified:
             # money value of current portfolio
             total_equity = self.equity()
             # desired values for each ticker excluding cash reserve that is not to be allocated
@@ -936,11 +948,12 @@ class _Broker:
             # calculate the amount to buy or sell
             current_value = pd.Series([self.equity(ticker)
                                        for ticker in self._data.tickers], index=self._data.tickers)
-            value_adjust = value_allocation - current_value
-            value_adjust_pct = value_adjust.abs().sum() / (current_value.abs().sum() + 1)
+            value_diff = value_allocation - current_value
+            value_diff_abs = value_diff.abs().sum()
+            value_diff_rel = value_diff_abs / total_equity
             # sort in ascending order so that sell orders are placed first then buy orders to make sure that cash
             # balance is always positive in simulation
-            for ticker in value_adjust.sort_values().index:
+            for ticker in value_diff.sort_values().index:
                 if alloc.current.loc[ticker] == 0:
                     # this may generate multiple orders for the same ticker if multiple long positions are opened
                     # for the same ticker previously over time
@@ -949,10 +962,10 @@ class _Broker:
                 else:
                     # rebalance if the current value deviate too much from the desired value
                     # this is to avoid tiny orders triggered by ticker price fluctuation
-                    if value_adjust[ticker] and value_adjust_pct > self._rebalance_tolerance:
+                    if value_diff[ticker] and (atol and value_diff_abs > atol or value_diff_rel > rtol):
                         # calculate number of shares to buy respecting lot_size
                         # implicitly this forces order in whole share, fractional share not supported for now
-                        size = value_adjust[ticker] // self.last_price(ticker) // self._lot_size * self._lot_size
+                        size = value_diff[ticker] // self.last_price(ticker) // self._lot_size * self._lot_size
                         if size != 0:
                             self.new_order(ticker=ticker, size=size)
         alloc._next()
@@ -1299,7 +1312,6 @@ class Backtest:
                  lot_size=1,
                  fail_fast=True,
                  rebalance_cash_reserve=0.1,
-                 rebalance_tolerance=0.01
                  ):
         """
         Initialize a backtest. Requires data and a strategy to test.
@@ -1419,7 +1431,7 @@ class Backtest:
             exclusive_orders=exclusive_orders,
             trade_start_date=datetime.strptime(trade_start_date, '%Y-%m-%d') if trade_start_date else None,
             lot_size=lot_size, fail_fast=fail_fast,
-            rebalance_cash_reserve=rebalance_cash_reserve, rebalance_tolerance=rebalance_tolerance
+            rebalance_cash_reserve=rebalance_cash_reserve,
         )
         self._strategy = strategy
         self._results: Optional[pd.Series] = None
@@ -1552,7 +1564,7 @@ class Backtest:
             weighted_data = self._data.copy()
             for ticker in weights.index:
                 weighted_data[ticker] = weighted_data[ticker] * weights[ticker]
-            weighted_data = weighted_data.groupby(level=1, axis=1).agg('sum') / weights.sum()
+            weighted_data = weighted_data.T.groupby(level=1).agg('sum').T / weights.sum()
             self._ohlc_ref_data = weighted_data
 
             self._results = compute_stats(

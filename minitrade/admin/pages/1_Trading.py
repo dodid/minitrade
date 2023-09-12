@@ -60,6 +60,24 @@ def get_broker_ticker_map(tickers: dict | None) -> dict | None:
         return None
 
 
+def parse_trade_time_of_day(trade_time_of_day: str) -> str:
+    ''' Parse trade time of day from string '''
+    if trade_time_of_day:
+        ts = []
+        for t in trade_time_of_day.split(','):
+            t = t.strip()
+            if len(t) > 8:
+                start_end, interval = t.split('/')
+                start, end = start_end.split('-')
+                ts.extend(pd.date_range(start, end, freq=interval).time)
+            else:
+                ts.append(datetime.strptime(t, '%H:%M:%S').time() if len(
+                    t.split(':')) == 3 else datetime.strptime(t, '%H:%M').time())
+        return ','.join([t.strftime('%H:%M:%S') for t in sorted(ts)])
+    else:
+        return None
+
+
 def show_create_trade_plan_form() -> TradePlan | None:
     account = st.selectbox('Select a broker account', BrokerAccount.list(), format_func=lambda b: b.alias)
     strategy_file = st.selectbox('Pick a strategy', StrategyManager.list())
@@ -78,9 +96,15 @@ def show_create_trade_plan_form() -> TradePlan | None:
     c1, c2 = st.columns([1, 3])
     entry_type = c1.selectbox('Select order entry type', ['TOO', 'TOC', 'TRG'], format_func=lambda x: {
         'TOO': 'Trade on open (TOO)', 'TOC': 'Trade on close (TOC)', 'TRG': 'Trade regular hours (TRG)'}[x])
-    trade_time_of_day = c2.time_input(
-        'Pick when backtest should run (after market close for TOO and before market close for TOC, market local time)',
-        value=time(19, 30) if entry_type == 'TOO' else time(15, 30))
+    trade_time_of_day = c2.text_input(
+        'Set when backtest should run (in market local timezone as a list of HH\:MM[\:SS] separated by comma without space)',
+        placeholder='9:30,15:59:30')
+    try:
+        trade_time_of_day = parse_trade_time_of_day(trade_time_of_day)
+        if trade_time_of_day:
+            st.info(f'{len(trade_time_of_day.split(","))} runs @ {trade_time_of_day.replace(",", ", ")}')
+    except Exception as e:
+        st.error(e)
     initial_cash = st.number_input('Set the cash amount to invest', value=0)
     initial_holding = st.text_input(
         'Set the preexisting asset positions (number of shares you already own and to be considered in the strategy)',
@@ -105,7 +129,7 @@ def show_create_trade_plan_form() -> TradePlan | None:
         if initial_holding:
             initial_holding = {k.strip(): int(v)
                                for k, v in [x.strip().split(':') for x in initial_holding.split(',')]}
-        if len(ticker_css.strip()) == 0 or len(name.strip()) == 0:
+        if len(ticker_css.strip()) == 0 or len(name.strip()) == 0 or not trade_time_of_day:
             st.error('Please do not leave any required field empty.')
         elif account and ticker_map is None:
             st.error('Tickers are not fully resolved.')
@@ -120,7 +144,7 @@ def show_create_trade_plan_form() -> TradePlan | None:
                 data_source=data_source,
                 backtest_start_date=backtest_start_date.strftime('%Y-%m-%d'),
                 trade_start_date=trade_start_date.strftime('%Y-%m-%d'),
-                trade_time_of_day=trade_time_of_day.strftime('%H:%M:%S'),
+                trade_time_of_day=trade_time_of_day,
                 entry_type=entry_type,
                 broker_account=account.alias if account else None,
                 initial_cash=initial_cash,

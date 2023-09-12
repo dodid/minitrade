@@ -13,11 +13,11 @@ from minitrade.utils.config import config
 logging.getLogger("httpx").setLevel(logging.WARNING)
 
 
-def send_telegram_message(*text, html: str = ''):
+def send_telegram_message(*text, html: str = '', silent: bool = False):
     '''Send message to Telegram`'''
     url = f'http://{config.scheduler.host}:{config.scheduler.port}/messages'
     resp = requests.request(method='POST', url=url, json={'text': '\n'.join(text)[
-                            :4096], 'html': html[:4096]})  # Telegram message length limit
+                            :4096], 'html': html[:4096], 'silent': silent})  # Telegram message length limit
     if resp.status_code == 200:
         return resp.json()
     elif resp.status_code >= 400:
@@ -159,9 +159,9 @@ class TelegramBot():
         await self.app.stop()
         await self.app.shutdown()
 
-    async def send_message(self, text: str, parse_mode: str = None):
+    async def send_message(self, text: str, parse_mode: str = None, silent: bool = False):
         if self.chat_id:
-            await self.app.bot.send_message(text=text, chat_id=self.chat_id, parse_mode=parse_mode)
+            await self.app.bot.send_message(text=text, chat_id=self.chat_id, parse_mode=parse_mode, disable_notification=silent)
         else:
             raise RuntimeError('Chat ID is not configured')
 
