@@ -738,13 +738,16 @@ class Trade:
     def _copy(self, **kwargs):
         return copy(self)._replace(**kwargs)
 
-    def close(self, portion: float = 1.):
+    def close(self, portion: float = 1., finalize=False):
         """Place new `Order` to close `portion` of the trade at next market price."""
         assert 0 < portion <= 1, "portion must be a fraction between 0 and 1"
         size = copysign(max(1, round(abs(self.__size) * portion)), -self.__size)
         order = Order(self.__broker, self.__ticker, size, parent_trade=self,
                       entry_time=self.__broker.now, tag=self.__tag)
-        self.__broker.orders.insert(0, order)
+        if finalize:
+            return order
+        else:
+            self.__broker.orders.insert(0, order)
 
     # Fields getters
 
@@ -1060,8 +1063,26 @@ class _Broker:
     def now(self):
         return self._data.now
 
-    def next(self, i):
-        self._i = i
+    def finalize(self):
+        # Ignore any unprocessed orders in broker.orders since they don't have chance
+        # to be executed before the end of backtest. This is not strictly
+        # true since market order can still execute if trade_on_close=True.
+        # But we ignore this since it won't affect the strategy performance.
+
+        # Close any remaining open trades so they produce some stats
+        final_orders = [trade.close(finalize=True) for trade in self.all_trades]
+        for order in final_orders:
+            price = self._data[order.ticker, 'Close'][-1]
+            time_index = len(self._data) - 1
+            trade = order.parent_trade
+            _prev_size = trade.size
+            size = copysign(min(abs(_prev_size), abs(order.size)), order.size)
+            if trade in self.trades[order.ticker]:
+                self._reduce_trade(trade, price, size, time_index)
+                assert order.size != -_prev_size or trade not in self.trades[order.ticker]
+
+    def next(self):
+        i = len(self._data) - 1
         self._process_orders()
 
         # Log account equity for the equity curve
@@ -1081,6 +1102,7 @@ class _Broker:
             raise _OutOfMoneyError
 
     def _process_orders(self):
+        i = len(self._data) - 1
         reprocess_orders = False
 
         # Process orders
@@ -1134,7 +1156,7 @@ class _Broker:
 
             # Determine entry/exit bar index
             is_market_order = not order.limit and not stop_price
-            time_index = (self._i - 1) if is_market_order and self._trade_on_close else self._i
+            time_index = (i - 1) if is_market_order and self._trade_on_close else i
 
             # If order is a SL/TP order, it should close an existing trade it was contingent upon
             if order.parent_trade:
@@ -1503,9 +1525,8 @@ class Backtest:
                            if any([indicator is item for item in strategy._indicators])}
 
         # Skip first few candles where indicators are still "warming up"
-        # +1 to have at least two entries available
-        start = 1 + max((indicator.isna().any(axis=1).argmin() if isinstance(indicator, pd.DataFrame)
-                        else indicator.isna().argmin() for indicator in indicator_attrs.values()), default=0)
+        start = max((indicator.isna().any(axis=1).argmin() if isinstance(indicator, pd.DataFrame)
+                     else indicator.isna().argmin() for indicator in indicator_attrs.values()), default=0)
 
         # Preprocess indicators to numpy array for better performance
         def deframe(df): return df.iloc[:, 0] if isinstance(df, pd.DataFrame) and len(df.columns) == 1 else df
@@ -1524,7 +1545,7 @@ class Backtest:
 
                 # Handle orders processing and broker stuff
                 try:
-                    broker.next(i)
+                    broker.next()
                 except _OutOfMoneyError:
                     break
 
@@ -1534,23 +1555,14 @@ class Backtest:
                 # take note of the orders generated
                 processed_orders.extend(broker.orders)
             else:
-                # Run broker one more time to handle orders placed in the last strategy
-                # iteration. Use the same OHLC values as in the last broker iteration.
-                if start < len(self._data):
-                    try_(partial(broker.next, i), exception=_OutOfMoneyError)
 
                 # take note of the final positions
                 final_positions = {
                     t: p.size for t, p in broker.positions.items()} | {
                     'Margin': int(broker.margin_available)}
 
-                # Close any remaining open trades so they produce some stats
-                for trade in broker.all_trades:
-                    trade.close()
-
-                # Re-run broker one last time to handle orders placed to close all trades.
                 if start < len(self._data):
-                    try_(partial(broker.next, i), exception=_OutOfMoneyError)
+                    broker.finalize()
 
             # Set data back to full length
             # for future `indicator._opts['data'].index` calls to work
@@ -1577,7 +1589,7 @@ class Backtest:
                 positions=final_positions,
             )
 
-        return self._results
+        return self._results.copy()
 
     def optimize(self, *,
                  maximize: Union[str, Callable[[pd.Series], float]] = 'SQN',
