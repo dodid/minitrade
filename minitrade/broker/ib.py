@@ -194,7 +194,7 @@ class InteractiveBrokers(Broker):
     def cancel_order(self, plan: TradePlan, order: RawOrder = None) -> bool:
         order_refs = [o.id for o in plan.get_orders()] if order is None else [order.id]
         broker_orders = self.download_orders()
-        if broker_orders is not None:
+        if broker_orders is not None and 'order_ref' in broker_orders.columns:
             broker_orders.set_index('orderId', drop=True, inplace=True)
             broker_orders = broker_orders[broker_orders['order_ref'].isin(order_refs)]
             for order_id, order in broker_orders.iterrows():
