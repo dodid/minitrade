@@ -3,7 +3,9 @@ import logging
 import os
 import signal
 from datetime import datetime, time, timedelta
+from zoneinfo import ZoneInfo
 
+import pandas_market_calendars as mcal
 import requests
 from apscheduler.executors.pool import ProcessPoolExecutor
 from apscheduler.job import Job
@@ -17,10 +19,13 @@ from minitrade.trader import BacktestLog, BacktestRunner, TradePlan, Trader
 from minitrade.utils.config import config
 from minitrade.utils.telegram import TelegramBot
 
+logging.getLogger("urllib3").setLevel(logging.ERROR)
+logger = logging.getLogger('uvicorn.error')
+
 app = FastAPI(title='Minitrade runner')
 bot = TelegramBot.get_instance()
 if not bot:
-    logging.warn('Telegram bot not started')
+    logger.error('Telegram bot not started')
 scheduler = AsyncIOScheduler(
     # run job sequentially. yfinance lib may throw "Tkr {} tz already in cache" exception
     # when multiple processes run in parallel. Also jobs are not designed/protected against
@@ -39,10 +44,17 @@ def __call_scheduler(method: str, path: str, params: dict | None = None):
         raise RuntimeError(f'Scheduler {method} {url} {params} returns {resp.status_code} {resp.text}')
 
 
-def run_trader_after_backtest(plan: TradePlan) -> BacktestLog:
-    log = BacktestRunner(plan).execute()
-    __call_scheduler('PUT', '/trader')
-    return log
+def run_trader_after_backtest(plan: TradePlan, force: bool = False) -> BacktestLog | None:
+    calendar = mcal.get_calendar(plan.market_calendar)
+    today = datetime.now(ZoneInfo(plan.market_timezone)).replace(hour=0, minute=0, second=0, microsecond=0)
+    trading_days = calendar.valid_days(start_date=(today - timedelta(days=30)).strftime('%Y-%m-%d'),
+                                       end_date=today.strftime('%Y-%m-%d'), tz=plan.market_timezone)
+    if today in trading_days or force:
+        log = BacktestRunner(plan).execute()
+        __call_scheduler('PUT', '/trader')
+        return log
+    else:
+        logger.info(f'Plan "{plan.name}" skipped, not a trading day.')
 
 
 def schedule_plan(plan: TradePlan) -> Job | None:

@@ -205,7 +205,7 @@ def show_trade_plan_selector() -> TradePlan | None:
 
 
 def run_trade_plan_once(plan: TradePlan) -> None:
-    log = run_trader_after_backtest(plan)
+    log = run_trader_after_backtest(plan, force=True)
     if log is not None and not log.error:
         st.success(f'Backtest {log.id} finished successfully')
     else:
