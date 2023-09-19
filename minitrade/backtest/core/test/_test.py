@@ -193,7 +193,7 @@ class TestBacktest(TestCase):
                         assert trade.exit_price is None
                         assert trade.pl / 1
                         assert trade.pl_pct / 1
-                        assert trade.value > 0
+                        assert trade.value < 0
                         assert trade.sl
                         assert trade.tp
                         # Close multiple times

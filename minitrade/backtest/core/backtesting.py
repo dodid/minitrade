@@ -844,7 +844,7 @@ class Trade:
     def value(self):
         """Trade total value in cash (volume × price)."""
         price = self.__exit_price or self.__broker.last_price(self.__ticker)
-        return abs(self.__size) * price
+        return self.__size * price
 
     # SL/TP management API
 
@@ -1052,7 +1052,7 @@ class _Broker:
     @property
     def margin_available(self) -> float:
         # From https://github.com/QuantConnect/Lean/pull/3768
-        margin_used = sum(trade.value / self._leverage for trade in self.all_trades)
+        margin_used = sum(abs(trade.value) / self._leverage for trade in self.all_trades)
         return max(0, self.equity() - margin_used)
 
     @property
