@@ -222,7 +222,7 @@ class TradePlan:
                 order.cancelled = True
                 order.save()
 
-    def list_logs(self) -> list[BacktestLog]:
+    def list_logs(self, limit=30) -> list[BacktestLog]:
         '''Return all backtest history for this trade plan.
 
         Returns:
@@ -230,7 +230,7 @@ class TradePlan:
         '''
         return MTDB.get_all(
             'BacktestLog', 'plan_id', self.id, orderby=('log_time', False),
-            limit=100, cls=BacktestLog)
+            limit=limit, cls=BacktestLog)
 
     def get_log(self, run_id: str) -> BacktestLog:
         '''Return backtest log for a particular run.
@@ -682,7 +682,8 @@ class BacktestRunner:
             orders = self.plan.get_orders(log.id)
             plan_name = log.plan_name
             plan_status = 'Failed' if log.error else 'Succeeded'
-            plan_time = log.log_time.strftime('%Y-%m-%d %H:%M:%S')
+            plan_time = log.log_time.replace(tzinfo=ZoneInfo('UTC')).astimezone(
+                ZoneInfo(self.plan.market_timezone)).strftime('%Y-%m-%d %H:%M:%S')
             plan_subject = f'## {plan_name} ##  {plan_status} @ {plan_time}'
             plan_positions = plan_data = plan_result = plan_exception = plan_stderr = plan_stdout = None
 
@@ -850,4 +851,5 @@ class Trader:
         )
         log.save()
         send_telegram_message(html=text)
-        mailjet_send_email(f'Trader @ {start_time.strftime("%Y-%m-%d %H:%M:%S")}', text)
+        mailjet_send_email(
+            f'Trader @ {start_time.replace(tzinfo=ZoneInfo("UTC")).astimezone().strftime("%Y-%m-%d %H:%M:%S")}', text)

@@ -160,10 +160,12 @@ def show_create_trade_plan_form() -> TradePlan | None:
 def display_run(plan: TradePlan, log: BacktestLog):
     orders = plan.get_orders(log.id)
     log_status = '❌' if log.error else '✅' if orders else '🟢'
-    label = f'{log_status} {log.log_time} [{log.id}]' + (f' **{len(orders)} orders**' if orders else '')
+    log_time = log.log_time.replace(tzinfo=ZoneInfo('UTC')).astimezone(
+        ZoneInfo(plan.market_timezone)).strftime('%Y-%m-%d %H:%M:%S')
+    label = f'{log_status} {log_time}' + (f' **{len(orders)} orders**' if orders else '')
     with st.expander(label):
-        tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs(
-            ['Params', 'Data', 'Result', 'Error', 'Log', 'Orders', 'Positions'])
+        tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs(
+            ['Input', 'Data', 'Result', 'Error', 'Log', 'Orders'])
         if log.params:
             tab1.write(log.params)
         tab2.write(log.data)
@@ -171,8 +173,6 @@ def display_run(plan: TradePlan, log: BacktestLog):
             df = log.result
             df = df[~df.index.str.startswith('_')]
             tab3.text(tabulate(df))
-            if '_positions' in log.result.index:
-                tab7.write(log.result.loc['_positions'][0])
         tab4.code(log.exception)
         tab5.caption('Log - stdout')
         if log.stdout:
