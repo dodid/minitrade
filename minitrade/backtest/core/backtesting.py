@@ -1088,8 +1088,7 @@ class _Broker:
         # Log account equity for the equity curve
         total_equity = self.equity()
         ticker_equity = [self.equity(ticker) for ticker in self._data.tickers]
-        cash = total_equity - sum(ticker_equity)
-        equity = [total_equity, *ticker_equity, cash]
+        equity = [total_equity, *ticker_equity, self.margin_available]
         self._equity[i] = equity
 
         # If equity is negative, set all to 0 and stop the simulation
@@ -1569,7 +1568,7 @@ class Backtest:
             data._set_length(len(self._data))
 
             equity = pd.DataFrame(broker._equity, index=data.index,
-                                  columns=['_Equity', *data.tickers, '_Cash']).bfill().fillna(broker._cash)
+                                  columns=['Equity', *data.tickers, 'Margin']).bfill().fillna(broker._cash)
 
             # equal weighed average, as if buy and hold an equal weighed portfolio
             weights = 1 / self._data.xs('Close', axis=1, level=1).iloc[0]

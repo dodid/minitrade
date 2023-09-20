@@ -62,8 +62,8 @@ e.g.
 """
 
 _EQUITY_AGG = {
-    '_Equity': 'last',
-    '_Cash': 'last',
+    'Equity': 'last',
+    'Margin': 'last',
     'DrawdownPct': 'max',
     'DrawdownDuration': 'max',
 }
@@ -193,9 +193,9 @@ def compute_stats(
     else:
         # XXX: Is this buggy?
         equity = equity.copy()
-        equity['_Equity'] = stats._equity_curve._Equity.iloc[0]
+        equity['Equity'] = stats._equity_curve.Equity.iloc[0]
         for t in trades.itertuples(index=False):
-            equity['_Equity'].iloc[t.EntryBar:] += t.PnL
+            equity['Equity'].iloc[t.EntryBar:] += t.PnL
     return _compute_stats(orders=stats._orders, trades=trades, equity=equity, ohlc_data=data,
                           risk_free_rate=risk_free_rate, strategy_instance=stats._strategy)
 

@@ -45,7 +45,7 @@ def compute_stats(
     assert -1 < risk_free_rate < 1
 
     index = ohlc_data.index
-    dd = 1 - equity['_Equity'] / np.maximum.accumulate(equity['_Equity'])
+    dd = 1 - equity['Equity'] / np.maximum.accumulate(equity['Equity'])
     dd_dur, dd_peaks = compute_drawdown_duration_peaks(pd.Series(dd, index=index))
 
     if isinstance(orders, pd.DataFrame):
@@ -100,9 +100,9 @@ def compute_stats(
         have_position[t.EntryBar:t.ExitBar + 1] = 1
 
     s.loc['Exposure Time [%]'] = have_position.mean() * 100  # In "n bars" time, not index time
-    s.loc['Equity Final [$]'] = equity['_Equity'].iloc[-1]
-    s.loc['Equity Peak [$]'] = equity['_Equity'].max()
-    s.loc['Return [%]'] = (equity['_Equity'].iloc[-1] - equity['_Equity'].iloc[0]) / equity['_Equity'].iloc[0] * 100
+    s.loc['Equity Final [$]'] = equity['Equity'].iloc[-1]
+    s.loc['Equity Peak [$]'] = equity['Equity'].max()
+    s.loc['Return [%]'] = (equity['Equity'].iloc[-1] - equity['Equity'].iloc[0]) / equity['Equity'].iloc[0] * 100
     c = ohlc_data.Close.values
     s.loc['Buy & Hold Return [%]'] = (c[-1] - c[0]) / c[0] * 100  # long-only return
 
@@ -110,7 +110,7 @@ def compute_stats(
     day_returns = np.array(np.nan)
     annual_trading_days = np.nan
     if isinstance(index, pd.DatetimeIndex):
-        day_returns = equity_df['_Equity'].resample('D').last().dropna().pct_change()
+        day_returns = equity_df['Equity'].resample('D').last().dropna().pct_change()
         gmean_day_return = geometric_mean(day_returns)
         annual_trading_days = float(
             365 if index.dayofweek.to_series().between(5, 6).mean() > 2/7 * .6 else 252)
@@ -168,6 +168,6 @@ def compute_stats(
 
 class _Stats(pd.Series):
     def __repr__(self):
-        # Prevent expansion due to _equity and _trades dfs
+        # Prevent expansion due to Equity and _trades dfs
         with pd.option_context('max_colwidth', 20):
             return super().__repr__()

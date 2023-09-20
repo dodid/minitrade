@@ -294,7 +294,7 @@ return this.labels[index] || "";
     def _plot_equity_section(is_return=False):
         """Equity section"""
         # Max DD Dur. line
-        equity = equity_data['_Equity'].copy()
+        equity = equity_data['Equity'].copy()
         dd_end = equity_data['DrawdownDuration'].idxmax()
         if np.isnan(dd_end):
             dd_start = dd_end = equity.index[0]
@@ -387,9 +387,9 @@ return this.labels[index] || "";
 
         figs_above_ohlc.append(fig)
 
-    def _plot_equity_stack_section(relative=False):
+    def _plot_equity_stack_section(relative=True):
         """Equity stack area chart section"""
-        equity = equity_data.iloc[:, 1:-2].copy()
+        equity = equity_data.iloc[:, 1:-2].copy().abs()
         names = list(equity.columns)
         if relative:
             equity = equity.divide(equity.sum(axis=1), axis=0)
@@ -406,7 +406,7 @@ return this.labels[index] || "";
         else:
             tooltip_format = [f'@{ticker}{{$ 0,0}}' for ticker in names]
             tick_format = '$ 0.0 a'
-            equity_source.add(equity_data['_Equity'], 'equity')
+            equity_source.add(equity_data['Equity'], 'equity')
 
         cg = colorgen()
         colors = [next(cg) for _ in range(len(names))]

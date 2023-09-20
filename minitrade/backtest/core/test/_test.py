@@ -286,7 +286,7 @@ class TestBacktest(TestCase):
 
         self.assertSequenceEqual(
             sorted(stats['_equity_curve'].columns),
-            sorted(['Asset', '_Equity', '_Cash', 'DrawdownPct', 'DrawdownDuration']))
+            sorted(['Asset', 'Equity', 'Margin', 'DrawdownPct', 'DrawdownDuration']))
 
         self.assertEqual(len(stats['_trades']), 66)
 
@@ -331,7 +331,7 @@ class TestBacktest(TestCase):
                 stats = Backtest(GOOG.iloc[:100], strategy).run()
 
                 self.assertFalse(np.isnan(stats['Equity Final [$]']))
-                self.assertFalse(stats['_equity_curve']['_Equity'].isnull().any())
+                self.assertFalse(stats['_equity_curve']['Equity'].isnull().any())
                 self.assertEqual(stats['_strategy'].__class__, strategy)
 
     def test_trade_enter_hit_sl_on_same_day(self):
@@ -849,8 +849,8 @@ class TestLib(TestCase):
         only_long_trades = stats._trades[stats._trades.Size > 0]
         long_stats = compute_stats(stats=stats, trades=only_long_trades,
                                    data=GOOG, risk_free_rate=.02)
-        self.assertNotEqual(list(stats._equity_curve._Equity),
-                            list(long_stats._equity_curve._Equity))
+        self.assertNotEqual(list(stats._equity_curve.Equity),
+                            list(long_stats._equity_curve.Equity))
         self.assertNotEqual(stats['Sharpe Ratio'], long_stats['Sharpe Ratio'])
         self.assertEqual(long_stats['# Trades'], len(only_long_trades))
         self.assertEqual(stats._strategy, long_stats._strategy)
