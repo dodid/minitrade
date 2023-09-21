@@ -203,6 +203,8 @@ class Strategy(ABC):
         self._data: _Data = data
         self._params = self._check_params(params)
         self._alloc = Allocation(data.tickers)
+        self._data_index = data.index.copy()
+        self._registers = {}
 
     def __repr__(self):
         return '<Strategy ' + str(self) + '>'
@@ -403,6 +405,25 @@ class Strategy(ABC):
                 is smaller than `atol`, rebalance will not be performed.
         """
         self._broker.rebalance(alloc=self._alloc, force=force, rtol=rtol, atol=atol)
+
+    def record(self, name=None, plot=True, overlay=None, color=None, scatter=False, **kwargs):
+        """
+        Record arbitrary key-value pairs as time series, which can be plotted later.
+        Value can be a scalar or a dict or a pd.Series.
+        """
+        for k, v in kwargs.items():
+            if isinstance(v, dict) or isinstance(v, pd.Series):
+                v = dict(v)
+                if k not in self._registers:
+                    self._registers[k] = pd.DataFrame(index=self._data_index, columns=v.keys())
+                self._registers[k].loc[self._broker.now, list(v.keys())] = list(v.values())
+            else:
+                if k not in self._registers:
+                    self._registers[k] = pd.Series(index=self._data_index)
+                self._registers[k].iloc[len(self._data)-1] = v
+            self._registers[k].name = name or k
+            self._registers[k].attrs.update({'name': name or k, 'plot': plot, 'overlay': overlay,
+                                             'color': color, 'scatter': scatter})
 
     @property
     def equity(self) -> float:
@@ -1998,11 +2019,13 @@ class Backtest:
                 raise RuntimeError('First issue `backtest.run()` to obtain results.')
             results = self._results
 
+        indicators = results._strategy._indicators + list(results._strategy._registers.values())
+
         return plot(
             results=results,
             data=self._data,
             baseline=self._ohlc_ref_data,
-            indicators=results._strategy._indicators,
+            indicators=indicators,
             filename=filename,
             plot_width=plot_width,
             plot_equity=plot_equity,
