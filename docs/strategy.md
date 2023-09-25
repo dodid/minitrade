@@ -7,17 +7,6 @@ hide:
 
 Suppose we want to develope `SomeStrategy` that invests in AAPL and GOOG. 
 
-This is how we will run the backtest:
-
-```python
-yahoo = QuoteSource.get_source('Yahoo')
-data = yahoo.daily_bar('AAPL,GOOG', start='2018-01-01', end='2018-01-08')
-bt = Backtest(data, SomeStrategy)
-bt.run()
-```
-
-And `SomeStrategy` looks like the following:
-
 ```python
 class SomeStrategy(Strategy):
     

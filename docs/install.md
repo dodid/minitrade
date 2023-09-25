@@ -18,9 +18,7 @@ Minitrade web UI and IB gateway listen on all interfaces, therefore, accessible 
 
 ## Try in docker
 
-It's not recommended to run Minitrade in docker container since it takes more resources and it's harder to manage. But if you just want to play with it, you can do:
-
-        docker pull dodid/minitrade
+It's not recommended to run Minitrade in docker container since it takes more resources and it's harder to manage. But if you just want to play with it, you build an image from [the dockerfile](https://github.com/dodid/minitrade/blob/main/Dockerfile). 
 
 Expose port 8501 to access the web UI.
 
@@ -94,17 +92,4 @@ minitrade ib start
 minitrade web
 ```
 
-You can use any process monitor like Supervisor to keep the processes running. Or to do it quick and dirty, use a script like the following: 
-
-```
-#!/bin/bash
-
-# kill existing processes
-pkill -e -P 1 -f minitrade
-[ -f nohup.out ] && mv nohup.out nohup.out.old
-
-# reload processes
-nohup minitrade scheduler start &
-nohup minitrade ib start &
-nohup minitrade web &
-```
+You can use any process monitor like Supervisor to keep the processes running. Or to do it quick and dirty, you can use [this script](https://github.com/dodid/minitrade/blob/main/mtctl.sh). 
