@@ -6,25 +6,22 @@ Minitrade intends to run on very low cost machines such as AWS Lightsail instanc
 
 ## Security recommendations
 
-Securing the access to the server instance is super important since the broker credentials are saved locally. Try:
+Securing server access is crucial due to locally saved broker credentials. Here are some security recommendations:
 
-- Use a dedicated server for Minitrade and don't use the same instance for other purposes.
-- Instal OpenVPN for remote access to the server
-- Set up firewall rules to only allow SSH and OpenVPN
-
-Minitrade web UI and IB gateway listen on all interfaces, therefore, accessible by public IP. It's important to use the firewall rules to block all ports but SSH and OpenVPN, and access the web UI via private IP after OpenVPN is connected.
-
-[Create a dedicated IB user](https://www.interactivebrokers.com/en/software/singlefunds/topics/fundsaddusers.htm) for Minitrade. Only trading access should be provided, others, especially funding access, should be disallowed. This avoids access conflict when logging in from multiple devices and restricts the account permissions to the minimally required.
+- Use a dedicated server solely for Minitrade, avoiding mixed-purpose instances.
+- Install OpenVPN for remote server access.
+- Set up firewall rules to allow only SSH and OpenVPN connections.
+- Use firewall rules to restrict access to the Minitrade web UI and IB gateway by blocking all ports except SSH and OpenVPN. Access the web UI via a private IP after connecting with OpenVPN.
+- [Create a dedicated IB user](https://www.interactivebrokers.com/en/software/singlefunds/topics/fundsaddusers.htm) for Minitrade, granting only necessary trading access and disallowing other privileges to avoid conflicts and minimize account permissions.
 
 ## Try in docker
 
-It's not recommended to run Minitrade in docker container since it takes more resources and it's harder to manage. But if you just want to play with it, you build an image from [the dockerfile](https://github.com/dodid/minitrade/blob/main/Dockerfile). 
+Although running Minitrade in a Docker container is not recommended due to resource consumption and management complexity, it is possible for experimentation purposes. If you choose to do so, follow these steps:
 
-Expose port 8501 to access the web UI.
-
-The image is only tested on a Linux host. It's known not working on a Mac with M1/M2 chips since Chrome won't work.
-
-You may need to restart container if you change the telegram or email settings to make them effective.
+1. Build a Docker image from the provided [Dockerfile](https://github.com/dodid/minitrade/blob/main/Dockerfile).
+2. Expose port 8501 to access the web UI.
+3. Note that the image is only tested on Linux hosts and may not work on Mac with M1/M2 chips due to compatibility issues with Chrome.
+4. Restart the container if you modify the telegram or email settings to make them effective.
 
 ## Install on Ubuntu 20.04 
 
@@ -89,7 +86,7 @@ minitrade scheduler start
 minitrade ib start 
 
 # start web UI
-minitrade web
+minitrade web start
 ```
 
-You can use any process monitor like Supervisor to keep the processes running. Or to do it quick and dirty, you can use [this script](https://github.com/dodid/minitrade/blob/main/mtctl.sh). 
+You can use a process monitor like Supervisor for long-term process management. Alternatively, you can use [this script](https://github.com/dodid/minitrade/blob/main/mtctl.sh) for a quick and simple launch.

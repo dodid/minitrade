@@ -5,17 +5,17 @@ hide:
 
 # Trading
 
-Trading a strategy manually is demanding. Running backtest, submitting orders, sticking to the plan despite ups and downs, and tracking performance takes not only effort, but also discipline. Minitrade makes it easy by automating the entire process.
+Trading a strategy manually is demanding. Running backtest, submitting orders, adhering to the plan despite ups and downs in the market, and monitoring performance takes not only effort, but also discipline. Minitrade makes it easy by automating the entire process.
 
-Minitrade's trading system consists of 3 modules:
+The trading system provided by Minitrade comprises three modules:
 
-1. A scheduler, that runs strategies periodically and triggers order submission.
-2. A broker gateway, that interfaces with the broker system (IB in this case) and handles the communication.
-3. A web UI, that allows managing trading plans and monitoring the executions.
+1. Scheduler: This module runs strategies at regular intervals and handles order submissions.
+2. Broker Gateway: The broker gateway module serves as an interface between Minitrade and the broker system, specifically Interactive Brokers (IB), facilitating seamless communication.
+3. Web UI: Minitrade's web user interface allows users to manage trading plans and monitor the execution of trades.
 
 ## Launch
 
-To start trading, run the following:
+Launch Minitrade with the following commands:
 
 ```
 # start scheduler
@@ -28,7 +28,7 @@ minitrade ib start
 minitrade web start
 ```
 
-You can also use [the script](https://github.com/dodid/minitrade/blob/main/mtctl.sh) to simplify the management of the processes.
+You can also manage Minitrade using [the script](https://github.com/dodid/minitrade/blob/main/mtctl.sh).
 
 The web UI can be accessed at: ```http://127.0.0.1:8501```
 
@@ -54,76 +54,76 @@ Configuring the system takes a few steps:
 
 3. Data source
 
-    Test the data source and make sure it works. Currently Yahoo and EasyMoney are supported. If a proxy is needed to visit Yahoo, configure it in the UI. 
+    Test the data source and make sure it works. Currently Yahoo and EasyMoney are supported. If accessing Yahoo requires a proxy, configure it in the web UI. 
 
 4. Broker
 
-    A `Manual` broker is built in that allows to run backtest automatically and handle order placement manually.
+    The "Manual" broker allows for automated backtesting and manual order placement.
 
-    To set up InteractiveBrokers, put in the username and password, and give the account an alias. Note the **Account type** selected is only a hint to help remember. Whether it's paper or live depends on the account itself, rather than on what's chosen here. 
+    To set up InteractiveBrokers, enter the username, password, and assign an alias to the account. The selected "Account type" is merely a reminder and does not determine whether it is a paper or live account.
+    
+    Before saving the account, a test connection is made to verify the correctness of the credentials and establish a successful connection. For InteractiveBrokers, if two-factor authentication is enabled, pay attention to Telegram notifications to complete the login process. 
 
-    A test connection to the broker is made before the account is saved. It verifies if the credentials are correct and a connection can be established successfully. For IB, if two-factor authentication is enabled, a notification will be sent to the mobile phone. Confirming on the mobile to finish login.
-
-    The credentials are saved in a local database. Be sure to secure the access to the server. 
+    The credentials are stored in a local database. Ensure that server access is properly secured.
 
     ![Minitrade web UI - performance ](https://imgur.com/Y0lPTQx.jpg)
 
 5. Strategy
 
-    Strategies are just Python files containing a strategy class implementation inherited from the `Strategy` class. The files can be uploaded via the UI and be made available for defining a trade plan. If a strategy class can't be found, it will show an error. If multiple strategy classes exist in a file, the one to be run should be decorated with `@entry_strategy`. To update a strategy, upload a differnt file with the same filename.
+    Strategies are Python files that contain a strategy class, which should inherit from the `Strategy` class. These files can be uploaded through the UI and be made available for defining a trade plan. If a strategy class cannot be found in the uploaded file, an error will be displayed. In case there are multiple strategy classes in a file, the one intended to be executed should be decorated with @entry_strategy. To update a strategy, upload a different file with the same filename.
 
 6. Trade plan
 
-    A trade plan provides all necessary information to trade a strategy, including:
-    - which strategy to run
-    - the universe of assets as a list of tickers
-    - which data source to get price data from
-    - which timezone are the assets traded
-    - which date should a backtest starts
-    - which date should a trade order be generated from
-    - at what time of day should a backtest run 
-    - which broker account should orders be submitted through
-    - how much initial cash should be invested
+    A trade plan encompasses essential information for executing a strategy, including:
 
-    Once everything is defined, a test backtest dryrun will start. It should finish without error, though it will not generate any actual orders. 
+    - Specifying the strategy to be executed.
+    - Providing a list of tickers that make up the asset universe.
+    - Selecting the data source for price data.
+    - Setting the starting date for backtesting.
+    - Determining the date from which trade orders should be generated.
+    - Scheduling the time of day for running the backtest.
+    - Assigning the broker account for order submission.
+    - Defining the initial cash investment and asset holdings.
 
-    If the test run is successful, the trade plan is scheduled to run on every market trading day at the specified time. 
+    After defining the trade plan, a test backtest dry run will be initiated. This dry run should finish error-free but will not generate any actual orders.
 
-    Backtesting and trading can be enabled or disabled via the UI.
+    Upon successful completion of the test run, the trade plan will be scheduled to execute on every market trading day at the specified time.
 
-    ![Minitrade web UI - trade plan](https://imgur.com/MofEeIT.png)
+    Backtesting and trading functionalities can be enabled or disabled through the web UI.
+
 
 ## How trading works
 
-As depicted above, defining a trade plan takes a number of inputs. Some are self-explanatory, and some deserves some explaination.
+Defining a trade plan requires various inputs as depicted in the following image.
+
+![Minitrade web UI - trade plan](https://imgur.com/MofEeIT.png)
 
 #### Broker account
 
-Specify which broker account you want to use to place orders. If you have configured an InteractiveBrokers account, it will show up here as default. Alternatively, you can use the built-in `Manual` account. In this case, Minitrade runs backtests automatically at scheduled moments and generates raw orders. You are supposed to place orders accordingly using broker's system that is beyond the control of Minitrade. You can backfill the actual trade price into Minitrade to track strategy performance.
+Specify the broker account to be used for order placement. If you have configured an InteractiveBrokers account, it will be set as the default option. Alternatively, you can choose the built-in "Manual" account. With the "Manual" account, Minitrade automatically runs backtests at scheduled intervals and generates raw orders. However, it's your responsibility to place the orders through your broker's system, which is beyond the control of Minitrade. You can input the actual trade prices into Minitrade to track the performance of your strategy.
 
 #### Asset space
 
-Specify the universe of assets for the strategy. For single asset strategy, this is just one symbol. For multi-asset strategy, this is a list of symbols separated by comma. Note the generic stock symbol, as we know it, is not usually what is traded by the broker. InteractiveBrokers uses a contract ID to uniquely identify an tradable asset. For example, "AAPL" can means any of the following contracts:
+Specify the universe of assets for your strategy. For a single-asset strategy, enter a single symbol. For a multi-asset strategy, provide a comma-separated list of symbols. Please note that the generic stock symbol we commonly use may not represent the actual tradable asset recognized by the broker. InteractiveBrokers uses a contract ID to uniquely identify tradable assets. For example, the symbol "AAPL" can correspond to different contracts:
 
 ```python
 APPLE INC {'conid': 265598, 'exchange': 'NASDAQ', 'isUS': True}
 LS 1X AAPL {'conid': 493546048, 'exchange': 'LSEETF', 'isUS': False}
 APPLE INC-CDR {'conid': 532640894, 'exchange': 'AEQLIT', 'isUS': False}
 ```
-
-Minitrade let you pick which one you want to trade. The process of resolving a generic symbol to a broker specific contract ID requires an active connection to the broker. A connection will be made, which may trigger 2FA authentication, if it's not already existing. Pay attention to Telegram notification on mobile after you fill in this field.
+Minitrade allows you to select the specific contract you wish to trade. The process of mapping a generic symbol to a broker-specific contract ID requires an active connection to the broker. If a connection is not already established, Minitrade will initiate one. Please pay attention to Telegram notifications on your mobile device after filling in this field.
 
 #### Data source
 
-Choose which data source you want to use. "Yahoo" is good for U.S. markets and "EastMoney" is for China market. If market is open, "Yahoo" returns the realtime OHLCV data (up to now) for today and historical OHLCV data for previous days.
+Choose the desired data source. "Yahoo" is recommended for U.S. markets, while "EastMoney" is suitable for the China market. When the market is open, "Yahoo" provides real-time OHLCV data until the present moment, as well as historical data for previous days.
 
 #### Backtest start date
 
-Specify from which date a backtest should start. This depends on how long a lead time a strategy needs to calculate indicators. If it uses a SMA of 20 days, you need to set backtest start date to a month earlier from now. Setting the date too earlier than needed makes backtesting unnecessarily slower.
+Specify the starting date for the backtest. Consider the lead time required by the strategy to calculate indicators. For example, if the strategy uses a 20-day Simple Moving Average (SMA), it is advisable to set the backtest start date to a month earlier from the present date. Setting the start date too far in the past unnecessarily prolongs the backtesting process.
 
 #### Trade start date
 
-Specify from which date a backtest should start generating orders. Generating orders before today is useless since you have missed the opportunities to place orders. Therefore, backtest will surpress any trade signals generated before the date.
+Specify the date from which the backtest should begin generating trade orders. Generating orders for dates prior to today is futile, as the opportunities to place orders have already passed. Therefore, the backtest will suppress any trade signals generated before the specified date.
 
 #### Order entry type
 
@@ -131,7 +131,7 @@ Specify the timing or type of an order. Three order entry types are defined:
 
 1. Trade on open (TOO)
 
-    Use this type if you want trades to happen on market open. This is a regular market order but is submitted off regular market hours, so that it can be executed on next market open. If you use this type, make sure run backtests off regular market hours.
+    Use this type if you want trades to happen on market open. This is a regular market order but is submitted outside of regular market hours, so that it can be executed on next market open. Make sure you run backtests outside of regular market hours.
 
 2. Trade on close (TOC)
 
@@ -143,47 +143,46 @@ Specify the timing or type of an order. Three order entry types are defined:
 
 #### Backtest run time
 
-Specify when backtest should run during a day. Minitrade makes sure that backtest runs on every day when the intended market is open. This specifies at what moment it runs. You can put in time in "HH:MM:SS" format, e.g. "10:00:00" to run at 10AM, or "9:30:01-16:00/30min" to mean backtest should run every 30 mins during market open. You can preview the exact time to confirm.
+Specify when backtest should run. Backtests can be scheduled during a day using two formats: "HH:MM:SS" and "HH:MM:SS-HH:MM:SS/Interval." For instance, "10:00:00" represents 10 AM, while "9:30:01-16:00/30min" means the backtest will run every 30 minutes during market open. You can combine both formats to define complex schedules and confirm the exact timing through a preview.
 
-Depending on the complecity, a backtest may take seconds to minutes or longer to finish. Make sure to put enough spacing between backtests of the same strategy or different strategies. Only one backtest runs at any moment. Others ready to run will be queued. If a backtest misses its intended schedule for more than 3 minutes, it will skip and not run at all. The behavior of scheduling backtest at the exact moment of market open or market close is not well defiend. Always assume the clock can be off by a few seconds.
+It's important to consider the complexity of the backtest, as the duration can vary from seconds to minutes or longer. To ensure smooth execution, it is recommended to leave sufficient spacing between backtests of the same strategy or different strategies. Only one backtest runs at any given time, while others are queued. If a backtest misses its intended schedule by more than 3 minutes, it will be skipped and not run at all. Additionally, keep in mind that the exact timing of backtests at market open or market close may not be well-defined, as there can be slight clock deviations.
 
-If you want to run backtest less frequenty than every day, e.g. rebalancing at the beginning of every month, you can handle it in the strategy. Use `self.broker.now` to find out the current date and skip processing if necessary.
+Minitrade ensures that backtests are executed on every open trading day for the intended market. If you prefer to run backtests less frequently, such as rebalancing at the beginning of each month, you can handle this within the strategy itself. Utilize `self.broker.now` to retrieve the current date and skip processing if necessary.
 
 #### Cash amount
 
-Specify the initial cash you want to invest in the strategy.
+Specify the amount of cash you wish to invest in the strategy as an initial investment.
 
 #### Preexisting asset positions
 
-Specify the initial positions that you have and want to be considered in the strategy. For example, if you already have 100 shares of SPY and 100 shares of QQQ and want to run a strategy that rebalances between them every month, you should put in "SPY:100,QQQ:100" here.
+Specify any existing positions that you have and want to be taken into account by the strategy. For example, if you currently hold 100 shares of SPY and 100 shares of QQQ, and you want to run a strategy that rebalances between these assets on a monthly basis, you should enter "SPY:100, QQQ:100" in this field.
 
 #### Backtest mode
 
-Minitrade supports two backtest modes with very different assumptions. "Strict mode" assumes that the outcome of a backtest is repeatable, i.e., if you run a backtest for a trade plan today, the result of the backtest up to yesterday should be exactly the same as from the backtest you run yesterday. If you run the backtest tomorrow, the output up to today's date will be the same as what you get today, and so on. In this mode, backtest always runs with the parameters as given in the trade plan. If it generates an order, it assumes the order is executed successfully at the simulated price. It is unaware of what actually happends on the broker side. Since backtest runs totally independent of reality, its outcome reflecting reality only if a number of strong assumptions hold true. Notably,
+Minitrade offers two distinct backtest modes with differing assumptions. The first is "Strict mode," which assumes that a backtest's outcome is replicable. In other words, if a backtest is run for a trade plan today, the results up until yesterday will be identical to a backtest run yesterday. Similarly, running the backtest tomorrow will yield the same output up until today's date. Under this mode, the backtest always uses the parameters specified in the trade plan. It assumes successful execution of orders at simulated prices, without considering if that actually happens. The accuracy of the backtest's reflection of reality relies on a number of assumptions, notably:
 
-1. Quotes from data source don't change. This can break if there is dividend or stock split. Minitrade aborts a backtest if it detects price changes.
-2. Strategy can only issue TOC or TOO orders, since their prices are determinstic and known during backtest. 
-3. Orders must be executed successfully. 
+1. Price quotes from the data source remain unchanged. This can break in cases of dividends or stock splits. Minitrade halts a backtest if it detects price changes.
+2. The strategy can only issue "TOC" or "TOO" orders, as their prices are deterministic and known during the backtest.
+3. Orders must be executed successfully.
 
-As time progressing, it's inevitable that some assumption breaks and backtest loses sync with reality. When that happens, you may want to scratch the trade plan and define a new one to bring it back in sync. This can be a lot of maintenance. The benefit is that, when it works, you can expect the actual trade performance follows closely with that of the strategy.
+Over time, these assumptions will break, causing the backtest to fall out of sync with reality. When this occurs, it may be necessary to remove the trade plan and create a new one to restore synchronization. Therefore this approach requires regular maintenance. But it offers the advantage of closely aligning the actual trade performance with that of the strategy.
 
-If some deviation from the strategy is tolerable in execution, Minitrade also support running backtest in "incremental" model. In this mode, running a backtest involves the follows:
+Alternatively, if some deviation from the strategy is acceptable during execution, Minitrade also supports an "incremental" backtest mode. In this mode, the backtest follows these steps:
 
 1. Download the latest order and trade status from the broker.
-2. Calculate the actual positions belonging to the strategy from initial positions and the actaul trades executed.
-3. Cancel all orders, associated with the strategy, not yet submitted to the broker and all orders submitted but not yet fulfilled at the broker.
-4. Run backtest, replacing the cash and initial positions as specified in the trade plan with the actual cash and positions at the moment, and setting trade_start_date to today.
-5. Submit new orders if the backtest generates any.
+2. Calculate the actual positions associated with the strategy based on initial positions and executed trades.
+3. Cancel any unsubmitted orders tied to the strategy and any submitted orders that remain unfilled at the broker.
+4. Perform the backtest, replacing the cash and initial positions specified in the trade plan with the current cash and positions, and setting the trade_start_date as today.
+5. Submit new orders generated by the backtest.
 
-In "incremental" mode, we asssume that the strategy is always able to make the right decisions given the latest cash and position information, and it can do it independent of previous backtest runs. This is also a strong assumption, but hopefully not too limiting if you structure the strategy properly assuming external changes can happen. The benefit is it's more robust than the "strict" mode and requires less maintenance.
+In the "incremental" mode, we assume that the strategy can consistently make correct decisions using the most recent cash and position information, irrespective of previous backtest runs. While this assumption is also strong, it is less restrictive if the strategy is properly designed to accommodate external changes. The benefit of this mode is increased robustness and reduced maintenance compared to the "strict" mode.
 
-You need to decide which mode is apporpriate for running your strategy.
+It is important to determine which mode is appropriate for running your strategy.
 
 ## IB gateway
 
-Minitrade uses [IB's client portal API](https://www.interactivebrokers.com/en/trading/ib-api.php#client-portal-api) to submit orders. The gateway client will be downloaded and configured when `minitrade init` is run. Automated login is handled via Chrome and Selenium webdriver. 
+Minitrade utilizes [IB's client portal API](https://www.interactivebrokers.com/en/trading/ib-api.php#client-portal-api) for order submission. The gateway client is downloaded and configured during the execution of `minitrade init`. Automated login is facilitated using Chrome and Selenium webdriver.
 
-IB disconnects a session after 24 hours or so. Minitrade checks connection status when it needs to interact with IB, i.e. when an order should be submitted or account info is retrieved via web UI. Should Minitrade initiates a connection automatically, a silent 2FA push notification would be sent to mobile phone at random times, which would be quite easy to miss and result in a login failure. After a few consecutive failed attempts, IB may lock out the account and one has to contact customer service to unlock. 
+IB terminates a session after approximately 24 hours. Minitrade verifies the connection status when interacting with IB, such as when submitting an order or retrieving account information via the web UI. If Minitrade initiates a connection automatically, a silent 2FA push notification is randomly sent to the user's mobile phone. This notification may be easily missed, resulting in a login failure. Multiple consecutive failed attempts may lead to an account lockout, necessitating contact with customer service to unlock the account.
 
-To avoid this, Minitrade only submits orders where there is already a working connection to a broker. If there is not, Minitrade sends messages via Telegram bot to notify that there are pending orders to be submitted. User should issue `/ib login` command manually to the bot to trigger a login to IB account. The 2FA push notification should be received in a few seconds and user can complete the login process on mobile phone. Once login is successful, Minitrade will be able to submit orders.
-
+To prevent such issues, Minitrade only submits orders when a working connection to a broker is already established. If a connection does not exist, Minitrade sends notifications through a Telegram bot, informing the user of pending orders to be submitted. The user must manually issue the `/ib login` command to the bot, triggering a login to the IB account. Within a few seconds, the user should receive the 2FA push notification on their mobile phone and complete the login process. Once the login is successful, Minitrade can proceed with order submission.

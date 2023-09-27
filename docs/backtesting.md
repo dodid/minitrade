@@ -56,7 +56,7 @@ Also note that some original utility functions and strategy classes only make se
 
 `Minitrade` extends `Backtesting.py` to support backtesting of multi-asset strategies. 
 
-Multi-asset strategies take a 2-level column DataFrame as data input. For example, for a strategy class that intends to invest in AAPL and GOOG as a portfolio, the `data` input to `Backtest()` should look like:
+Multi-asset strategies take a 2-level column DataFrame as data input. For example, for a strategy that intends to invest in AAPL and GOOG as a portfolio, the `data` input to `Backtest()` should resemble the following format:
 
 ```python
 # bt = Backtest(data, AaplGoogStrategy)
@@ -249,8 +249,8 @@ To search for the optimial parameters for a strategy, you can run the following:
 
 ```python
 stats, heatmap = bt.optimize(
-    fast=range(10, 110, 10),
-    slow=range(20, 210, 20),
+    fast=range(10, 60, 10),
+    slow=range(20, 120, 20),
     constraint=lambda p: p.fast < p.slow,
     maximize='Equity Final [$]',
     random_state=0,

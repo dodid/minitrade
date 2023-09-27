@@ -3,23 +3,29 @@ hide:
   - toc
 ---
 
-# Minitrade
+[![Static Badge](https://img.shields.io/badge/Documentation-blue)](https://dodid.github.io/minitrade/)
+[![Build Status](https://img.shields.io/github/actions/workflow/status/dodid/minitrade/test_code.yml?branch=main)](https://github.com/dodid/minitrade/actions)
+[![Backtesting on PyPI](https://img.shields.io/pypi/v/minitrade.svg?color=blue)](https://pypi.org/project/minitrade)
+[![PyPI downloads](https://img.shields.io/pypi/dm/minitrade.svg?color=skyblue)](https://pypi.org/project/minitrade)
 
-**Minitrade** is a personal trading system that supports both strategy backtesting and automated order execution. It builds on top of [Backtesting.py](https://github.com/kernc/backtesting.py), and provides enhanced features such as:
 
-- **Multi-asset rebalancing strategy backtest**
-- Automated strategy execution and order submission
-- Web-based management UI
-- Notification and control on mobile
+# Minitrade - Simplifying Personal Trading
 
-With Minitrade, you can set up a private and fully automated stock trading system for as low as $5/mo.
+**Minitrade** is a personal trading system that combines strategy backtesting and automated order execution. Leveraging the power of [Backtesting.py](https://github.com/kernc/backtesting.py), Minitrade offers an array of enhanced features:
+
+- **Multi-asset rebalancing strategy backtest**: Explore and optimize your trading strategies across various assets.
+- Automated strategy execution and order submission: Seamlessly execute your trading strategies and submit orders automatically.
+- Web-based management UI: Access a user-friendly web interface to manage and monitor your trading activities.
+- Streamlined mobile notifications and control: Stay informed and in control with mobile notifications for important trading events.
+
+With Minitrade, setting up your private and fully automated stock trading system is easy and affordable.
 
 ## Installation
 
     $ pip install minitrade
     $ minitrade init
 
-Minitrade requires `python=3.10.*`. Check out [Installation](install.md) for more details.
+Minitrade requires `python >= 3.10`. For detailed installation instructions, refer to the [Installation](https://dodid.github.io/minitrade/install/) section on the website.
 
 ## Usage
 
@@ -34,22 +40,19 @@ Minitrade requires `python=3.10.*`. Check out [Installation](install.md) for mor
 | -------------------------------------------------------------- |
 | ![Minitrade web UI - orders](<https://imgur.com/2DAZ2W1.png>)  |
 
+See more in [Documentation](https://dodid.github.io/minitrade/).
+
 ## Limitations
 
-As a backtesting framework:
-
-- Multi-asset strategy only supports long positions and market order. 
-
-As a trading system:
-
-- Tested only on Linux
-- Support only daily bar
-- Support only long positions
-- Support only Interactive Brokers
+Please be aware of the following limitations:
+- Multi-asset strategies currently support long positions and market orders only.
+- Minitrade has been tested on Linux platforms.
+- Daily bar data is currently supported.
+- Interactive Brokers is the supported broker.
 
 ## Contributing
 
-Check out [how to contribute](contributing.md).
+Check out the guidelines on [how to contribute](contributing.md) to the project.
 
 ## License
 
