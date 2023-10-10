@@ -112,14 +112,15 @@ def show_create_trade_plan_form() -> TradePlan | None:
     name = st.text_input('Name the trade plan')
     strict = st.radio('Select backtest mode', ['Strict', 'Incremental'], index=0) == 'Strict'
     st.info(
-        'In strict mode, repeated backtests are expected to produce the exact same result, and orders '
+        'In strict mode, repeated backtests are expected to produce identical results, and orders '
         'generated from backtests are expected to be executed successfully at all time. This attempts '
         'to trade a strategy as faithfully as possible. However, it may suffer from multiple external '
         'changes, e.g. data change due to dividend and stock split, failed order execution, etc., '
         'in which case, trading will fail to proceed, and manual intervention is required. '
         'In incremental mode, backtests will be run incrementally on the latest data only and in observation of the '
         'actual portfolio status. Strategies must be designed to run incrementally, i.e. not dependent on previous runs. '
-        'This mode is more robust to external changes, but performance may deviate from the original strategy')
+        'This mode is more robust to external changes, but performance may deviate from that of the original strategy. '
+        'See [Trading](https://dodid.github.io/minitrade/trading/) for more details.')
 
     tickers = ticker_resolver(account, ticker_css)
     dryrun = st.button('Save and dry run')
@@ -258,69 +259,85 @@ def show_trade_plan_execution_history(plan: TradePlan) -> None:
         account = BrokerAccount.get_account(plan)
         broker = account and Broker.get_broker(account)
         orders = plan.get_orders()
-        for order in orders:
-            trade = broker and broker.find_trades(order)
-            broker_order = broker and broker.find_order(order)
-            order_status = '✅' if trade else '🟢' if order.broker_order_id else '🚫'
-            with st.expander(f'{order_status} {order.signal_time} **{order.ticker} {order.side} {abs(order.size)}**'):
-                t1, t2, t3 = st.tabs(['Raw order', 'Broker order', 'Trade status'])
-                t1.dataframe(pd.DataFrame([asdict(order)]))
-                if broker_order:
-                    t2.dataframe(pd.DataFrame([broker_order]))
-                if trade:
-                    t3.dataframe(pd.DataFrame(trade))
-                    if account.broker == 'Manual':
-                        c1, c2, c3, c4 = t3.columns(4)
-                        price = c1.number_input('Price', key=f'{order.id}-price', value=trade[0]['price'] or 0.0)
-                        commission = c2.number_input(
-                            'Commission', key=f'{order.id}-comm', value=trade[0]['commission'] or 0.0)
-                        dt = c3.date_input('Trade time (market local timezone)',
-                                           key=f'{order.id}-date', value=trade[0]['trade_time'])
-                        tm = c4.time_input('Trade time', key=f'{order.id}-time',
-                                           value=trade[0]['trade_time'] or time(9, 30), label_visibility='hidden')
-                        if t3.button('Save', key=f'{order.id}-save'):
-                            broker.update_trade(trade[0]['id'], price, commission,
-                                                datetime.combine(dt, tm, ZoneInfo(plan.market_timezone)))
-                            st.warning('Click "Refresh" button to see change')
+        show_orders(plan, account, broker, orders)
 
     with tab3:
         if broker and logs:
-            try:
-                data = logs[0].data
-                trades = broker.format_trades(orders)
-                trade_start_date = datetime.strptime(
-                    plan.trade_start_date, '%Y-%m-%d').replace(tzinfo=ZoneInfo(plan.market_timezone))
-                offset = (data.index < trade_start_date).sum()
-                # calculate trade stats from trade_start_date
-                # data.index may have mixed timezone due to daylight saving time
-                trade_df, equity, pnl, commission_rate = calculate_trade_stats(
-                    data.iloc[offset:], plan.initial_cash, trades, plan.initial_holding)
-                if len(equity) > 0:
-                    c1, c2, c3, c4 = st.columns(4)
-                    c1.metric(
-                        label='Portfolio Value', value=f'{equity.iloc[-1]:,.0f}',
-                        delta=f'{int(equity.iloc[-1]-equity.iloc[-2]):,}' if len(equity) >= 2 else 0)
-                    c2.metric(label='PnL', value=f'{(equity.iloc[-1]-equity.iloc[0]):,.0f}')
-                    c4.metric(label='Commission Rate', value=f'{commission_rate:.3%}')
-                    rr = (equity / equity[0] - 1) * 100
-                    rr.name = 'Return rate (%)'
-                    c3.metric(label='Return', value=f'{rr.iloc[-1]:.2f}%')
-                    if len(rr) >= 2:
-                        st.caption('Return rate (%)')
-                        st.line_chart(rr, height=300)
-                    st.caption('Profit and loss')
-                    st.write(pnl.style.format('{:,.0f}', na_rep=' '))
-                    st.caption('Trades')
-                    st.write(trade_df.style.format(na_rep=' '))
-                else:
-                    st.write('No stats due to insufficient data')
-            except Exception as e:
-                st.write('No stats due to insufficient data')
-                with st.expander('Details'):
-                    st.write(e)
+            show_performance(plan, logs, broker, orders)
 
     with tab4:
         st.write(asdict(plan))
+
+
+def show_orders(plan, account, broker, orders):
+    for order in orders:
+        trade = broker and broker.find_trades(order)
+        broker_order = broker and broker.find_order(order)
+        order_status = '✅' if trade else '🟢' if order.broker_order_id else '🚫'
+        with st.expander(f'{order_status} {order.signal_time} **{order.ticker} {order.side} {abs(order.size)}**'):
+            t1, t2, t3 = st.tabs(['Raw order', 'Broker order', 'Trade status'])
+            t1.dataframe(pd.DataFrame([asdict(order)]))
+            if broker_order:
+                t2.dataframe(pd.DataFrame([broker_order]))
+            if trade:
+                t3.dataframe(pd.DataFrame(trade))
+                if account.broker == 'Manual':
+                    c1, c2, c3, c4 = t3.columns(4)
+                    price = c1.number_input('Price', key=f'{order.id}-price', value=trade[0]['price'] or 0.0)
+                    commission = c2.number_input(
+                        'Commission', key=f'{order.id}-comm', value=trade[0]['commission'] or 0.0)
+                    dt = c3.date_input('Trade time (market local timezone)',
+                                       key=f'{order.id}-date', value=trade[0]['trade_time'])
+                    tm = c4.time_input('Trade time', key=f'{order.id}-time',
+                                       value=trade[0]['trade_time'] or time(9, 30), label_visibility='hidden')
+                    if t3.button('Save', key=f'{order.id}-save'):
+                        broker.update_trade(trade[0]['id'], price, commission,
+                                            datetime.combine(dt, tm, ZoneInfo(plan.market_timezone)))
+                        st.warning('Click "Refresh" button to see change')
+
+
+def show_performance(plan, logs, broker, orders):
+    try:
+        data = logs[0].data
+        trades = broker.format_trades(orders)
+        trade_start_date = datetime.strptime(
+            plan.trade_start_date, '%Y-%m-%d').replace(tzinfo=ZoneInfo(plan.market_timezone))
+        offset = (data.index < trade_start_date).sum()
+        # calculate trade stats from trade_start_date
+        # data.index may have mixed timezone due to daylight saving time
+        trade_df, equity, pnl, commission_rate, cash_available = calculate_trade_stats(
+            data.iloc[offset:], plan.initial_cash, trades, plan.initial_holding)
+        if len(equity) > 0:
+            rr = equity.pct_change()
+            sharpe = rr.mean() / rr.std() * 252**0.5
+            cum_rr = (equity / equity.iloc[0] - 1) * 100
+            cum_rr.name = 'Return rate (%)'
+            c1, c2, c3, c4 = st.columns(4)
+            c1.metric(
+                label='Portfolio Value', value=f'{equity.iloc[-1]:,.0f}',
+                delta=f'{int(equity.iloc[-1]-equity.iloc[-2]):,}' if len(equity) >= 2 else 0)
+            c2.metric(label='PnL', value=f'{(equity.iloc[-1]-equity.iloc[0]):,.0f}',
+                      delta=f'{cum_rr.iloc[-1]:.2f}%')
+            c3.metric(label='Sharpe Ratio', value=f'{sharpe:.2f}')
+            c4.metric(label='Commission Rate', value=f'{commission_rate:.3%}')
+            if len(cum_rr) >= 2:
+                st.caption('Return Rate (%)')
+                st.line_chart(cum_rr, height=200)
+            st.caption('Profit and Loss')
+            st.write(pnl.style.format('{:,.0f}', na_rep=' '))
+            st.caption('Cash Available')
+            st.write(f'{int(cash_available):,}')
+            st.caption('Trades')
+            st.write(trade_df.style.format(na_rep=' '))
+            st.caption('Orders')
+            broker_orders = pd.DataFrame(trades)
+            broker_orders['entry_time'] = broker_orders['entry_time'].dt.tz_convert(plan.market_timezone)
+            broker_orders['value'] = (broker_orders['entry_price'] * broker_orders['size']).astype(int)
+            st.write(broker_orders)
+        else:
+            st.write('No stats due to insufficient data')
+    except Exception as e:
+        st.write('No stats due to insufficient data')
 
 
 action = st.sidebar.radio('Action', ['Browse existing', 'Create new'])

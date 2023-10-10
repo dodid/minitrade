@@ -40,6 +40,7 @@ See more in [Documentation](https://dodid.github.io/minitrade/).
 ## Limitations
 
 Please be aware of the following limitations:
+
 - Multi-asset strategies currently support long positions and market orders only.
 - Minitrade has been tested on Linux platforms.
 - Daily bar data is currently supported.
