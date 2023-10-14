@@ -23,7 +23,8 @@ class YahooQuoteSource(QuoteSource):
     def _daily_bar(self, ticker, start, end):
         # Push 1 day out to include "end" in final data
         end_1 = end and (datetime.strptime(end, '%Y-%m-%d') + timedelta(days=1)).strftime('%Y-%m-%d')
-        tk = yf.Ticker(ticker)
+        # Yahoo finance uses '-' instead of '.' in ticker symbol
+        tk = yf.Ticker(ticker.replace('.', '-'))
         df: pd.DataFrame = tk.history(start=start, end=end_1, interval='1d',
                                       auto_adjust=True, proxy=self.proxy, timeout=10)
         df = df[['Open', 'High', 'Low', 'Close', 'Volume']]
