@@ -7,6 +7,7 @@ from multiprocessing import Process
 from pathlib import Path
 from posixpath import expanduser
 
+import numpy as np
 import pandas as pd
 import pytest
 
@@ -110,6 +111,8 @@ def create_account():
 def create_strategies():
     st_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'strategy')
     for file in os.listdir(st_dir):
+        if not file.endswith('.py'):
+            continue
         with open(os.path.join(st_dir, file), 'r') as f:
             content = f.read()
         StrategyManager.save(file, content)

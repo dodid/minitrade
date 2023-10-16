@@ -1,6 +1,7 @@
 
 import asyncio
 import logging
+import sys
 
 import requests
 from telegram import Update
@@ -15,13 +16,14 @@ logging.getLogger("httpx").setLevel(logging.WARNING)
 
 def send_telegram_message(*text, html: str = '', silent: bool = False):
     '''Send message to Telegram`'''
-    url = f'http://{config.scheduler.host}:{config.scheduler.port}/messages'
-    resp = requests.request(method='POST', url=url, json={'text': '\n'.join(text)[
-                            :4096], 'html': html[:4096], 'silent': silent})  # Telegram message length limit
-    if resp.status_code == 200:
-        return resp.json()
-    elif resp.status_code >= 400:
-        raise RuntimeError(f'Sending messge failed: {resp.status_code} {resp.text}')
+    if 'pytest' not in sys.modules:
+        url = f'http://{config.scheduler.host}:{config.scheduler.port}/messages'
+        resp = requests.request(method='POST', url=url, json={'text': '\n'.join(text)[
+                                :4096], 'html': html[:4096], 'silent': silent})  # Telegram message length limit
+        if resp.status_code == 200:
+            return resp.json()
+        elif resp.status_code >= 400:
+            raise RuntimeError(f'Sending messge failed: {resp.status_code} {resp.text}')
 
 
 def send_ibgateway_challenge_response(code: str):

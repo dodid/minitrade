@@ -162,7 +162,7 @@ class MTDB:
             conn.execute(str(stmt))
 
     @staticmethod
-    def save(objects, tablename: str, *, on_conflict='error', whitelist=None):
+    def save(objects, tablename: str, *, on_conflict='error', whitelist=None, blacklist=None):
         '''Save objects to ddb'''
         if not isinstance(objects, list):
             objects = [objects]
@@ -174,6 +174,8 @@ class MTDB:
                 if diff:
                     logger.warning(f'Unknonw attributes {diff} detected in {data}, not saved to {tablename}')
                 data = whitelisted
+            if blacklist:
+                data = {k: v for k, v in data.items() if k not in blacklist}
             data = {k: serialize_to_db(v) for k, v in data.items()}
             table = Table(tablename)
             if on_conflict == 'error':

@@ -9,12 +9,14 @@ import os
 import subprocess
 import sys
 import traceback
+from copy import deepcopy
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from posixpath import expanduser
 from typing import Any
 from zoneinfo import ZoneInfo
 
+import dill
 import numpy as np
 import pandas as pd
 import pandas_market_calendars as mcal
@@ -60,6 +62,8 @@ class TradePlan:
     - which broker account should orders be submitted through 
     - how much initial cash should be invested
     '''
+
+    __storage_root = expanduser('~/.minitrade/storage')
 
     id: str
     '''TradePlan ID'''
@@ -123,6 +127,9 @@ class TradePlan:
     '''A json string encoding a dict mapping from generic tickers to broker
     specific instrument IDs'''
 
+    storage: dict | None = None
+    '''A dict to store custom data from backtest runs'''
+
     def broker_instrument_id(self, ticker: str) -> Any:
         '''Get broker instrument ID corresponding to a generic `ticker`.
 
@@ -141,7 +148,10 @@ class TradePlan:
         Returns:
             A list of zero or more trade plans
         '''
-        return MTDB.get_all('TradePlan', orderby='name', cls=TradePlan)
+        plans = MTDB.get_all('TradePlan', orderby='name', cls=TradePlan)
+        for plan in plans:
+            plan.load_storage()
+        return plans
 
     @staticmethod
     def get_plan(plan_id_or_name: str) -> TradePlan:
@@ -153,9 +163,11 @@ class TradePlan:
         Returns:
             Trade plan if found or None
         '''
-        return MTDB.get_one(
-            'TradePlan', 'id', plan_id_or_name, cls=TradePlan) or MTDB.get_one(
-            'TradePlan', 'name', plan_id_or_name, cls=TradePlan)
+        plan: TradePlan = (MTDB.get_one('TradePlan', 'id', plan_id_or_name, cls=TradePlan)
+                           or MTDB.get_one('TradePlan', 'name', plan_id_or_name, cls=TradePlan))
+        if plan:
+            plan.load_storage()
+        return plan
 
     def __call_scheduler(self, method: str, path: str, params: dict | None = None) -> Any:
         url = f'http://{config.scheduler.host}:{config.scheduler.port}{path}'
@@ -189,13 +201,17 @@ class TradePlan:
 
         Fail if plan ID or plan name already exists.
         '''
-        MTDB.save(self, 'TradePlan')
+        MTDB.save(self, 'TradePlan', blacklist=['storage'], on_conflict='update')
         self.__call_scheduler('PUT', f'/jobs/{self.id}')
 
     def delete(self) -> None:
         '''Unschedule a trade plan and delete it from database.
         '''
         MTDB.delete('TradePlan', 'id', self.id)
+        try:
+            os.remove(os.path.join(TradePlan.__storage_root, f'{self.id}.pkl'))
+        except FileNotFoundError:
+            pass
         self.__call_scheduler('DELETE', f'/jobs/{self.id}')
 
     def get_orders(self, run_id: str = None) -> list[RawOrder]:
@@ -242,6 +258,21 @@ class TradePlan:
             Backtest log, or None if not found
         '''
         return MTDB.get_one('BacktestLog', 'id', run_id, cls=BacktestLog)
+
+    def load_storage(self):
+        '''Load storage from file.'''
+        pklfile = os.path.join(TradePlan.__storage_root, f'{self.id}.pkl')
+        if os.path.exists(pklfile):
+            with open(pklfile, 'rb') as storage_file:
+                self.storage = dill.load(storage_file)
+        else:
+            self.storage = {}
+
+    def save_storage(self):
+        '''Save storage to file.'''
+        pklfile = os.path.join(TradePlan.__storage_root, f'{self.id}.pkl')
+        with open(pklfile, 'wb') as storage_file:
+            dill.dump(self.storage or {}, storage_file)
 
 
 def entry_strategy(strategy):
@@ -516,7 +547,7 @@ class BacktestRunner:
             bt = Backtest(**params)
             params.pop('strategy')
             params.pop('data')
-            self.params = params
+            self.params = deepcopy(params)
             return bt
 
         def _get_trade_start_date():
@@ -578,10 +609,12 @@ class BacktestRunner:
                                              commission=self.plan.commission_rate,
                                              trade_on_close=self.plan.entry_type == 'TOC',
                                              trade_start_date=trade_start,
+                                             storage=self.plan.storage,
                                              **kwargs)
                 self.result = bt.run()
-            if self.result is not None and not dryrun and self.plan.broker_account is not None:
+            if self.result is not None and not dryrun:
                 self._record_orders(ignore_run_id=self.plan.strict)
+                self.plan.save_storage()
             return self.result
         except Exception:
             exception = traceback.format_exc()

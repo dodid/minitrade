@@ -270,6 +270,7 @@ def ib_diagnose():
     items = [
         '~/.minitrade',
         '~/.minitrade/strategy',
+        '~/.minitrade/storage',
         '~/.minitrade/ibgateway',
         '~/.minitrade/config.yaml',
         '~/.minitrade/database/minitrade.db',
@@ -339,9 +340,8 @@ def init():
 
     # init dirs
     click.secho(f'Setting up directories...')
-    os.makedirs(os.path.join(minitrade_root, 'database'), mode=0o700, exist_ok=True)
-    os.makedirs(os.path.join(minitrade_root, 'strategy'), mode=0o700, exist_ok=True)
-    os.makedirs(os.path.join(minitrade_root, 'ibgateway'), mode=0o700, exist_ok=True)
+    for d in ['database', 'strategy', 'storage', 'ibgateway']:
+        os.makedirs(os.path.join(minitrade_root, d), mode=0o700, exist_ok=True)
     # init config
     from minitrade.utils.config import GlobalConfig
     GlobalConfig().save()

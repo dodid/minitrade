@@ -55,7 +55,7 @@ class ManualBroker(Broker):
             return None
 
     def download_trades(self) -> pd.DataFrame | None:
-        trades = MTDB.get_all('ManualTrade', orderby=('submit_time', False), limit=10, cls=dict)
+        trades = MTDB.get_all('ManualTrade', orderby=('submit_time', False), cls=dict)
         return pd.DataFrame(trades) if trades else None
 
     def download_orders(self) -> pd.DataFrame | None:

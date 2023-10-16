@@ -114,7 +114,7 @@ def test_create_ib_broker_account(clean_db):
     assert BrokerAccount.get_account('pytest_ib_account') == account
 
 
-def test_ib_order_validator():
+def test_ib_order_validator(launch_scheduler):
     account = BrokerAccount.get_account('pytest_ib_account')
     broker = Broker.get_broker(account=account)
     plan = TradePlan(
@@ -138,7 +138,7 @@ def test_ib_order_validator():
         update_time=None,
         broker_ticker_map={'AAPL': 265598}
     )
-    MTDB.save(plan, 'TradePlan')
+    plan.save()
     validator = InteractiveBrokersValidator(plan, broker, pytest_now=datetime(
         2023, 1, 3, 18, 0, tzinfo=ZoneInfo(plan.market_timezone)))
     order = RawOrder(id='invalid', plan_id='invalid', run_id='invalid', ticker='invalid', side='invalid',
@@ -198,6 +198,9 @@ def test_ib_broker_works(launch_scheduler, launch_ibgateway):
         assert False, f'Broker not connected'
     assert broker.is_ready() == True
     try:
+        broker_ticker_map = broker.resolve_tickers('AAPL,GOOG,META')
+        broker_ticker_map = {k: v[0]['id'] for k, v in broker_ticker_map.items()}
+        assert broker_ticker_map == {'AAPL': 265598, 'GOOG': 208813720, 'META': 107113386}
         broker.get_account_info()
         broker.get_portfolio()
         broker.download_trades()

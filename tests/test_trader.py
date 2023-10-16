@@ -1,119 +1,189 @@
 from .fixture import *
 
 
-def test_create_tradeplan_using_manual_broker(
-        clean_db,
-        create_strategies,
-        launch_scheduler
-):
-    assert StrategyManager.load('rotate_buying.py') is not None
-    ticker_css = 'AAPL,GOOG,META'
-    market_timezone = 'America/New_York'
-    account = BrokerAccount.get_account('Manual')
-    broker = Broker.get_broker(account=account)
-    broker.connect()
-    assert broker.is_ready() == True
-    broker_ticker_map = broker.resolve_tickers(ticker_css)
-    broker_ticker_map = {k: v[0]['id'] for k, v in broker_ticker_map.items()}
-    assert broker_ticker_map == {'AAPL': 'AAPL', 'GOOG': 'GOOG', 'META': 'META'}
-
-    # create plan
+def test_invalid_plan(clean_db, create_strategies, launch_scheduler):
     plan = TradePlan(
         id=MTDB.uniqueid(),
-        name='pytest_manual_tradeplan',
-        strategy_file='rotate_buying.py',
+        name='pytest_run_backtest',
+        strategy_file='invalid_strategy.py',
         ticker_css='AAPL,GOOG,META',
         market_calendar='NASDAQ',
-        market_timezone=market_timezone,
+        market_timezone='America/New_York',
         data_source='Yahoo',
         backtest_start_date='2023-01-01',
         trade_start_date='2023-01-01',
         trade_time_of_day='20:30:00',
         entry_type='TOO',
-        broker_account=account.alias,
+        broker_account='Manual',
         initial_cash=10000,
-        enabled=False,
+        enabled=True,
+        strict=False,
         create_time=datetime.utcnow(),
         update_time=None,
-        broker_ticker_map=broker_ticker_map
+        broker_ticker_map={'AAPL': 'AAPL', 'GOOG': 'GOOG', 'META': 'META'}
     )
     plan.save()
-    assert TradePlan.get_plan('pytest_manual_tradeplan') == plan
-
-
-def test_manual_trade():
-    trader = Trader()
-    trader.execute()
-
-
-def test_run_backtest_using_manual_broker():
-    plan = TradePlan.get_plan('pytest_manual_tradeplan')
     runner = BacktestRunner(plan)
-    try:
-        run_id = MTDB.uniqueid()
-        runner.run_backtest(run_id, fail_fast=False)
-        log = plan.get_log(run_id)
-    except Exception:
-        assert False, 'Running backtest failed'
-    assert log.error == False
-    assert len(plan.get_orders()) > 0
+
+    # Test invalid plan
+    result = runner.run_backtest()
+    assert result is None
 
 
-def test_create_tradeplan_using_ib_broker(
-        clean_db,
-        create_account,
-        create_strategies,
-        launch_scheduler,
-        launch_ibgateway
-):
-    assert StrategyManager.load('rotate_buying.py') is not None
-    ticker_css = 'AAPL,GOOG,META'
-    market_timezone = 'America/New_York'
-    account = BrokerAccount.get_account('pytest_ib_account')
-    broker = Broker.get_broker(account=account)
-    broker.connect()
-    assert broker.is_ready() == True
-    broker_ticker_map = broker.resolve_tickers(ticker_css)
-    broker_ticker_map = {k: v[0]['id'] for k, v in broker_ticker_map.items()}
-    assert broker_ticker_map == {'AAPL': 265598, 'GOOG': 208813720, 'META': 107113386}
-
-    # create plan
+def test_run_backtest_strict(clean_db, create_strategies, launch_scheduler):
     plan = TradePlan(
         id=MTDB.uniqueid(),
-        name='pytest_ib_tradeplan',
+        name='pytest_run_backtest',
         strategy_file='rotate_buying.py',
         ticker_css='AAPL,GOOG,META',
         market_calendar='NASDAQ',
-        market_timezone=market_timezone,
+        market_timezone='America/New_York',
         data_source='Yahoo',
         backtest_start_date='2023-01-01',
         trade_start_date='2023-01-01',
         trade_time_of_day='20:30:00',
-        entry_type='TOO',
-        broker_account=account.alias,
+        entry_type='TRG',
+        broker_account='Manual',
         initial_cash=10000,
-        enabled=False,
+        enabled=True,
+        strict=True,
         create_time=datetime.utcnow(),
         update_time=None,
-        broker_ticker_map=broker_ticker_map
+        broker_ticker_map={'AAPL': 'AAPL', 'GOOG': 'GOOG', 'META': 'META'}
     )
     plan.save()
-    assert TradePlan.get_plan('pytest_ib_tradeplan') == plan
 
-
-def test_run_backtest_using_ib_broker():
-    plan = TradePlan.get_plan('pytest_ib_tradeplan')
     runner = BacktestRunner(plan)
-    try:
-        run_id = MTDB.uniqueid()
-        runner.run_backtest(run_id, fail_fast=False)
-        log = plan.get_log(run_id)
-    except Exception:
-        assert False, 'Running backtest failed'
-    assert log.error == False
-    assert len(plan.get_orders()) > 0
+
+    # Test dryrun mode
+    run_id = MTDB.uniqueid()
+    assert runner.run_backtest(run_id=run_id, dryrun=True) is not None
+    assert plan.get_log(run_id).error == False
+    assert not plan.get_orders()
+
+    # Test strict mode
+    run_id = MTDB.uniqueid()
+    assert runner.run_backtest(run_id=run_id) is not None
+    assert plan.get_log(run_id).error == False
+    assert len(plan.get_orders(run_id=run_id)) > 0
+
+    # Test runs are repeatable in strict mode
+    run_id = MTDB.uniqueid()
+    assert runner.run_backtest(run_id=run_id) is not None
+    assert plan.get_log(run_id).error == False
+    assert len(plan.get_orders(run_id=run_id)) == 0
+
+    # Test submit orders
+    broker = Broker.get_broker(BrokerAccount.get_account(plan.broker_account))
+    assert broker.is_ready()
+    assert broker.get_account_info()
+    assert not broker.get_portfolio()
+    assert not broker.download_trades()
+    assert not broker.download_orders()
+    Trader().execute()
+    assert len(broker.download_trades()) == len(plan.get_orders())
 
 
-def test_ib_trade(launch_ibgateway):
-    trader = Trader()
-    trader.execute()
+def test_run_backtest_incremental(clean_db, create_strategies, launch_scheduler):
+    plan = TradePlan(
+        id=MTDB.uniqueid(),
+        name='pytest_run_backtest',
+        strategy_file='rotate_buying.py',
+        ticker_css='AAPL,GOOG,META',
+        market_calendar='NASDAQ',
+        market_timezone='America/New_York',
+        data_source='Yahoo',
+        backtest_start_date='2023-01-01',
+        trade_start_date='2023-01-01',
+        trade_time_of_day='20:30:00',
+        entry_type='TRG',
+        broker_account='Manual',
+        initial_cash=10000,
+        enabled=True,
+        strict=False,
+        create_time=datetime.utcnow(),
+        update_time=None,
+        broker_ticker_map={'AAPL': 'AAPL', 'GOOG': 'GOOG', 'META': 'META'}
+    )
+    plan.save()
+
+    runner = BacktestRunner(plan)
+
+    # Test dryrun mode
+    run_id = MTDB.uniqueid()
+    assert runner.run_backtest(run_id=run_id, dryrun=True) is not None
+    assert plan.get_log(run_id).error == False
+    assert not plan.get_orders()
+
+    # Test incremental mode
+    run_id = MTDB.uniqueid()
+    assert runner.run_backtest(run_id=run_id) is not None
+    assert plan.get_log(run_id).error == False
+    assert len(plan.get_orders(run_id=run_id)) == 1
+    prev_run_id = run_id
+
+    # Test runs are incremental
+    run_id = MTDB.uniqueid()
+    assert runner.run_backtest(run_id=run_id) is not None
+    assert plan.get_log(run_id).error == False
+    assert len(plan.get_orders(run_id=run_id)) == 1
+    assert plan.get_orders(run_id=prev_run_id)[0].cancelled == True
+
+    # Test submit orders
+    broker = Broker.get_broker(BrokerAccount.get_account(plan.broker_account))
+    Trader().execute()
+    assert len(broker.download_trades()) == 1
+
+
+def test_backtest_storage(clean_db, create_strategies, launch_scheduler):
+    plan = TradePlan(
+        id=MTDB.uniqueid(),
+        name='pytest_run_backtest',
+        strategy_file='storage_test.py',
+        ticker_css='AAPL,GOOG,META',
+        market_calendar='NASDAQ',
+        market_timezone='America/New_York',
+        data_source='Yahoo',
+        backtest_start_date='2023-01-01',
+        trade_start_date='2023-01-01',
+        trade_time_of_day='20:30:00',
+        entry_type='TRG',
+        broker_account='Manual',
+        initial_cash=10000,
+        enabled=True,
+        strict=False,
+        create_time=datetime.utcnow(),
+        update_time=None,
+        broker_ticker_map={'AAPL': 'AAPL', 'GOOG': 'GOOG', 'META': 'META'}
+    )
+    plan.save()
+
+    plan = TradePlan.get_plan(plan.name)
+    assert isinstance(plan.storage, dict)
+    assert len(plan.storage) == 0
+
+    # Dryrun mode doesn't change storage
+    assert BacktestRunner(TradePlan.get_plan(plan.name)).run_backtest(dryrun=True) is not None
+    assert len(TradePlan.get_plan(plan.name).storage) == 0
+
+    # Storage is initialized correctly
+    assert BacktestRunner(TradePlan.get_plan(plan.name)).run_backtest() is not None
+    storage = TradePlan.get_plan(plan.name).storage
+    assert storage['int'] == 0
+    assert storage['float'] == 0.0
+    assert storage['str'] == '0'
+    assert storage['list'] == [0]
+    assert storage['dict'] == {'int': 0}
+    assert np.array_equal(storage['np'], np.array([0]))
+    assert storage['pd'].equals(pd.DataFrame({'int': [0]}))
+
+    # Storage is updated correctly
+    assert BacktestRunner(TradePlan.get_plan(plan.name)).run_backtest() is not None
+    storage = TradePlan.get_plan(plan.name).storage
+    assert storage['int'] == 1
+    assert storage['float'] == 1.0
+    assert storage['str'] == '1'
+    assert storage['list'] == [1]
+    assert storage['dict'] == {'int': 1}
+    assert np.array_equal(storage['np'], np.array([1]))
+    assert storage['pd'].equals(pd.DataFrame({'int': [1]}))

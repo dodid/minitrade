@@ -461,6 +461,21 @@ class Strategy(ABC):
         """
         return self._data
 
+    @property
+    def storage(self) -> dict | None:
+        """Storage is a dictionary for saving custom data across backtest runs
+        when used in the context of automated trading in incremental mode. 
+
+        If backtest finishes successfully, any modification to the dictionary 
+        is persisted and can be accessed in future runs. If backtest fails due 
+        to any error, the modification is not saved. If backtest runs in dryrun 
+        mode, the modification is not saved.
+
+        No storage is provided when trading in "strict" mode, in which case `storage` 
+        is None. 
+        """
+        return self._broker._storage
+
     def position(self, ticker: str = None) -> 'Position':
         """Instance of `minitrade.backtest.core.backtesting.Position`.
 
@@ -916,7 +931,7 @@ class Trade:
 
 class _Broker:
     def __init__(self, *, data: _Data, cash, holding, commission, margin, trade_on_close, hedging, exclusive_orders,
-                 trade_start_date, lot_size, fail_fast):
+                 trade_start_date, lot_size, fail_fast, storage):
         assert 0 < cash, f"cash should be >0, is {cash}"
         assert -.1 <= commission < .1, \
             ("commission should be between -10% "
@@ -933,6 +948,7 @@ class _Broker:
         self._trade_start_date = trade_start_date   # datetime with no tz
         self._lot_size = lot_size
         self._fail_fast = fail_fast
+        self._storage = storage
 
         self._equity = np.tile(np.nan, (len(data.index), len(data.tickers)+2))
         self.orders: List[Order] = []
@@ -1352,6 +1368,7 @@ class Backtest:
                  trade_start_date=None,
                  lot_size=1,
                  fail_fast=True,
+                 storage: dict | None = None,
                  ):
         """
         Initialize a backtest. Requires data and a strategy to test.
@@ -1415,6 +1432,10 @@ class Backtest:
         to detect issues early. If False, backtesting will ignore the order and 
         continue, which can be convenient during algorithm research.
 
+        `storage`, when not None, is a dictionary that contains saved states from 
+        past runs. Modification to storage is persisted and can be made available 
+        for future runs. 
+
         [FIFO]: https://www.investopedia.com/terms/n/nfa-compliance-rule-2-43b.asp
         """
 
@@ -1470,7 +1491,7 @@ class Backtest:
             trade_on_close=trade_on_close, hedging=hedging,
             exclusive_orders=exclusive_orders,
             trade_start_date=datetime.strptime(trade_start_date, '%Y-%m-%d') if trade_start_date else None,
-            lot_size=lot_size, fail_fast=fail_fast
+            lot_size=lot_size, fail_fast=fail_fast, storage=storage,
         )
         self._strategy = strategy
         self._results: Optional[pd.Series] = None
