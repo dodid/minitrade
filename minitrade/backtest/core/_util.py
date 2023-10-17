@@ -78,6 +78,10 @@ class _Array(np.ndarray):
         else:
             raise ValueError(f'Value is not a pd.Series. Shape {self.df.shape}')
 
+    @staticmethod
+    def lazy_indexing(df, idx):
+        return df.iloc[:idx]
+
 
 class _Indicator(_Array):
     pass

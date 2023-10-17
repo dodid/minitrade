@@ -1579,7 +1579,9 @@ class Backtest:
                 data._set_length(i + 1)
                 for attr, indicator in indicator_attrs_np.items():
                     setattr(strategy, attr,
-                            _Indicator(array=indicator[: i + 1], df=lambda: indicator_attrs[attr].iloc[: i + 1]))
+                            _Indicator(
+                                array=indicator[: i + 1],
+                                df=partial(_Indicator.lazy_indexing, indicator_attrs[attr], i + 1)))
 
                 # Handle orders processing and broker stuff
                 try:
