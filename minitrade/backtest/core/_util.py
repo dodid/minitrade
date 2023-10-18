@@ -47,6 +47,8 @@ class _Array(np.ndarray):
     """Array with a corresponding DataFrame/Series attachment."""
 
     def __new__(cls, array, df: Union[Callable, pd.DataFrame, pd.Series]):
+        if not callable(df) and not isinstance(df, (pd.DataFrame, pd.Series)):
+            raise ValueError(f'df must be callable or pd.DataFrame/pd.Series. Got {type(df)}')
         obj = np.asarray(array).view(cls)
         obj.__df = df
         return obj
@@ -64,6 +66,9 @@ class _Array(np.ndarray):
     def __setstate__(self, state):
         self.__dict__.update(state[-1])
         super().__setstate__(state[:-1])
+
+    def __repr__(self) -> str:
+        return super().__repr__() + f'\nwith df:\n{self.__df}'
 
     @property
     def df(self) -> Union[pd.DataFrame, pd.Series]:
@@ -223,18 +228,32 @@ except AttributeError:
     pass
 
 
+class PicklableAnalysisIndicators(AnalysisIndicators):
+    def __getstate__(self):
+        return self.__dict__.copy()
+
+    def __setstate__(self, state):
+        self.__dict__.update(state)
+
+
 @pd.api.extensions.register_dataframe_accessor("ta")
 class _TA:
+    def __getstate__(self):
+        return self.__dict__.copy()
+
+    def __setstate__(self, state):
+        self.__dict__.update(state)
+
     def __init__(self, df: pd.DataFrame):
         if df.empty:
             return
         self.__df = df
         if self.__df.columns.nlevels == 2:
             self.__tickers = list(self.__df.columns.levels[0])
-            self.__indicators = {ticker: AnalysisIndicators(df[ticker]) for ticker in self.__tickers}
+            self.__indicators = {ticker: PicklableAnalysisIndicators(df[ticker]) for ticker in self.__tickers}
         elif self.__df.columns.nlevels == 1:
             self.__tickers = []
-            self.__indicator = AnalysisIndicators(df)
+            self.__indicator = PicklableAnalysisIndicators(df)
         else:
             raise AttributeError(
                 f'df.columns can have at most 2 levels, got {self.__df.columns.nlevels}')
@@ -259,3 +278,11 @@ class _TA:
             return pd.concat(dir_, axis=1)
         else:
             return func(self.__df, *args, **kwargs)
+
+    def join(self, df, lsuffix='', rsuffix=''):
+        if self.__tickers:
+            dir_ = {ticker: self.__df[ticker].join(df[ticker], lsuffix=lsuffix, rsuffix=rsuffix)
+                    for ticker in self.__tickers}
+            return pd.concat(dir_, axis=1)
+        else:
+            return self.__df.join(df, lsuffix=lsuffix, rsuffix=rsuffix)

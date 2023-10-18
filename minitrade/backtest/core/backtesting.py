@@ -288,6 +288,7 @@ class Strategy(ABC):
                     f' `data` (data shape: {len(self._data)}; indicator shape: {len(value)}.\n'
                     f'`data` index: {self._data.index}\n'
                     f'Indicator index: {value.index}\n')
+            value = value.copy()
         else:
             if value is not None:
                 value = try_(lambda: np.asarray(value, order='C'), None)
@@ -1466,6 +1467,8 @@ class Backtest:
         if not set(data.columns.levels[1]).issuperset(set(['Open', 'High', 'Low', 'Close', 'Volume'])):
             raise ValueError("`data` must be a pandas.DataFrame containing columns "
                              "'Open', 'High', 'Low', 'Close', and 'Volume'")
+        if len(data) == 0:
+            raise ValueError("`data` cannot be empty")
         if data.isnull().values.any():
             raise ValueError('Some OHLC values are missing (NaN). '
                              'Please strip those lines with `df.dropna()` or '
@@ -1495,6 +1498,14 @@ class Backtest:
         )
         self._strategy = strategy
         self._results: Optional[pd.Series] = None
+
+        # equal weighed average, as if buy and hold an equal weighed portfolio
+        weights = 1 / self._data.xs('Close', axis=1, level=1).iloc[0]
+        weighted_data = self._data.copy()
+        for ticker in weights.index:
+            weighted_data[ticker] = weighted_data[ticker] * weights[ticker]
+        weighted_data = weighted_data.T.groupby(level=1).agg('sum').T / weights.sum()
+        self._ohlc_ref_data = weighted_data
 
     def run(self, **kwargs) -> pd.Series:
         """
@@ -1609,14 +1620,6 @@ class Backtest:
 
             equity = pd.DataFrame(broker._equity, index=data.index,
                                   columns=['Equity', *data.tickers, 'Margin']).bfill().fillna(broker._cash)
-
-            # equal weighed average, as if buy and hold an equal weighed portfolio
-            weights = 1 / self._data.xs('Close', axis=1, level=1).iloc[0]
-            weighted_data = self._data.copy()
-            for ticker in weights.index:
-                weighted_data[ticker] = weighted_data[ticker] * weights[ticker]
-            weighted_data = weighted_data.T.groupby(level=1).agg('sum').T / weights.sum()
-            self._ohlc_ref_data = weighted_data
 
             self._results = compute_stats(
                 orders=processed_orders,

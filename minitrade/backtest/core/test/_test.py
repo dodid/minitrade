@@ -1,5 +1,6 @@
 import inspect
 import os
+import pickle
 import sys
 import time
 import unittest
@@ -920,13 +921,43 @@ class TestUtil(TestCase):
 
         Backtest(GOOG.iloc[:20], S).run()
 
-    @unittest.skip("not pickleable")
     def test_indicators_picklable(self):
         bt = Backtest(SHORT_DATA, SmaCross)
         with ProcessPoolExecutor() as executor:
             stats = executor.submit(Backtest.run, bt).result()
         assert stats._strategy._indicators[0].attrs, '.attrs were not unpickled'
         bt.plot(results=stats, resample='2d', open_browser=False)
+
+    def test_array_creation(self):
+        df = pd.DataFrame({'a': [1, 2, 3], 'b': [4, 5, 6]})
+        arr = df.to_numpy()
+        a = _Array(arr, df)
+        assert isinstance(a, np.ndarray)
+        assert isinstance(a, _Array)
+        assert np.array_equal(a, arr)
+        assert a.df.equals(df)
+        with self.assertRaises(ValueError):
+            b = _Array(arr, None)
+        with self.assertRaises(ValueError):
+            b = _Array(arr, 1)
+
+    def test_array_pickling(self):
+        df = pd.DataFrame({'a': [1, 2, 3], 'b': [4, 5, 6]})
+        arr = df.to_numpy()
+        a = _Array(arr, df)
+        pickled = pickle.dumps(a)
+        unpickled = pickle.loads(pickled)
+        assert isinstance(unpickled, np.ndarray)
+        assert isinstance(unpickled, _Array)
+        assert np.array_equal(unpickled, arr)
+        assert unpickled.df.equals(df)
+
+    def test_array_lazy_indexing(self):
+        df = pd.DataFrame({'a': [1, 2, 3], 'b': [4, 5, 6]})
+        arr = df.to_numpy()
+        def func(x=df): return x
+        a = _Array(arr, func)
+        assert a.df.iloc[:2].equals(pd.DataFrame({'a': [1, 2], 'b': [4, 5]}))
 
 
 class TestDocs(TestCase):

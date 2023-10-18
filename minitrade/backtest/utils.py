@@ -42,6 +42,7 @@ __all__ = [
     'plot_heatmap',
     'calculate_positions',
     'calculate_trade_stats',
+    'shuffle_ohlcv',
 ]
 
 
@@ -221,7 +222,7 @@ def calculate_trade_stats(data: pd.DataFrame, cash: int, orders: list[dict], hol
             # Handle the preexisting assets as if they are bought at the first bar
             open_orders.append(
                 {'ticker': ticker, 'entry_bar': 0, 'entry_time': data.index[0],
-                 'size': size, 'entry_price': close_prices[ticker][0], 'commission': 0})
+                 'size': size, 'entry_price': close_prices[ticker].iloc[0], 'commission': 0})
     trades = []
     if orders:
         order_df = pd.DataFrame(orders)
@@ -283,6 +284,7 @@ def calculate_trade_stats(data: pd.DataFrame, cash: int, orders: list[dict], hol
             positions = (positions + pd.Series(holding)).fillna(0)
         position_value = positions.dot(close_prices.iloc[i])
         equity.iloc[i] = cash + position_value - cost - commission
+    cash_available = cash + order_df['size'].dot(order_df['entry_price']) - order_df['commission'].sum()
 
     # calculate ticker performance
     position_size = trade_df[trade_df['exit_time'].isna()].groupby('ticker')['size'].sum().rename('Position Size')
@@ -296,4 +298,32 @@ def calculate_trade_stats(data: pd.DataFrame, cash: int, orders: list[dict], hol
     trade_value = order_df['size'].abs().dot(order_df['entry_price'])
     commission_rate = commission / trade_value if trade_value else 0
 
-    return trade_df, equity, pnl, commission_rate
+    return trade_df, equity, pnl, commission_rate, cash_available
+
+
+def shuffle_ohlcv(data: pd.DataFrame, in_sync: bool = False, random_state: int = None):
+    '''
+    Generate shuffled OHLCV time-series with the same statistics as the original.
+    '''
+    def to_rr(df):
+        rr = df[['Open', 'High', 'Low', 'Close']].div(df['Close'], axis=0) - 1
+        rr['Close'] = df['Close'].pct_change().fillna(0)
+        rr['Volume'] = df['Volume']
+        return rr
+
+    def to_ohlcv(df):
+        df = df.copy()
+        df['Close'] = (df['Close_rr'] + 1).cumprod() * df['Close'][0]
+        df[['Open', 'High', 'Low']] = (df[['Open_rr', 'High_rr', 'Low_rr']]+1).mul(df['Close'], axis=0)
+        df['Volume'] = df['Volume_rr']
+        return df[['Open', 'High', 'Low', 'Close', 'Volume']]
+
+    rr = data.ta.apply(to_rr)
+    if in_sync:
+        rr.iloc[1:] = rr.iloc[1:].sample(frac=1, random_state=random_state, ignore_index=True)
+    else:
+        rr.iloc[1:] = rr.iloc[1:].ta.apply(lambda x: x.sample(frac=1, ignore_index=True, random_state=random_state))
+    rr.index = data.index
+
+    df = data.ta.join(rr, rsuffix='_rr').ta.apply(to_ohlcv)
+    return df
