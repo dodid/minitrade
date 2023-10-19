@@ -36,7 +36,7 @@ def populate_test_tickers():
 def clean_db():
     '''Recreate all tables in minitrade.pytest.db'''
     db_loc = expanduser('~/.minitrade/database/minitrade.pytest.db')
-    sql = pkgutil.get_data('minitrade.cli', 'minitrade.db.sql').decode('utf-8')
+    sql = pkgutil.get_data('minitrade.cli', 'trader/schema/consolidated.sql').decode('utf-8')
     with sqlite3.connect(db_loc) as conn:
         conn.executescript(sql)
     conn.close()

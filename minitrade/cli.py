@@ -361,7 +361,8 @@ def build_db_schema(minitrade_root):
     click.secho(f'Setting up database...')
     db_loc = os.path.join(minitrade_root, 'database/minitrade.db')
     sqlfiles = [f for f in os.listdir(os.path.join(os.path.dirname(__file__), 'trader/schema')) if f.endswith('.sql')]
-    sqlversions = [tuple(int(_) for _ in f.removesuffix('.sql').split('.')) for f in sqlfiles]
+    sqlversions = [tuple(int(_) for _ in f.removesuffix('.sql').split('.'))
+                   for f in sqlfiles if f != 'consolidated.sql']
     # read schema version from db
     try:
         with closing(sqlite3.connect(db_loc)) as conn:
