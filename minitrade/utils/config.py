@@ -4,13 +4,14 @@ Note all config items should have default values so that an initial configuratio
 be generated on installation.
 """
 
-import logging
 import os
 import sys
 from posixpath import expanduser
 
 import yaml
 from pydantic import BaseModel
+
+minitrade_root = expanduser('~/.minitrade')
 
 
 class SourceConfigYahoo(BaseModel):
@@ -77,6 +78,15 @@ class GlobalConfig(BaseModel):
         ''' Save minitrade configuration '''
         with open(expanduser(config_yaml), 'w') as f:
             f.write(yaml.safe_dump(self.model_dump()))
+
+    @staticmethod
+    def upgrade():
+        ''' Upgrade configuration file '''
+        try:
+            config = GlobalConfig.load()
+        except Exception:
+            config = GlobalConfig()
+        config.save()
 
 
 if 'pytest' not in sys.modules:

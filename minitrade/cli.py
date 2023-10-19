@@ -7,6 +7,7 @@ import sqlite3
 import subprocess
 import sys
 import time
+from contextlib import closing
 from multiprocessing import Process
 from pathlib import Path
 from posixpath import expanduser
@@ -316,46 +317,73 @@ def ib_diagnose():
 
 
 @mtcli.command()
-def init():
+@click.option('-y', '--yes', is_flag=True, help='Don\'t ask for confirmation of inplace upgrade')
+def init(yes):
     '''Initialize Minitrade'''
-    if platform.system() == 'Linux':
-        click.secho('Checking prerequisites:')
-        prerequisites = [
-            check_program_version('java'),
-            check_program_version('google-chrome'),
-            check_selenium()
-        ]
-        if not all(prerequisites):
-            click.secho('Please install the required dependencies.', fg='red')
-            sys.exit(1)
+    from importlib.metadata import version
 
-    minitrade_root = expanduser('~/.minitrade')
-    if os.path.exists(minitrade_root):
+    from minitrade.utils.config import minitrade_root
+
+    check_prerequisites()
+
+    if os.path.exists(minitrade_root) and not yes:
         click.secho(
-            f'Warning: Minitrade is already initialized in {minitrade_root}. '
-            'Please backup your data before proceeding. '
-            'You will lose all existing strategies and trading history if you continue.',
-            fg='red')
+            f'Minitrade is already installed in {minitrade_root}. '
+            f'This will update the installation to version {version("minitrade")}.\n'
+            'While the operation is safe, it is recommended to backup the folder first.',
+            fg='green')
         click.confirm('Do you want to continue?', abort=True)
 
-    # init dirs
+    # create dirs
     click.secho(f'Setting up directories...')
     for d in ['database', 'strategy', 'storage', 'ibgateway']:
         os.makedirs(os.path.join(minitrade_root, d), mode=0o700, exist_ok=True)
-    # init config
+
+    # upgrade config
     from minitrade.utils.config import GlobalConfig
-    GlobalConfig().save()
-    # init db
-    db_loc = os.path.join(minitrade_root, 'database/minitrade.db')
-    click.secho(f'Setting up database...')
-    sql = pkgutil.get_data(__name__, 'minitrade.db.sql').decode('utf-8')
-    with sqlite3.connect(db_loc) as conn:
-        conn.executescript(sql)
-    conn.close()
+    GlobalConfig.upgrade()
+
+    # build db schema
+    build_db_schema(minitrade_root)
+
     # populate tickers
     from minitrade.datasource import download_tickers
     download_tickers()
+
     # download and extract IB gateway
+    install_ibgateway(minitrade_root)
+
+    # finish
+    click.secho(f'Minitrade installed in {minitrade_root}', fg='green')
+
+
+def build_db_schema(minitrade_root):
+    click.secho(f'Setting up database...')
+    db_loc = os.path.join(minitrade_root, 'database/minitrade.db')
+    sqlfiles = [f for f in os.listdir(os.path.join(os.path.dirname(__file__), 'trader/schema')) if f.endswith('.sql')]
+    sqlversions = [tuple(int(_) for _ in f.removesuffix('.sql').split('.')) for f in sqlfiles]
+    # read schema version from db
+    try:
+        with closing(sqlite3.connect(db_loc)) as conn:
+            version = conn.execute('SELECT version FROM schema_version').fetchone()[0]
+            version = tuple(int(_) for _ in version.split('.'))
+    except Exception:
+        with closing(sqlite3.connect(db_loc)) as conn:
+            conn.execute('CREATE TABLE IF NOT EXISTS "schema_version" ("version" TEXT);')
+            conn.execute('INSERT INTO "schema_version" VALUES ("0.0.0");')
+        version = (0, 0, 0)
+    # apply schema patches
+    for sqlversion in sorted(sqlversions):
+        if sqlversion <= version:
+            continue
+        sqlversion = '.'.join(str(_) for _ in sqlversion)
+        sql = pkgutil.get_data(__name__, f'trader/schema/{sqlversion}.sql').decode('utf-8')
+        sql = 'BEGIN TRANSACTION;' + sql + f'UPDATE schema_version SET version="{sqlversion}";' + 'COMMIT;'
+        with closing(sqlite3.connect(db_loc)) as conn:
+            conn.executescript(sql)
+
+
+def install_ibgateway(minitrade_root):
     click.secho(f'Installing Interactive Brokers gateway...')
     ib_loc = os.path.join(minitrade_root, 'ibgateway')
     url = 'https://download2.interactivebrokers.com/portal/clientportal.gw.zip'
@@ -384,8 +412,19 @@ def init():
             yaml.safe_dump(conf, f)
     except Exception as e:
         raise RuntimeError(f'Writing gateway config file failed: {conf_loc}') from e
-    # finish
-    click.secho(f'Minitrade initialized in {minitrade_root}', fg='green')
+
+
+def check_prerequisites():
+    if platform.system() == 'Linux':
+        click.secho('Checking prerequisites:')
+        prerequisites = [
+            check_program_version('java'),
+            check_program_version('google-chrome'),
+            check_selenium()
+        ]
+        if not all(prerequisites):
+            click.secho('Please install the required dependencies.', fg='red')
+            sys.exit(1)
 
 
 if __name__ == '__main__':

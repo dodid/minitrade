@@ -25,7 +25,7 @@ With Minitrade, setting up your private and fully automated stock trading system
     $ pip install minitrade
     $ minitrade init
 
-Minitrade requires `python >= 3.10`. For detailed installation instructions, refer to the [Installation](https://dodid.github.io/minitrade/install/) section on the website.
+Minitrade requires `python >= 3.10`. `"minitrade init"` is only necessary if you use Minitrade for trading. Run it again after every Minitrade upgrade. For detailed installation instructions, refer to the [Installation](https://dodid.github.io/minitrade/install/) section on the website.
 
 ## Usage
 

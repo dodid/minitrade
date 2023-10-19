@@ -27,10 +27,12 @@ jobs:
           sudo apt install -y default-jre
           python -m pip install --upgrade pip
           pip install pytest 
-      - name: Install and initialize minitrade
+      - name: Install and initialize/upgrade minitrade
         run: |
-          pip install minitrade
+          pip install minitrade==0.1.28
           minitrade init
+          pip install minitrade --upgrade
+          minitrade init -y
           cp ~/.minitrade/config.yaml ~/.minitrade/config.pytest.yaml
       - name: Test with pytest
         env:

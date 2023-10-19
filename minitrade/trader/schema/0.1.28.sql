@@ -1,7 +1,3 @@
-BEGIN TRANSACTION;
-
-DROP TABLE IF EXISTS "BrokerAccount";
-
 CREATE TABLE IF NOT EXISTS "BrokerAccount" (
 	"alias" TEXT NOT NULL,
 	"broker" TEXT NOT NULL,
@@ -11,18 +7,15 @@ CREATE TABLE IF NOT EXISTS "BrokerAccount" (
 	PRIMARY KEY("alias")
 );
 
-INSERT INTO
-	"BrokerAccount" (
-		"alias",
-		"broker",
-		"mode",
-		"username",
-		"password"
-	)
+REPLACE INTO "BrokerAccount" (
+	"alias",
+	"broker",
+	"mode",
+	"username",
+	"password"
+)
 VALUES
 	('Manual', 'Manual', 'Live', '', '');
-
-DROP TABLE IF EXISTS "IbTrade";
 
 CREATE TABLE IF NOT EXISTS "IbTrade" (
 	"execution_id" TEXT NOT NULL,
@@ -57,8 +50,6 @@ CREATE TABLE IF NOT EXISTS "IbTrade" (
 	PRIMARY KEY("execution_id")
 );
 
-DROP TABLE IF EXISTS "RawOrder";
-
 CREATE TABLE IF NOT EXISTS "RawOrder" (
 	"id" TEXT NOT NULL,
 	"plan_id" TEXT NOT NULL,
@@ -71,8 +62,6 @@ CREATE TABLE IF NOT EXISTS "RawOrder" (
 	"broker_order_id" TEXT,
 	PRIMARY KEY("id")
 );
-
-DROP TABLE IF EXISTS "TradePlan";
 
 CREATE TABLE IF NOT EXISTS "TradePlan" (
 	"id" TEXT NOT NULL,
@@ -99,8 +88,6 @@ CREATE TABLE IF NOT EXISTS "TradePlan" (
 	PRIMARY KEY("id")
 );
 
-DROP TABLE IF EXISTS "BacktestLog";
-
 CREATE TABLE IF NOT EXISTS "BacktestLog" (
 	"id" TEXT NOT NULL,
 	"plan_id" TEXT NOT NULL,
@@ -118,8 +105,6 @@ CREATE TABLE IF NOT EXISTS "BacktestLog" (
 	PRIMARY KEY("id")
 );
 
-DROP TABLE IF EXISTS "TraderLog";
-
 CREATE TABLE IF NOT EXISTS "TraderLog" (
 	"id" TEXT NOT NULL,
 	"summary" TEXT,
@@ -127,8 +112,6 @@ CREATE TABLE IF NOT EXISTS "TraderLog" (
 	"log_time" DATETIME,
 	PRIMARY KEY("id")
 );
-
-DROP TABLE IF EXISTS "OrderValidatorLog";
 
 CREATE TABLE IF NOT EXISTS "OrderValidatorLog" (
 	"id" TEXT NOT NULL,
@@ -139,8 +122,6 @@ CREATE TABLE IF NOT EXISTS "OrderValidatorLog" (
 	"log_time" DATETIME,
 	PRIMARY KEY("id")
 );
-
-DROP TABLE IF EXISTS "IbOrderLog";
 
 CREATE TABLE IF NOT EXISTS "IbOrderLog" (
 	"id" TEXT NOT NULL,
@@ -155,8 +136,6 @@ CREATE TABLE IF NOT EXISTS "IbOrderLog" (
 	"log_time" DATETIME,
 	PRIMARY KEY("id")
 );
-
-DROP TABLE IF EXISTS "IbOrder";
 
 CREATE TABLE IF NOT EXISTS "IbOrder" (
 	"acct" TEXT,
@@ -194,8 +173,6 @@ CREATE TABLE IF NOT EXISTS "IbOrder" (
 	PRIMARY KEY("orderId")
 );
 
-DROP TABLE IF EXISTS "ManualTrade";
-
 CREATE TABLE IF NOT EXISTS "ManualTrade" (
 	"id" TEXT NOT NULL,
 	"plan_id" TEXT NOT NULL,
@@ -212,5 +189,3 @@ CREATE TABLE IF NOT EXISTS "ManualTrade" (
 	"trade_time" DATETIME,
 	PRIMARY KEY("id")
 );
-
-COMMIT;
