@@ -43,6 +43,7 @@ mplfinance = "^0.12.10b0"
 arch = "^6.1.0"
 dill = "^0.3.7"
 statsmodels = "^0.14.0"
+pyportfolioopt = "^1.5.5"
 
 
 [tool.poetry.group.dev.dependencies]

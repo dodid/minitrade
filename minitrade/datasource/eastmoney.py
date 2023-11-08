@@ -13,11 +13,18 @@ class EastMoneyQuoteSource(QuoteSource):
     '''EastMoney data source'''
 
     def _daily_bar(self, ticker, start, end):
-        df: pd.DataFrame = ak.stock_zh_a_hist(
-            symbol=ticker, period="daily",
-            start_date=start.replace('-', ''),
-            end_date=end.replace('-', '') if end else '20500101',   # magic number used in ak lib
-            adjust='qfq')
+        try:
+            df: pd.DataFrame = ak.stock_zh_a_hist(
+                symbol=ticker, period="daily",
+                start_date=start.replace('-', ''),
+                end_date=end.replace('-', '') if end else '20500101',   # magic number used in ak lib
+                adjust='qfq')
+        except KeyError:
+            df: pd.DataFrame = ak.fund_etf_hist_em(
+                symbol=ticker, period="daily",
+                start_date=start.replace('-', ''),
+                end_date=end.replace('-', '') if end else '20500101',   # magic number used in ak lib
+                adjust='qfq')
         df = df.rename(columns={'日期': 'dt', '开盘': 'Open', '收盘': 'Close', '最高': 'High', '最低': 'Low', '成交量': 'Volume'})
         df['dt'] = pd.to_datetime(df['dt'], format="%Y-%m-%d")
         df = df.set_index('dt')
