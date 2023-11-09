@@ -722,7 +722,7 @@ class BacktestRunner:
 
             if log.data is not None:
                 data = log.data.xs('Close', 1, 1).tail(2).T
-                data.columns = data.columns.strftime('%Y-%m-%d')
+                data.columns = pd.to_datetime(data.columns).strftime('%Y-%m-%d')
                 plan_data = tabulate(data, stralign="right", headers='keys')
 
             if log.result is not None:
