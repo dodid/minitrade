@@ -1,4 +1,5 @@
 
+import warnings
 from datetime import datetime, timedelta, timezone
 
 import pandas as pd
@@ -20,11 +21,31 @@ class YahooQuoteSource(QuoteSource):
         '''
         self.proxy = proxy or config.sources.yahoo.proxy
 
+    def _format_ticker(self, ticker):
+        # Ignore market suffix
+        if ticker[-3] == '.' and ticker[-2:].isalpha():
+            return ticker
+        else:
+            return ticker.replace('.', '-')
+
+    def _ticker_timezone(self, ticker):
+        return yf.Ticker(self._format_ticker(ticker)).fast_info['timezone']
+
+    def _ticker_exchange(self, ticker):
+        mapping = {'WCB': 'NYSE', 'NMS': 'NASDAQ', 'NGM': 'NASDAQ',
+                   'NYQ': 'NYSE', 'PCX': 'NYSE', 'CXI': 'NYSE'}
+        exch = yf.Ticker(self._format_ticker(ticker)).fast_info['exchange']
+        if exch in mapping:
+            return mapping[exch]
+        else:
+            warnings.warn(f'Unknown exchange {exch} for {ticker}')
+            return 'NYSE'
+
     def _daily_bar(self, ticker, start, end):
         # Push 1 day out to include "end" in final data
         end_1 = end and (datetime.strptime(end, '%Y-%m-%d') + timedelta(days=1)).strftime('%Y-%m-%d')
         # Yahoo finance uses '-' instead of '.' in ticker symbol
-        tk = yf.Ticker(ticker.replace('.', '-'))
+        tk = yf.Ticker(self._format_ticker(ticker))
         df: pd.DataFrame = tk.history(start=start, end=end_1, interval='1d',
                                       auto_adjust=True, proxy=self.proxy, timeout=10)
         df = df[['Open', 'High', 'Low', 'Close', 'Volume']]
@@ -35,11 +56,11 @@ class YahooQuoteSource(QuoteSource):
             df = df[df.index < today]
             df.index = df.index.tz_convert(timezone.utc)
             row = dict(zip(df.columns, [
-                tk.basic_info['open'],
-                tk.basic_info['dayHigh'],
-                tk.basic_info['dayLow'],
-                tk.basic_info['lastPrice'],
-                tk.basic_info['lastVolume']]))
+                tk.fast_info['open'],
+                tk.fast_info['dayHigh'],
+                tk.fast_info['dayLow'],
+                tk.fast_info['lastPrice'],
+                tk.fast_info['lastVolume']]))
             df = pd.concat([df, pd.DataFrame(row, index=[today.astimezone(timezone.utc)])])
             df.index = df.index.tz_convert(tz)
         return df
@@ -52,7 +73,7 @@ class YahooQuoteSource(QuoteSource):
         period = {1: 7, 2: 60, 5: 60, 15: 60, 30: 60, 60: 730}
         # Push 1 day out to include "end" in final data
         end_1 = end and (datetime.strptime(end, '%Y-%m-%d') + timedelta(days=1)).strftime('%Y-%m-%d')
-        tk = yf.Ticker(ticker)
+        tk = yf.Ticker(self._format_ticker(ticker))
         if start:
             df: pd.DataFrame = tk.history(start=start, end=end_1, interval=f'{interval}m',
                                           auto_adjust=True, proxy=self.proxy, timeout=10)
@@ -64,7 +85,7 @@ class YahooQuoteSource(QuoteSource):
 
     def _spot(self, tickers):
         try:
-            data = {ticker: yf.Ticker(ticker).basic_info['lastPrice']
+            data = {ticker: yf.Ticker(self._format_ticker(ticker)).fast_info['lastPrice']
                     if self.is_trading_now(ticker) else None for ticker in tickers}
             df = pd.Series(data, name=datetime.now(timezone.utc)).astype(float)
             return df

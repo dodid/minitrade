@@ -14,6 +14,15 @@ class InteractiveBrokersQuoteSource(QuoteSource):
         self.account = BrokerAccount.get_account(plan)
         self.broker = Broker.get_broker(self.account)
 
+    def _format_ticker(self, ticker):
+        raise NotImplementedError()
+
+    def _ticker_timezone(self, ticker):
+        raise NotImplementedError()
+
+    def _ticker_exchange(self, ticker):
+        raise NotImplementedError()
+
     def _daily_bar(self, ticker, start, end):
         self.broker.connect()
         return self.broker.daily_bar(self.plan, ticker, start, end)

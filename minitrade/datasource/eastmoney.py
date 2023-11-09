@@ -12,6 +12,12 @@ from minitrade.datasource.base import QuoteSource
 class EastMoneyQuoteSource(QuoteSource):
     '''EastMoney data source'''
 
+    def _ticker_timezone(self, ticker):
+        return 'Asia/Shanghai'
+
+    def _ticker_exchange(self, ticker):
+        return 'SSE'
+
     def _daily_bar(self, ticker, start, end):
         try:
             df: pd.DataFrame = ak.stock_zh_a_hist(

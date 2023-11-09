@@ -10,7 +10,6 @@ import time
 from contextlib import closing
 from multiprocessing import Process
 from pathlib import Path
-from posixpath import expanduser
 from zipfile import ZipFile
 
 import click
@@ -345,10 +344,6 @@ def init(yes):
 
     # build db schema
     build_db_schema(minitrade_root)
-
-    # populate tickers
-    from minitrade.datasource import download_tickers
-    download_tickers()
 
     # download and extract IB gateway
     install_ibgateway(minitrade_root)

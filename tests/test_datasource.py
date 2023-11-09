@@ -128,9 +128,18 @@ def test_yahoo_get_multiple_tickers():
         yahoo.daily_bar('AAPL , GOOG,META ')
 
 
-def test_download_tickers():
-    download_tickers()
-    df = pd.read_sql('select * from Ticker', MTDB.conn())
-    assert df.shape[0] > 10000
-    assert df.shape[1] == 5
-    assert df.columns.to_list() == ['ticker', 'name', 'calendar', 'timezone', 'yahoo_modifier']
+def test_yahoo_get_special_ticker():
+    yahoo = QuoteSource.get_source('Yahoo')
+    start = '2000-01-03'
+    end, prev_close = '2022-12-10', '2022-12-09'
+
+    for tickers in [['^VIX', 'BRK.B', '000001.SS'], '^VIX,BRK.B,000001.SS']:
+        df = yahoo.daily_bar(tickers, start=start, end=end,
+                             align=True, normalize=True)
+        assert df.columns.get_level_values(0).to_list() == [*['^VIX']*5, *['BRK.B']*5, *['000001.SS']*5]
+        assert df.columns.get_level_values(1).to_list() == 'Open,High,Low,Close,Volume'.split(',')*3
+        assert (df.xs('Close', level=1, axis=1).iloc[0] == 1).all() == True
+        assert isinstance(df.index, pd.DatetimeIndex)
+        assert df.index[0].strftime('%Y-%m-%d') == start
+        assert df.index[-1].strftime('%Y-%m-%d') == prev_close
+        assert df.notna().all(None) == True
