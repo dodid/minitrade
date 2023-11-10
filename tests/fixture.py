@@ -18,20 +18,6 @@ from minitrade.trader import *
 from minitrade.utils.mtdb import MTDB
 
 
-def populate_test_tickers():
-    tickers = [
-        ('AAPL', 'Apple Inc.', 'NASDAQ', 'America/New_York', ''),
-        ('GOOG', 'Alphabet Inc.', 'NASDAQ', 'America/New_York', ''),
-        ('META', 'Meta Platforms', 'NASDAQ', 'America/New_York', ''),
-        ('SPY', 'SPDR S&P 500 ETF Trust', 'NASDAQ', 'America/New_York', ''),
-        ('0000001', 'Ping An', 'SSE', 'Asia/Shanghai', 'SH'),
-        ('0000002', 'China Vanke', 'SSE', 'Asia/Shanghai', 'SH'),
-        ('0000003', 'China Construction Bank', 'SSE', 'Asia/Shanghai', 'SH'),
-    ]
-    df = pd.DataFrame(tickers, columns=['ticker', 'name', 'calendar', 'timezone', 'yahoo_modifier'])
-    df.to_sql('Ticker', MTDB.conn(), if_exists='replace', index=False)
-
-
 @pytest.fixture
 def clean_db():
     '''Recreate all tables in minitrade.pytest.db'''
@@ -40,7 +26,6 @@ def clean_db():
     with sqlite3.connect(db_loc) as conn:
         conn.executescript(sql)
     conn.close()
-    populate_test_tickers()
 
 
 @pytest.fixture

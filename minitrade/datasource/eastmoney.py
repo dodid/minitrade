@@ -15,7 +15,7 @@ class EastMoneyQuoteSource(QuoteSource):
     def _ticker_timezone(self, ticker):
         return 'Asia/Shanghai'
 
-    def _ticker_exchange(self, ticker):
+    def _ticker_calendar(self, ticker):
         return 'SSE'
 
     def _daily_bar(self, ticker, start, end):

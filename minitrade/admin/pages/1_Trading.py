@@ -19,18 +19,17 @@ from minitrade.utils.mtdb import MTDB
 st.set_page_config(page_title='Trading', layout='wide')
 
 
-def get_market_calendar_and_timezone(ticker_css: str):
+def get_market_calendar_and_timezone(data_source: str, ticker_css: str):
     ''' Get market calendar and timezone from tickers '''
     if ticker_css.strip() == '':
         return None, None
-    rows = [MTDB.get_one('Ticker', 'ticker', t) for t in ticker_css.split(',')]
-    if not all(rows):
-        raise RuntimeError('Not all tickers are recoginized.')
-    schedules = set([r['calendar'] for r in rows if r])
-    zones = set([r['timezone'] for r in rows if r])
-    if len(schedules) > 1 or len(zones) > 1:
-        raise RuntimeError('Cross market trading is not supported.')
-    return list(schedules)[0], list(zones)[0]
+    ds = QuoteSource.get_source(data_source)
+    calendars = list(set([ds.ticker_calendar(t) for t in ticker_css.split(',')]))
+    zones = list(set([ds.ticker_timezone(t) for t in ticker_css.split(',')]))
+    if len(calendars) > 1 or len(zones) > 1:
+        st.info(
+            f'Cross market trading detected. Use "{calendars[0]}" for market calendar, "{zones[0]}" for market timezone.')
+    return calendars[0], zones[0]
 
 
 def ticker_resolver(account: BrokerAccount, ticker_css: str) -> dict:
@@ -50,14 +49,6 @@ def ticker_resolver(account: BrokerAccount, ticker_css: str) -> dict:
                 st.error('Need to login to broker account to resolve tickers. Please pay attention to 2FA notification if enabled.')
                 st.button('Retry')
     return None
-
-
-def get_broker_ticker_map(tickers: dict | None) -> dict | None:
-    ''' Verify if all tickers have been resolved and return the mapping '''
-    if tickers and None not in tickers.values():
-        return {k: v['id'] for k, v in tickers.items()}
-    else:
-        return None
 
 
 def parse_trade_time_of_day(trade_time_of_day: str) -> str:
@@ -81,13 +72,13 @@ def parse_trade_time_of_day(trade_time_of_day: str) -> str:
 def show_create_trade_plan_form() -> TradePlan | None:
     account = st.selectbox('Select a broker account', BrokerAccount.list(), format_func=lambda b: b.alias)
     strategy_file = st.selectbox('Pick a strategy', StrategyManager.list())
+    data_source = st.selectbox('Select a data source', QuoteSource.AVAILABLE_SOURCES)
     ticker_css = st.text_input(
         'Define the asset space (a list of tickers separated by comma without space)', placeholder='e.g. AAPL,GOOG')
     try:
-        market_calendar, market_timezone = get_market_calendar_and_timezone(ticker_css)
+        market_calendar, market_timezone = get_market_calendar_and_timezone(data_source, ticker_css)
     except Exception as e:
         st.error(e)
-    data_source = st.selectbox('Select a data source', QuoteSource.AVAILABLE_SOURCES)
     backtest_start_date = st.date_input(
         'Pick a backtest start date (run backtest from that date to give enough lead time to calculate indicators)',
         value=datetime.today() - timedelta(days=30))
@@ -123,17 +114,17 @@ def show_create_trade_plan_form() -> TradePlan | None:
         'See [Trading](https://dodid.github.io/minitrade/trading/) for more details.')
 
     tickers = ticker_resolver(account, ticker_css)
+    ticker_map = {k: v['id'] if v is not None else None for k, v in tickers.items()}
+    if account and None in ticker_map.values():
+        st.warning('Tickers are not fully resolved. You can ignore this warning if unresolved tickers are not traded.')
     dryrun = st.button('Save and dry run')
 
     if dryrun:
-        ticker_map = get_broker_ticker_map(tickers)
         if initial_holding:
             initial_holding = {k.strip(): int(v)
                                for k, v in [x.strip().split(':') for x in initial_holding.split(',')]}
         if len(ticker_css.strip()) == 0 or len(name.strip()) == 0 or not trade_time_of_day:
             st.error('Please do not leave any required field empty.')
-        elif account and ticker_map is None:
-            st.error('Tickers are not fully resolved.')
         else:
             return TradePlan(
                 id=MTDB.uniqueid(),

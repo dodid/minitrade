@@ -50,21 +50,33 @@ class QuoteSource(ABC):
 
     @abstractmethod
     def _ticker_timezone(self, ticker: str) -> str:
-        '''Get the timezone of a ticker.'''
         raise NotImplementedError()
+
+    def ticker_timezone(self, ticker: str) -> str:
+        '''Get the timezone of a ticker.'''
+        try:
+            return self._ticker_timezone(ticker)
+        except Exception as e:
+            raise AttributeError(f'Cannot get market timezone for {ticker}') from e
+
+    @abstractmethod
+    def _ticker_calendar(self, ticker: str) -> str:
+        raise NotImplementedError()
+
+    def ticker_calendar(self, ticker: str) -> str:
+        '''Get the calendar name of a ticker.'''
+        try:
+            return self._ticker_calendar(ticker)
+        except Exception as e:
+            raise AttributeError(f'Cannot get market calendar for {ticker}') from e
 
     def today(self, ticker: str) -> datetime:
         '''Get today's date in a ticker's local timezone.'''
-        return datetime.now(ZoneInfo(self._ticker_timezone(ticker))).replace(hour=0, minute=0, second=0, microsecond=0)
-
-    @abstractmethod
-    def _ticker_exchange(self, ticker: str) -> str:
-        '''Get the exchange of a ticker.'''
-        raise NotImplementedError()
+        return datetime.now(ZoneInfo(self.ticker_timezone(ticker))).replace(hour=0, minute=0, second=0, microsecond=0)
 
     def is_trading_now(self, ticker: str) -> bool:
         '''Check if a ticker is trading now.'''
-        calendar = mcal.get_calendar(self._ticker_exchange(ticker))
+        calendar = mcal.get_calendar(self.ticker_calendar(ticker))
         today = self.today(ticker)
         schedule = calendar.schedule(
             start_date=(today - timedelta(days=30)).strftime('%Y-%m-%d'),

@@ -31,8 +31,8 @@ class YahooQuoteSource(QuoteSource):
     def _ticker_timezone(self, ticker):
         return yf.Ticker(self._format_ticker(ticker)).fast_info['timezone']
 
-    def _ticker_exchange(self, ticker):
-        mapping = {'WCB': 'NYSE', 'NMS': 'NASDAQ', 'NGM': 'NASDAQ',
+    def _ticker_calendar(self, ticker):
+        mapping = {'WCB': 'NYSE', 'NMS': 'NYSE', 'NGM': 'NYSE',
                    'NYQ': 'NYSE', 'PCX': 'NYSE', 'CXI': 'NYSE'}
         exch = yf.Ticker(self._format_ticker(ticker)).fast_info['exchange']
         if exch in mapping:

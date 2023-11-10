@@ -20,7 +20,7 @@ class InteractiveBrokersQuoteSource(QuoteSource):
     def _ticker_timezone(self, ticker):
         raise NotImplementedError()
 
-    def _ticker_exchange(self, ticker):
+    def _ticker_calendar(self, ticker):
         raise NotImplementedError()
 
     def _daily_bar(self, ticker, start, end):
