@@ -39,11 +39,9 @@ minitrade-scikit-optimize = "^0.9.2"
 python-telegram-bot = {extras = ["socks"], version = "^20.5"}
 akshare = "^1.11.16"
 pandas-market-calendars = "^4.3.1"
-mplfinance = "^0.12.10b0"
-arch = "^6.1.0"
 dill = "^0.3.7"
 statsmodels = "^0.14.0"
-pyportfolioopt = "^1.5.5"
+eodhd = "^1.0.27"
 
 
 [tool.poetry.group.dev.dependencies]

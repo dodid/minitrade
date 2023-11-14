@@ -11,7 +11,7 @@ source = st.sidebar.radio('Source', QuoteSource.AVAILABLE_SOURCES)
 
 def test_and_save_yahoo_proxy(proxy):
     st.caption('Getting SPY')
-    df = QuoteSource.get_source('Yahoo', proxy=proxy).daily_bar('SPY', start='2022-01-01')
+    df = QuoteSource.get_source('Yahoo', proxy=proxy).daily_bar('SPY', start='2023-01-01')
     if len(df) > 0:
         st.write(df.head())
         config.sources.yahoo.proxy = proxy
@@ -19,6 +19,18 @@ def test_and_save_yahoo_proxy(proxy):
         st.success('Setting saved')
     else:
         st.error('Getting data from Yahoo not working, please check proxy setting')
+
+
+def test_and_save_eodhd_api_key(api_key):
+    st.caption('Getting SPY')
+    df = QuoteSource.get_source('EODHistoricalData', api_key=api_key).daily_bar('SPY', start='2023-01-01')
+    if len(df) > 0:
+        st.write(df.head())
+        config.sources.eodhd.api_key = api_key
+        config.save()
+        st.success('Setting saved')
+    else:
+        st.error('Getting data from EODHistoricalData not working, please check API key')
 
 
 if source == 'Yahoo':
@@ -30,3 +42,8 @@ if source == 'Yahoo':
 elif source == 'EastMoney':
     st.subheader('EastMoney')
     st.write('Nothing to configure')
+elif source == 'EODHistoricalData':
+    st.subheader('EODHistoricalData')
+    api_key = st.text_input('API Key', value=config.sources.eodhd.api_key or '') or None
+    if st.button('Test and save'):
+        test_and_save_eodhd_api_key(api_key)

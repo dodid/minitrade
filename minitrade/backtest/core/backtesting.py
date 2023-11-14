@@ -1486,7 +1486,7 @@ class Backtest:
             warnings.warn('Data index is not datetime. Assuming simple periods, '
                           'but `pd.DateTimeIndex` is advised.',
                           stacklevel=2)
-        data.index.name = 'dt'
+        data.index.name = 'Date'
 
         self._data = data
         self._broker = partial(

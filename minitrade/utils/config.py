@@ -18,8 +18,13 @@ class SourceConfigYahoo(BaseModel):
     proxy: str | None = None
 
 
+class SourceConfigEODHD(BaseModel):
+    api_key: str | None = None
+
+
 class SourceConfig(BaseModel):
     yahoo: SourceConfigYahoo = SourceConfigYahoo()
+    eodhd: SourceConfigEODHD = SourceConfigEODHD()
 
 
 class BrokerConfigIB(BaseModel):
