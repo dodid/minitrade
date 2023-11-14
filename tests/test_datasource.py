@@ -10,7 +10,8 @@ def test_get_data_source(clean_db):
     assert isinstance(source, QuoteSource)
     source = QuoteSource.get_source('EastMoney')
     assert isinstance(source, QuoteSource)
-    source = QuoteSource.get_source('EODHistoricalData', api_key='fake_key')
+    api_key = os.environ.get('EODHD_API_KEY')
+    source = QuoteSource.get_source('EODHistoricalData', api_key=api_key)
     assert isinstance(source, QuoteSource)
 
 
