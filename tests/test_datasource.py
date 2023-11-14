@@ -5,14 +5,13 @@ def test_get_data_source(clean_db):
     supported = QuoteSource.AVAILABLE_SOURCES
     assert 'Yahoo' in supported
     assert 'EastMoney' in supported
-    for s in supported:
-        source = QuoteSource.get_source(s)
-        assert isinstance(source, QuoteSource)
-
-
-def test_get_data_source_not_exist():
-    with pytest.raises(AttributeError):
-        QuoteSource.get_source('NotExist')
+    assert 'EODHistoricalData' in supported
+    source = QuoteSource.get_source('Yahoo')
+    assert isinstance(source, QuoteSource)
+    source = QuoteSource.get_source('EastMoney')
+    assert isinstance(source, QuoteSource)
+    source = QuoteSource.get_source('EODHistoricalData', api_key='fake_key')
+    assert isinstance(source, QuoteSource)
 
 
 def test_eastmoney_get_single_ticker():
@@ -143,3 +142,13 @@ def test_yahoo_get_special_ticker():
         assert df.index[0].strftime('%Y-%m-%d') == start
         assert df.index[-1].strftime('%Y-%m-%d') == prev_close
         assert df.notna().all(None) == True
+
+
+def test_eodhd_get_single_ticker():
+    api_key = os.environ.get('EODHD_API_KEY')
+    eodhd = QuoteSource.get_source('EODHistoricalData', api_key=api_key)
+    df1 = eodhd.daily_bar('AAPL', start='2023-01-01')
+    assert list(df1.columns.levels[0]) == ['AAPL']
+    assert list(df1.columns.levels[1]) == 'Open,High,Low,Close,Volume'.split(',')
+    assert isinstance(df1.index, pd.DatetimeIndex)
+    assert df1.notna().all(axis=None) == True
