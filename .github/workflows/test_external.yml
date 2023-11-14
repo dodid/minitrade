@@ -39,5 +39,6 @@ jobs:
         env:
           IB_TEST_USERNAME: ${{ secrets.IB_TEST_USERNAME }}
           IB_TEST_PASSWORD: ${{ secrets.IB_TEST_PASSWORD }}
+          EODHD_API_KEY: ${{ secrets.EODHD_API_KEY }}
         run: |
           pytest tests
