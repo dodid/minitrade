@@ -131,18 +131,18 @@ def test_yahoo_get_multiple_tickers():
 def test_yahoo_get_special_ticker():
     yahoo = QuoteSource.get_source('Yahoo')
     start = '2000-01-03'
-    end, prev_close = '2022-12-10', '2022-12-09'
+    end = '2022-12-10'
 
     for tickers in [['^VIX', 'BRK.B', '000001.SS'], '^VIX,BRK.B,000001.SS']:
-        df = yahoo.daily_bar(tickers, start=start, end=end,
-                             align=True, normalize=True)
+        df = yahoo.daily_bar(tickers, start=start, end=end, align=True, normalize=True)
         assert df.columns.get_level_values(0).to_list() == [*['^VIX']*5, *['BRK.B']*5, *['000001.SS']*5]
         assert df.columns.get_level_values(1).to_list() == 'Open,High,Low,Close,Volume'.split(',')*3
         assert (df.xs('Close', level=1, axis=1).iloc[0] == 1).all() == True
         assert isinstance(df.index, pd.DatetimeIndex)
-        assert df.index[0].strftime('%Y-%m-%d') == start
-        assert df.index[-1].strftime('%Y-%m-%d') == prev_close
+        assert df.index[0].strftime('%Y-%m-%d') == '2000-01-04'
+        assert df.index[-1].strftime('%Y-%m-%d') == '2022-12-09'
         assert df.notna().all(None) == True
+        assert len(df.index[(df.index >= '2000-01-04') & (df.index < '2000-01-05')]) == 1
 
 
 def test_eodhd_get_single_ticker():

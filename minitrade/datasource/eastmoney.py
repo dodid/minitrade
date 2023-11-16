@@ -32,9 +32,8 @@ class EastMoneyQuoteSource(QuoteSource):
                 end_date=end.replace('-', '') if end else '20500101',   # magic number used in ak lib
                 adjust='qfq')
         df = df.rename(columns={'日期': 'Date', '开盘': 'Open', '收盘': 'Close', '最高': 'High', '最低': 'Low', '成交量': 'Volume'})
-        df['Date'] = pd.to_datetime(df['Date'], format="%Y-%m-%d")
+        df['Date'] = pd.to_datetime(df['Date'], format='%Y-%m-%d')
         df = df.set_index('Date')
-        df = df.tz_localize('Asia/Shanghai')
         df = df[['Open', 'High', 'Low', 'Close', 'Volume']]
         return df
 

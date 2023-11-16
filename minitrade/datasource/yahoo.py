@@ -32,8 +32,18 @@ class YahooQuoteSource(QuoteSource):
         return yf.Ticker(self._format_ticker(ticker)).fast_info['timezone']
 
     def _ticker_calendar(self, ticker):
-        mapping = {'WCB': 'NYSE', 'NMS': 'NYSE', 'NGM': 'NYSE',
-                   'NYQ': 'NYSE', 'PCX': 'NYSE', 'CXI': 'NYSE'}
+        mapping = {
+            'WCB': 'NYSE',   # Chicago Board of Options Exchange (CBOE)
+            'NMS': 'NYSE',   # National Market System
+            'NGM': 'NYSE',   # Nasdaq global market
+            'NYQ': 'NYSE',   # NYSE
+            'PCX': 'NYSE',   # Pacific Stock Exchange, NYSE Arca
+            'CXI': 'NYSE',   # ^VIX
+            'PNK': 'NYSE',   # Pink Sheets OTC Market
+            'SSH': 'SSE',    # Shanghai stock exchange
+            'SHZ': 'SSE',    # Shenzhen stock exchange
+            'HKG': 'HKEX',   # Hong Kong stock exchange
+        }
         exch = yf.Ticker(self._format_ticker(ticker)).fast_info['exchange']
         if exch in mapping:
             return mapping[exch]
@@ -63,6 +73,8 @@ class YahooQuoteSource(QuoteSource):
                 tk.fast_info['lastVolume']]))
             df = pd.concat([df, pd.DataFrame(row, index=[today.astimezone(timezone.utc)])])
             df.index = df.index.tz_convert(tz)
+        # drop timezone info and keep date only
+        df.index = df.index.tz_localize(None).normalize()
         return df
 
     def _minute_bar(self, ticker: str, start: str, end: str, interval: int):
@@ -81,6 +93,7 @@ class YahooQuoteSource(QuoteSource):
             df: pd.DataFrame = tk.history(period=f'{period[interval]}d', interval=f'{interval}m',
                                           auto_adjust=True, proxy=self.proxy, timeout=10)
         df = df[['Open', 'High', 'Low', 'Close', 'Volume']]
+        df.index = df.index.tz_convert(timezone.utc)
         return df
 
     def _spot(self, tickers):
