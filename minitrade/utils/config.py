@@ -22,9 +22,20 @@ class SourceConfigEODHD(BaseModel):
     api_key: str | None = None
 
 
+class SourceConfigTwelveData(BaseModel):
+    api_key: str | None = None
+
+
+class SourceConfigAlpaca(BaseModel):
+    api_key: str | None = None
+    api_secret: str | None = None
+
+
 class SourceConfig(BaseModel):
     yahoo: SourceConfigYahoo = SourceConfigYahoo()
     eodhd: SourceConfigEODHD = SourceConfigEODHD()
+    twelvedata: SourceConfigTwelveData = SourceConfigTwelveData()
+    alpaca: SourceConfigAlpaca = SourceConfigAlpaca()
 
 
 class BrokerConfigIB(BaseModel):
