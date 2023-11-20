@@ -60,6 +60,18 @@ def test_and_save_alpaca_api_key(api_key, api_secret):
         st.error('Getting data from Alpaca not working, please check API key')
 
 
+def test_and_save_tiingo_api_key(api_key):
+    st.caption('Getting SPY')
+    df = QuoteSource.get_source('Tiingo', api_key=api_key).daily_bar('SPY', start='2023-01-01')
+    if len(df) > 0:
+        st.write(df)
+        config.sources.tiingo.api_key = api_key
+        config.save()
+        st.success('Setting saved')
+    else:
+        st.error('Getting data from Tiingo not working, please check API key')
+
+
 def config_sources():
     source = st.sidebar.radio('Source', QuoteSource.AVAILABLE_SOURCES)
 
@@ -88,6 +100,11 @@ def config_sources():
         api_secret = st.text_input('API Secret', value=config.sources.alpaca.api_secret or '') or None
         if st.button('Test and save'):
             test_and_save_alpaca_api_key(api_key, api_secret)
+    elif source == 'Tiingo':
+        st.subheader('Tiingo')
+        api_key = st.text_input('API Key', value=config.sources.tiingo.api_key or '') or None
+        if st.button('Test and save'):
+            test_and_save_tiingo_api_key(api_key)
 
 
 @st.cache_data(ttl='1h')
@@ -124,6 +141,9 @@ def compare_data_from_sources(data, s1, s2, tab):
         col.write('Diff stats')
         stats = res['diff (%)'].describe()[['count', 'mean', 'std', 'min', 'max']].to_frame().T
         col.write(stats)
+        # print top 3 diff
+        col.write('Top 3 diff')
+        col.write(res.sort_values('diff (%)', ascending=False, key=abs).head(3))
         # plot diff
         fig = plot_diff(c, res)
         col.pyplot(fig)

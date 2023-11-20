@@ -13,10 +13,11 @@ from minitrade.utils.config import config
 class AlpacaQuoteSource(QuoteSource):
     '''Twelve Data source'''
 
-    def __init__(self, api_key: str = None, api_secret: str = None) -> None:
+    def __init__(self, api_key: str = None, api_secret: str = None, use_adjusted: bool = True) -> None:
         super().__init__()
         api_key = api_key or config.sources.alpaca.api_key
         api_secret = api_secret or config.sources.alpaca.api_secret
+        self.use_adjusted = use_adjusted
         if not api_key or not api_secret:
             raise AttributeError('Alpaca API key or secret is not configured')
         self.crypto_client = CryptoHistoricalDataClient()
@@ -39,7 +40,7 @@ class AlpacaQuoteSource(QuoteSource):
             timeframe=TimeFrame(1, TimeFrameUnit.Day),
             start=datetime.strptime(start, '%Y-%m-%d'),
             end=datetime.strptime(end, '%Y-%m-%d') + timedelta(hours=12) if end else None,
-            adjustment=Adjustment.ALL,
+            adjustment=Adjustment.ALL if self.use_adjusted else Adjustment.NONE,
             sort=Sort.ASC)
         df = self.stock_client.get_stock_bars(request_params=request).df.loc[ticker]
         df.rename(columns={'open': 'Open', 'high': 'High', 'low': 'Low',

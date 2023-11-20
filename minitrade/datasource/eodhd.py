@@ -10,9 +10,10 @@ from minitrade.utils.config import config
 class EODHistoricalDataQuoteSource(QuoteSource):
     '''EOD Historical Data source'''
 
-    def __init__(self, api_key: str = None) -> None:
+    def __init__(self, api_key: str = None, use_adjusted: bool = True) -> None:
         super().__init__()
         api_key = api_key or config.sources.eodhd.api_key
+        self.use_adjusted = use_adjusted
         if not api_key:
             raise AttributeError('EOD Historical Data API token is not configured')
         self.client = APIClient(api_key=api_key)
@@ -31,14 +32,15 @@ class EODHistoricalDataQuoteSource(QuoteSource):
         # TODO: get market calendar from API
         return 'NYSE'
 
-    def _adjusted_price(self, data):
-        df = data.copy()
+    def _adjust_price(self, df):
         ratio = (df['adjusted_close'] / df['close']).to_numpy()
         df['close'] = df['adjusted_close']
         df['open'] = df['open'] * ratio
         df['high'] = df['high'] * ratio
         df['low'] = df['low'] * ratio
         df['volume'] = (df['volume'] / ratio).astype(int)
+
+    def _use_date_index(self, df):
         df['date'] = pd.to_datetime(df['date'], format='%Y-%m-%d')
         df = df[['date', 'open', 'high', 'low', 'close', 'volume']]
         df.columns = ['Date', 'Open', 'High', 'Low', 'Close', 'Volume']
@@ -49,7 +51,10 @@ class EODHistoricalDataQuoteSource(QuoteSource):
         # TODO: get realtime data for today if market is in session
         data = self.client.get_eod_historical_stock_market_data(
             symbol=ticker, period='d', from_date=start, to_date=end, order='a')
-        df = self._adjusted_price(pd.DataFrame(data))
+        df = pd.DataFrame(data)
+        if self.use_adjusted:
+            df = self._adjust_price(df)
+        df = self._use_date_index(df)
         return df
 
     def _minute_bar(self, ticker: str, start: str, end: str, interval: int):

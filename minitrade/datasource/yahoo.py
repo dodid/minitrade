@@ -11,7 +11,7 @@ from minitrade.utils.config import config
 
 class YahooQuoteSource(QuoteSource):
 
-    def __init__(self, proxy: str = None):
+    def __init__(self, proxy: str = None, use_adjusted=True):
         ''' Yahoo data source
 
         Parameters
@@ -20,6 +20,7 @@ class YahooQuoteSource(QuoteSource):
             Http proxy URI to override currently setting if not None
         '''
         self.proxy = proxy or config.sources.yahoo.proxy
+        self.use_adjusted = use_adjusted
 
     def _format_ticker(self, ticker):
         # Ignore market suffix
@@ -57,7 +58,7 @@ class YahooQuoteSource(QuoteSource):
         # Yahoo finance uses '-' instead of '.' in ticker symbol
         tk = yf.Ticker(self._format_ticker(ticker))
         df: pd.DataFrame = tk.history(start=start, end=end_1, interval='1d',
-                                      auto_adjust=True, proxy=self.proxy, timeout=10)
+                                      auto_adjust=self.use_adjusted, proxy=self.proxy, timeout=10)
         df = df[['Open', 'High', 'Low', 'Close', 'Volume']]
         # Today's data from history api are not reliable. Replace them with spot prices.
         today = self.today(ticker)
