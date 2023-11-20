@@ -15,7 +15,8 @@ class AlpacaQuoteSource(QuoteSource):
 
     def __init__(self, api_key: str = None, api_secret: str = None) -> None:
         super().__init__()
-        api_key = api_key or config.sources.twelvedata.api_key
+        api_key = api_key or config.sources.alpaca.api_key
+        api_secret = api_secret or config.sources.alpaca.api_secret
         if not api_key or not api_secret:
             raise AttributeError('Alpaca API key or secret is not configured')
         self.crypto_client = CryptoHistoricalDataClient()
