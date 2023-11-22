@@ -75,6 +75,7 @@ class YahooQuoteSource(QuoteSource):
             df = pd.concat([df, pd.DataFrame(row, index=[today.astimezone(timezone.utc)])])
             df.index = df.index.tz_convert(tz)
         # drop timezone info and keep date only
+        df.index.rename('Date', inplace=True)
         df.index = df.index.tz_localize(None).normalize()
         return df
 

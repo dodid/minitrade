@@ -40,7 +40,7 @@ class TwelveDataQuoteSource(QuoteSource):
         df.rename(columns={'open': 'Open', 'high': 'High', 'low': 'Low',
                   'close': 'Close', 'volume': 'Volume'}, inplace=True)
         df.index.rename('Date', inplace=True)
-        df.index.tz_localize(None).normalize()
+        df.index = df.index.tz_localize(None).normalize()
         return df
 
     def _minute_bar(self, ticker: str, start: str, end: str, interval: int):

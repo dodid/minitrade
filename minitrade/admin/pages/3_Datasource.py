@@ -5,6 +5,7 @@ import pandas as pd
 import streamlit as st
 from matplotlib import pyplot as plt
 
+from minitrade.broker.base import BrokerAccount
 from minitrade.datasource import QuoteSource
 from minitrade.utils.config import config
 
@@ -72,6 +73,18 @@ def test_and_save_tiingo_api_key(api_key):
         st.error('Getting data from Tiingo not working, please check API key')
 
 
+def test_and_save_ib_account(alias):
+    st.caption('Getting SPY')
+    df = QuoteSource.get_source('InteractiveBrokers', alias=alias).daily_bar('SPY', start='2023-01-01')
+    if len(df) > 0:
+        st.write(df)
+        config.sources.ib.account = alias
+        config.save()
+        st.success('Setting saved')
+    else:
+        st.error('Getting data from InteractiveBrokers not working, please check account')
+
+
 def config_sources():
     source = st.sidebar.radio('Source', QuoteSource.AVAILABLE_SOURCES)
 
@@ -105,6 +118,21 @@ def config_sources():
         api_key = st.text_input('API Key', value=config.sources.tiingo.api_key or '') or None
         if st.button('Test and save'):
             test_and_save_tiingo_api_key(api_key)
+    elif source == 'InteractiveBrokers':
+        st.subheader('InteractiveBrokers')
+        accounts = [_ for _ in BrokerAccount.list() if _.broker == 'IB']
+        if len(accounts) == 0:
+            st.warning('Please make sure you have configured your IB account in the broker section.')
+            return
+        alias = st.selectbox('Use for data access', [_.alias for _ in accounts])
+        if st.button('Save'):
+            config.sources.ib.account = alias
+            config.save()
+            st.success('Setting saved')
+        if config.sources.ib.account:
+            st.success(f'Currently using account "**{config.sources.ib.account}**" for data access.')
+        else:
+            st.error('No account is currently configured for data access.')
 
 
 @st.cache_data(ttl='1h')
@@ -158,6 +186,7 @@ def plot_diff(c, res):
     ax.set_title(f'{c} diff (%)')
     ax.set_xlabel('Date')
     ax.set_ylabel('Diff (%)')
+    fig.set_size_inches(6, 3)
     return fig
 
 
@@ -171,6 +200,7 @@ def plot_price(s1, s2, c, res):
     ax.set_title(f'{c} {s1} vs {s2}')
     ax.set_xlabel('Date')
     ax.set_ylabel(c)
+    fig.set_size_inches(6, 3)
     return fig
 
 
@@ -182,12 +212,6 @@ def calc_col_diff(s1, s2, df, c):
     res.columns = [s1, s2, 'diff', 'diff (%)']
     res.index = res.index.strftime('%Y-%m-%d')
     return res
-
-
-action = st.sidebar.radio('Action', ['Config', 'Inspect'])
-
-if action == 'Config':
-    config_sources()
 
 
 def plot_ohlcv(data):
@@ -218,6 +242,7 @@ def plot_ohlcv(data):
         ax2.bar(df.index, df['Volume'], label='Volume', alpha=0.3)
         ax2.set_ylabel('Volume')
         ax2.legend(loc='upper right')
+        ax2.grid(False)
         fig.set_size_inches(8, 4)
         c3.write('### Chart')
         c3.pyplot(fig)
@@ -225,8 +250,8 @@ def plot_ohlcv(data):
         st.write('---')
 
 
-if action == 'Inspect':
-    ticker = st.sidebar.text_input('Ticker', value='SPY')
+def inspect_data():
+    tickers = st.sidebar.text_input('Ticker', value='SPY')
     start = st.sidebar.text_input('Start date', value='2020-01-01') or None
     end = st.sidebar.text_input('End date') or None
     sources = st.sidebar.multiselect('Sources', QuoteSource.AVAILABLE_SOURCES, default=['Yahoo'])
@@ -235,18 +260,50 @@ if action == 'Inspect':
         if len(sources) == 1:
             st.write(f'## {sources[0]}')
             try:
-                df = QuoteSource.get_source(sources[0]).daily_bar(ticker, start=start, end=end)
+                df = QuoteSource.get_source(sources[0]).daily_bar(tickers, start=start, end=end)
                 plot_ohlcv(df)
             except Exception as e:
                 st.error(f'Getting {sources[0]} data error: {e}')
     if len(sources) > 1 and st.sidebar.button('Compare'):
-        if len(ticker.split(',')) > 1:
+        if len(tickers.split(',')) > 1:
             st.sidebar.warning('Only the first ticker will be compared.')
-        ticker = ticker.split(',')[0]
-        st.write(f'## {ticker}')
-        data = read_daily_bar(ticker, start, end, sources)
+        tickers = tickers.split(',')[0]
+        st.write(f'## {tickers}')
+        data = read_daily_bar(tickers, start, end, sources)
         pairs = list(itertools.combinations(sources, 2))
         tabs = st.tabs([(f'{s1} vs {s2}') for s1, s2 in pairs])
         for i, (s1, s2) in enumerate(pairs):
             with tabs[i]:
                 compare_data_from_sources(data, s1, s2, tabs[i])
+
+
+def lookup_ticker():
+    if not config.sources.ib.account:
+        st.sidebar.warning('Please make sure you have configured the IB account for data access.')
+        return
+    source = QuoteSource.get_source('InteractiveBrokers')
+    tickers = st.sidebar.text_input('Lookup IB contract ID', placeholder='SPY,QQQ')
+    if st.sidebar.button('Lookup'):
+        idmap = source.lookup(tickers)
+        st.header('Result')
+        for k, idlst in idmap.items():
+            with st.expander(k, expanded=True):
+                if len(idlst) == 0:
+                    st.write('No found')
+                else:
+                    for item in idlst:
+                        st.write(f'{item["id"]} - {item["label"]}')
+
+
+action = st.sidebar.radio('Action', ['Config', 'Inspect', 'Lookup (IB only)'])
+
+if action == 'Config':
+    config_sources()
+
+
+if action == 'Inspect':
+    inspect_data()
+
+
+if action == 'Lookup (IB only)':
+    lookup_ticker()

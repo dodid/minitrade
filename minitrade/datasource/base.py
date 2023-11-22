@@ -19,7 +19,8 @@ class QuoteSource(ABC):
     to add a concrete implementation to get data from particular data source.
     '''
 
-    AVAILABLE_SOURCES = sorted(['Yahoo', 'EODHistoricalData', 'TwelveData', 'Alpaca', 'EastMoney', 'Tiingo'])
+    AVAILABLE_SOURCES = sorted(['Yahoo', 'EODHistoricalData', 'TwelveData', 'Alpaca',
+                               'EastMoney', 'Tiingo', 'InteractiveBrokers'])
     '''A list of names for supported quote sources as input to `QuoteSource.get_source()`.'''
 
     @staticmethod
@@ -54,7 +55,7 @@ class QuoteSource(ABC):
         elif name == 'EastMoney':
             from .eastmoney import EastMoneyQuoteSource
             return EastMoneyQuoteSource()
-        elif name == 'IB':
+        elif name == 'InteractiveBrokers':
             from .ib import InteractiveBrokersQuoteSource
             return InteractiveBrokersQuoteSource(**kwargs)
         else:
@@ -152,8 +153,8 @@ class QuoteSource(ABC):
                     for s in tickers:
                         df.loc[:, (s, ohlc)] = df.loc[:, (s, ohlc)] / df[s].loc[start_index, 'Close']
             return df
-        except Exception:
-            raise AttributeError(f'Data error')
+        except Exception as e:
+            raise AttributeError(e) from e
 
     @abstractmethod
     def _minute_bar(self, ticker: str, start: str, end: str, interval: int) -> pd.DataFrame:

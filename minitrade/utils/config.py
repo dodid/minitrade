@@ -35,12 +35,17 @@ class SourceConfigTiingoData(BaseModel):
     api_key: str | None = None
 
 
+class SourceConfigInteractiveBrokers(BaseModel):
+    account: str | None = None
+
+
 class SourceConfig(BaseModel):
     yahoo: SourceConfigYahoo = SourceConfigYahoo()
     eodhd: SourceConfigEODHD = SourceConfigEODHD()
     twelvedata: SourceConfigTwelveData = SourceConfigTwelveData()
     alpaca: SourceConfigAlpaca = SourceConfigAlpaca()
     tiingo: SourceConfigTiingoData = SourceConfigTiingoData()
+    ib: SourceConfigInteractiveBrokers = SourceConfigInteractiveBrokers()
 
 
 class BrokerConfigIB(BaseModel):

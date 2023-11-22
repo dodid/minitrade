@@ -145,6 +145,7 @@ def test_yahoo_get_special_ticker():
         assert len(df.index[(df.index >= '2000-01-04') & (df.index < '2000-01-05')]) == 1
 
 
+@pytest.mark.skip(reason="Need a valid API key to test, only run manually")
 def test_eodhd_get_single_ticker():
     api_key = os.environ.get('EODHD_API_KEY')
     eodhd = QuoteSource.get_source('EODHistoricalData', api_key=api_key)

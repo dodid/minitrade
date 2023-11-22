@@ -5,6 +5,7 @@ import time
 import traceback
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
+from functools import lru_cache
 from typing import TYPE_CHECKING, Any
 from zoneinfo import ZoneInfo
 
@@ -45,6 +46,8 @@ class InteractiveBrokers(Broker):
         self._admin_host = config.brokers.ib.gateway_admin_host
         self._admin_port = config.brokers.ib.gateway_admin_port
         self._port = None
+        self._last_ready_check = None
+        self._last_ready_status = False
 
     @property
     def account_id(self):
@@ -77,11 +80,16 @@ class InteractiveBrokers(Broker):
             raise RuntimeError(f'IB gateway port is not set for request {method} {path}')
 
     def is_ready(self) -> bool:
+        if self._last_ready_check and datetime.now() - self._last_ready_check < timedelta(seconds=1):
+            self._last_ready_check = datetime.now()
+            return self._last_ready_status
         try:
             status = self.__call_ibgateway_admin('GET', f'/ibgateway/{self.account.alias}')
             if status and status['account'] == self.account.username:
                 self._port = status['port']
                 if status['authenticated']:
+                    self._last_ready_check = datetime.now()
+                    self._last_ready_status = True
                     return True
                 else:
                     # if not authenticated, try reauthenticate
@@ -90,11 +98,15 @@ class InteractiveBrokers(Broker):
                         status = self.__call_ibgateway_admin('GET', f'/ibgateway/{self.account.alias}')
                         if status and status['authenticated']:
                             self._port = status['port']
+                            self._last_ready_check = datetime.now()
+                            self._last_ready_status = True
                             return True
                         else:
                             time.sleep(1)
         except Exception:
             logger.exception(f'Checking broker status failed for {self.account.alias}')
+        self._last_ready_check = datetime.now()
+        self._last_ready_status = False
         return False
 
     def connect(self):
@@ -104,7 +116,6 @@ class InteractiveBrokers(Broker):
                 self._port = status['port']
             except Exception as e:
                 raise ConnectionError(f'Login failed for {self.account.alias}') from e
-        self.get_account_info()
 
     def disconnect(self):
         try:
@@ -224,6 +235,7 @@ class InteractiveBrokers(Broker):
         )
         MTDB.save(log, 'IbOrderLog', on_conflict='error')
 
+    @lru_cache(maxsize=100)
     def resolve_tickers(self, ticker_css) -> dict[str, list]:
         result = self.__call_ibgateway('GET', '/trsrv/stocks', {'symbols': ticker_css})
         for k, v in result.items():
@@ -257,25 +269,22 @@ class InteractiveBrokers(Broker):
                 trades.append(trade)
         return trades
 
-    def daily_bar(self, plan: TradePlan, ticker: str, start: str, end: str = None) -> pd.DataFrame:
-        conid = plan.broker_instrument_id(ticker)
+    def daily_bar(self, conid: str, start: str, end: str = None) -> pd.DataFrame:
         period = (datetime.now().date() - datetime.strptime(start, '%Y-%m-%d').date()).days
         bars = self.__call_ibgateway(
             'GET', f'/iserver/marketdata/history?conid={conid}&period={period}d&bar=1d&outsideRth=0')
         df = pd.DataFrame(bars['data'])
-        df['Date'] = pd.to_datetime(df['t'], unit='ms', utc=True).dt.tz_convert(plan.market_timezone)
-        df.set_index('Date', inplace=True, drop=True)
         df.rename(columns={'o': 'Open', 'c': 'Close', 'h': 'High', 'l': 'Low', 'v': 'Volume'}, inplace=True)
+        df.index = pd.to_datetime(df['t'], unit='ms', utc=True)
+        df.index.rename('Date', inplace=True)
+        df.index = df.index.tz_localize(None).normalize()
         df = df[['Open', 'High', 'Low', 'Close', 'Volume']]
         df = df[start:end]
         return df
 
-    def spot(self, plan: TradePlan, tickers: list[str]) -> pd.DataFrame:
-        conids = [plan.broker_instrument_id(t) for t in tickers]
+    def spot(self, conids: list[str]) -> pd.DataFrame:
         prices = self.__call_ibgateway('GET', f'/iserver/marketdata/snapshot?conids={",".join(str(conids))}')
-        print(prices)
         df = pd.DataFrame(prices)
-        print(df)
         return df
 
 
