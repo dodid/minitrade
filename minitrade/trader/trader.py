@@ -44,6 +44,10 @@ __all__ = [
     'BacktestRunner',
     'TraderLog',
     'Trader',
+    'TaskManager',
+    'TaskPlan',
+    'TaskLog',
+    'TaskRunner',
 ]
 
 
@@ -142,7 +146,7 @@ class TradePlan:
         return self.broker_ticker_map[ticker]
 
     @staticmethod
-    def list_plans() -> list[TradePlan]:
+    def list() -> list[TradePlan]:
         '''Return the list of available trade plans
 
         Returns:
@@ -186,7 +190,7 @@ class TradePlan:
         self.enabled = enable
         self.update_time = datetime.utcnow()
         MTDB.update('TradePlan', 'id', self.id, values={'enabled': self.enabled, 'update_time': self.update_time})
-        self.__call_scheduler('PUT', f'/jobs/{self.id}')
+        self.__call_scheduler('PUT', f'/strategy/{self.id}')
 
     def jobinfo(self) -> dict:
         '''Get scheduled job status of the trade plan.
@@ -194,7 +198,7 @@ class TradePlan:
         Returns:
             A dict like {job_id: ..., job_frequency: ..., next_run_time: ...}
         '''
-        return self.__call_scheduler('GET', f'/jobs/{self.id}')
+        return self.__call_scheduler('GET', f'/strategy/{self.id}')
 
     def save(self) -> None:
         '''Schedule the trade plan and save it to database.
@@ -202,7 +206,7 @@ class TradePlan:
         Fail if plan ID or plan name already exists.
         '''
         MTDB.save(self, 'TradePlan', blacklist=['storage'], on_conflict='update')
-        self.__call_scheduler('PUT', f'/jobs/{self.id}')
+        self.__call_scheduler('PUT', f'/strategy/{self.id}')
 
     def delete(self) -> None:
         '''Unschedule a trade plan and delete it from database.
@@ -212,7 +216,7 @@ class TradePlan:
             os.remove(os.path.join(TradePlan.__storage_root, f'{self.id}.pkl'))
         except FileNotFoundError:
             pass
-        self.__call_scheduler('DELETE', f'/jobs/{self.id}')
+        self.__call_scheduler('DELETE', f'/strategy/{self.id}')
 
     def get_orders(self, run_id: str = None) -> list[RawOrder]:
         '''Retrieve all raw orders associated with a trade plan or only those generated during 
@@ -869,7 +873,7 @@ class Trader:
 
         Disabled trade plans are not processed.
         '''
-        for plan in TradePlan.list_plans():
+        for plan in TradePlan.list():
             if plan.enabled:
                 self.submit_orders(plan)
 
@@ -886,3 +890,303 @@ class Trader:
         send_telegram_message(html=text)
         mailjet_send_email(
             f'Trader @ {start_time.replace(tzinfo=ZoneInfo("UTC")).astimezone().strftime("%Y-%m-%d %H:%M:%S")}', text)
+
+
+@dataclass(kw_only=True)
+class TaskLog:
+
+    id: str
+    '''Task run ID'''
+
+    plan_id: str
+    '''Task plan ID'''
+
+    plan_name: str
+    '''Task plan name'''
+
+    task_code: str
+    '''Task code snapshot'''
+
+    return_value: int | None = None
+    '''Return value of the task'''
+
+    stdout: str | None = None
+    '''STDOUT capture during task execution'''
+
+    stderr: str | None = None
+    '''STDERR capture during task execution'''
+
+    log_time: datetime
+    '''Log time'''
+
+    @property
+    def error(self) -> bool:
+        '''A task is regarded as failed if return value is not 0
+
+        Returns:
+            True for error, False for success
+        '''
+        return self.return_value != 0
+
+    def save(self):
+        MTDB.save(self, 'TaskLog', on_conflict='error')
+
+
+@dataclass(kw_only=True)
+class TaskPlan:
+
+    id: str
+    '''Task plan ID'''
+
+    name: str
+    '''A unique human readable name'''
+
+    task_file: str
+    '''Task file name'''
+
+    timezone: str
+    '''Timezone of the task plan'''
+
+    schedule: str | None
+    '''Crontabs of when the task plan should run'''
+
+    notification: str | None
+    '''Notification settings in JSON format'''
+
+    enabled: bool = False
+    '''If the task plan is enabled'''
+
+    create_time: datetime
+    '''Time when the task plan is created'''
+
+    update_time: datetime | None
+    '''Time when the task plan is updated'''
+
+    @staticmethod
+    def list() -> list[TaskPlan]:
+        '''Return the list of available task plan
+
+        Returns:
+            A list of zero or more task plans
+        '''
+        return MTDB.get_all('TaskPlan', orderby='name', cls=TaskPlan)
+
+    @staticmethod
+    def get_plan(plan_id_or_name: str) -> TaskPlan:
+        '''Look up a task by plan ID or plan name
+
+        Args:
+            plan_id_or_name: Task plan ID or name
+
+        Returns:
+            Task plan if found or None
+        '''
+        plan: TaskPlan = (MTDB.get_one('TaskPlan', 'id', plan_id_or_name, cls=TaskPlan)
+                          or MTDB.get_one('TaskPlan', 'name', plan_id_or_name, cls=TaskPlan))
+        return plan
+
+    def __call_scheduler(self, method: str, path: str, params: dict | None = None) -> Any:
+        url = f'http://{config.scheduler.host}:{config.scheduler.port}{path}'
+        resp = requests.request(method=method, url=url, params=params)
+        if resp.status_code == 200:
+            return resp.json()
+        elif resp.status_code >= 400:
+            raise RuntimeError(f'Scheduler {method} {url} {params} returns {resp.status_code} {resp.text}')
+
+    def enable(self, enable: bool):
+        '''Enable or disable a plan.
+
+        Args:
+            enable: True to schedule a plan for running, or False to deschedule.
+        '''
+        if enable:
+            if not self.schedule or not self.timezone:
+                raise RuntimeError('Task plan must have schedule and timezone to be enabled')
+        self.enabled = enable
+        self.update_time = datetime.utcnow()
+        MTDB.update('TaskPlan', 'id', self.id, values={'enabled': self.enabled, 'update_time': self.update_time})
+        self.__call_scheduler('PUT', f'/task/{self.id}')
+
+    def jobinfo(self) -> dict:
+        '''Get scheduled job status of the task plan.
+
+        Returns:
+            A dict like {job_id: ..., job_frequency: ..., next_run_time: ...}
+        '''
+        return self.__call_scheduler('GET', f'/task/{self.id}')
+
+    def save(self) -> None:
+        '''Schedule the task plan and save it to database.
+
+        Fail if plan ID or plan name already exists.
+        '''
+        MTDB.save(self, 'TaskPlan', on_conflict='update')
+        self.__call_scheduler('PUT', f'/task/{self.id}')
+
+    def delete(self) -> None:
+        '''Unschedule a task plan and delete it from database.
+        '''
+        MTDB.delete('TaskPlan', 'id', self.id)
+        self.__call_scheduler('DELETE', f'/task/{self.id}')
+
+    def list_logs(self, limit=30) -> list[TaskLog]:
+        '''Return all backtest history for this task plan.
+
+        Returns:
+            A list of zero or more task logs
+        '''
+        return MTDB.get_all(
+            'TaskLog', 'plan_id', self.id, orderby=('log_time', False),
+            limit=limit, cls=TaskLog)
+
+    def get_log(self, run_id: str) -> TaskLog:
+        '''Return task log for a particular run.
+
+        Args:
+            run_id: The task run ID
+
+        Returns:
+            Backtest log, or None if not found
+        '''
+        return MTDB.get_one('TaskLog', 'id', run_id, cls=TaskLog)
+
+
+class TaskManager:
+    '''TaskManager provides methods to organizes task files and their execution.'''
+
+    __task_root = expanduser('~/.minitrade/task')
+
+    @staticmethod
+    def locate(filename: str) -> str:
+        ''' Get the absolute path of a task file '''
+        return os.path.join(TaskManager.__task_root, filename)
+
+    @staticmethod
+    def list() -> list[str]:
+        '''Return the list of available task files
+
+        Returns:
+            A list of task filenames
+        '''
+        return [f for f in os.listdir(TaskManager.__task_root) if os.path.isfile(TaskManager.locate(f))]
+
+    @staticmethod
+    def save(filename: str, content: str):
+        '''Save `content` to a strategy file. 
+
+        Args:
+            filename: Strategy file name
+            content: File content as string
+        '''
+        with open(TaskManager.locate(filename), 'w') as f:
+            f.write(content)
+        plan = TaskPlan.get_plan(filename)
+        if plan:
+            plan.update_time = datetime.utcnow()
+        else:
+            plan = TaskPlan(id=MTDB.uniqueid(), name=filename, task_file=filename, timezone=None,
+                            schedule=None, notification=None, enabled=False,
+                            create_time=datetime.utcnow(), update_time=None)
+            with open(TaskManager.locate(filename), 'r') as f:
+                line = f.readline()
+            try:
+                # The first line in file can be a comment that contains default config like:
+                # Default config: {"timezone": "America/New_York", "schedule": "0 9 * * MON-FRI", "enabled": true, "notification": {"telegram": "N", "email": "N"}}
+                if line.startswith('# Default config:'):
+                    config = json.loads(line[17:])
+                    timezone = config.get('timezone')
+                    schedule = config.get('schedule')
+                    enabled = config.get('enabled', False)
+                    notification = config.get('notification')
+                    plan = TaskPlan(id=MTDB.uniqueid(), name=filename, task_file=filename, timezone=timezone,
+                                    schedule=schedule, notification=notification, enabled=enabled,
+                                    create_time=datetime.utcnow(), update_time=None)
+            except Exception:
+                logger.warning(f'Ignore invalid default config in "{filename}": {line}')
+        plan.save()
+
+    @staticmethod
+    def read(task_file: str) -> str:
+        ''' Return the content of `task_file` 
+
+        Args:
+            task_file: The task file name
+
+        Returns:
+            The file content as a string
+        '''
+        with open(TaskManager.locate(task_file), 'r') as f:
+            return f.read()
+
+    @staticmethod
+    def delete(task_file: str) -> None:
+        '''Delete `strategy_file`
+
+        Args:
+            task_file: The task file name
+        '''
+        os.remove(TaskManager.locate(task_file))
+
+
+class TaskRunner:
+    '''TaskRunner handles the execution of a task, write logs, and send notifications.'''
+
+    def __init__(self, plan: TaskPlan):
+        self.plan = plan
+        self.code = TaskManager.read(self.plan.task_file)
+
+    def execute(self) -> TaskLog:
+        '''Run task in an isolated process.
+
+        Returns:
+            `TaskLog` of the run
+        '''
+        try:
+            proc = subprocess.run(
+                [sys.executable, TaskManager.locate(self.plan.task_file)],
+                capture_output=True,
+                cwd=TaskManager.locate('.'),
+                timeout=600)
+            log = TaskLog(
+                id=MTDB.uniqueid(),
+                plan_id=self.plan.id,
+                plan_name=self.plan.name,
+                task_code=self.code,
+                return_value=proc.returncode,
+                stdout=proc.stdout if proc.stdout else None,
+                stderr=proc.stderr if proc.stderr else None,
+                log_time=datetime.utcnow()
+            )
+            log.save()
+        except Exception:
+            ex = traceback.format_exc()
+            log = TaskLog(
+                id=MTDB.uniqueid(),
+                plan_id=self.plan.id,
+                plan_name=self.plan.name,
+                task_code=self.code,
+                return_value=10000,
+                stdout=None,
+                stderr=ex,
+                log_time=datetime.utcnow()
+            )
+            log.save()
+        finally:
+            log = self.plan.get_log(log.id)
+            self._send_task_notification(log)
+            return log
+
+    def _send_task_notification(self, log: TaskLog):
+        ''' Send task result via telegram and/or email '''
+        telegram = self.plan.notification.get('telegram', 'N') if self.plan.notification else 'N'
+        email = self.plan.notification.get('email', 'N') if self.plan.notification else 'N'
+        subject = f'Task "{self.plan.name}" {"❌" if log.error else "✅"}  @ {log.log_time.strftime("%Y-%m-%d %H:%M:%S")}'
+        message = [f'<b>{subject}</b>\n<pre></pre>']
+        message.append(f'<b>Return value</b>\n<pre>{html.escape(str(log.return_value))}</pre>')
+        message.append(f'<b>STDERR</b>\n<pre>{html.escape(log.stderr or "None")}</pre>')
+        message.append(f'<b>STDOUT</b>\n<pre>{html.escape(log.stdout or "None")}</pre>')
+        message = '\n\n'.join(message)
+        if telegram == 'A' or (telegram == 'E' and log.error):
+            send_telegram_message(html=message)
+        if email == 'A' or (email == 'E' and log.return_value != 0):
+            mailjet_send_email(subject, message)

@@ -15,6 +15,7 @@ log = st.sidebar.radio('Logs', [
     'IbOrder',
     'IbTrade',
     'RawOrder',
+    'TaskLog',
 ])
 
 data = MTDB.get_all(log, cls=dict)

@@ -136,7 +136,7 @@ def __call_scheduler(method: str, path: str, params: dict | None = None):
     method : str
         The HTTP method, i.e. GET, POST, PUT, DELETE, etc.
     path : str
-        The REST API endpoint, e.g. '/jobs'
+        The REST API endpoint
     params : dict, optional
         Extra parameters to be sent along with the REST API call
 
@@ -175,7 +175,7 @@ def scheduler_stop():
 @scheduler.command('status')
 def scheduler_status():
     '''Check scheduler status'''
-    status = __call_scheduler('GET', '/jobs')
+    status = __call_scheduler('GET', '/strategy')
     click.echo(json.dumps(status, indent=2))
 
 
@@ -183,7 +183,7 @@ def scheduler_status():
 @click.argument('plan_id')
 def scheduler_schedule(plan_id):
     '''Schedule a trade plan'''
-    status = __call_scheduler('PUT', f'/jobs/{plan_id}')
+    status = __call_scheduler('PUT', f'/strategy/{plan_id}')
     click.echo(status)
 
 
@@ -191,7 +191,7 @@ def scheduler_schedule(plan_id):
 @click.argument('plan_id')
 def scheduler_unschedule(plan_id):
     '''Unschedule a trade plan'''
-    status = __call_scheduler('DELETE', f'/jobs/{plan_id}')
+    status = __call_scheduler('DELETE', f'/strategy/{plan_id}')
     click.echo(status)
 
 
@@ -285,7 +285,7 @@ def ib_diagnose():
 
     click.secho('Checking IB gateway:')
     try:
-        if requests.get(f'http://localhost:{config.scheduler.port}/jobs', timeout=3).status_code != 200:
+        if requests.get(f'http://localhost:{config.scheduler.port}/strategy', timeout=3).status_code != 200:
             raise RuntimeError('Scheduler is not running')
     except Exception:
         click.secho('  Scheduler is not running. Start it and try again.', fg='red')
@@ -335,7 +335,7 @@ def init(yes):
 
     # create dirs
     click.secho(f'Setting up directories...')
-    for d in ['database', 'strategy', 'storage', 'ibgateway']:
+    for d in ['database', 'strategy', 'storage', 'ibgateway', 'task']:
         os.makedirs(os.path.join(minitrade_root, d), mode=0o700, exist_ok=True)
 
     # upgrade config

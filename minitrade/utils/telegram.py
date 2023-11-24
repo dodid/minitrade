@@ -51,7 +51,8 @@ class TelegramBot():
                 token or config.providers.telegram.token).proxy_url(
                 self.proxy).get_updates_proxy_url(
                 self.proxy).build()
-            self.app.add_handler(CommandHandler('job', self.job))
+            self.app.add_handler(CommandHandler('trade', self.trade))
+            self.app.add_handler(CommandHandler('task', self.task))
             self.app.add_handler(CommandHandler('ib', self.ib))
             self.app.add_handler(CommandHandler('chatid', self.chatid))
             self.app.add_handler(CommandHandler('help', self.help))
@@ -78,7 +79,7 @@ class TelegramBot():
         elif resp.status_code >= 400:
             raise RuntimeError(f'Request {path} returned {resp.status_code} {resp.text}')
 
-    async def job(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+    async def trade(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         '''List scheduled jobs or enable/disable a job'''
         from minitrade.trader import TradePlan
         cmd, plan_name = len(context.args) == 2 and context.args or (None, None)
@@ -97,14 +98,42 @@ class TelegramBot():
             else:
                 await context.bot.send_message(chat_id=update.effective_chat.id, text=f'"{plan_name}" not found')
         else:
-            jobs = await self.__call_scheduler('GET', '/jobs')
+            jobs = await self.__call_scheduler('GET', '/strategy')
             if jobs:
-                await context.bot.send_message(chat_id=update.effective_chat.id, text=f'{len(jobs)} job scheduled')
+                await context.bot.send_message(chat_id=update.effective_chat.id, text=f'{len(jobs)} strategy scheduled')
                 for j in jobs:
                     status = f'"{j["job_name"]}" next run @ {j["next_run_time"]}'
                     await context.bot.send_message(chat_id=update.effective_chat.id, text=status)
             else:
-                await context.bot.send_message(chat_id=update.effective_chat.id, text=f'No job scheduled')
+                await context.bot.send_message(chat_id=update.effective_chat.id, text=f'No strategy scheduled')
+
+    async def task(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        '''List scheduled jobs or enable/disable a job'''
+        from minitrade.trader import TaskPlan
+        cmd, plan_name = len(context.args) == 2 and context.args or (None, None)
+        if cmd == 'enable':
+            plan = await asyncio.to_thread(TaskPlan.get_plan, plan_name)
+            if plan:
+                await asyncio.to_thread(plan.enable, True)
+                await context.bot.send_message(chat_id=update.effective_chat.id, text=f'"{plan_name}" enabled')
+            else:
+                await context.bot.send_message(chat_id=update.effective_chat.id, text=f'"{plan_name}" not found')
+        elif cmd == 'disable':
+            plan = await asyncio.to_thread(TaskPlan.get_plan, plan_name)
+            if plan:
+                await asyncio.to_thread(plan.enable, False)
+                await context.bot.send_message(chat_id=update.effective_chat.id, text=f'"{plan_name}" disabled')
+            else:
+                await context.bot.send_message(chat_id=update.effective_chat.id, text=f'"{plan_name}" not found')
+        else:
+            jobs = await self.__call_scheduler('GET', '/task')
+            if jobs:
+                await context.bot.send_message(chat_id=update.effective_chat.id, text=f'{len(jobs)} task scheduled')
+                for j in jobs:
+                    status = f'"{j["job_name"]}" next run @ {j["next_run_time"]}'
+                    await context.bot.send_message(chat_id=update.effective_chat.id, text=status)
+            else:
+                await context.bot.send_message(chat_id=update.effective_chat.id, text=f'No task scheduled')
 
     async def ib(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         cmd = len(context.args) == 1 and context.args[0] or None
@@ -136,9 +165,12 @@ class TelegramBot():
         '''Show help message'''
         await context.bot.send_message(chat_id=update.effective_chat.id,
                                        text='Commands:\n'
-                                       '/job: show scheduler status\n'
-                                       '/job enable PLAN_NAME: enable a trade plan\n'
-                                       '/job disable PLAN_NAME: disable a trade plan\n'
+                                       '/trade: show trade plan status\n'
+                                       '/trade enable TRADE_PLAN_NAME: enable a trade plan\n'
+                                       '/trade disable TRADE_PLAN_NAME: disable a trade plan\n'
+                                       '/task: show task status\n'
+                                       '/task enable TASK_NAME: schedule a task\n'
+                                       '/task disable TASK_NAME: deschedule a task\n'
                                        '/ib: show IB gateway status\n'
                                        '/ib login: login to all IB accounts\n'
                                        '/chatid: show Chat ID'
@@ -152,9 +184,11 @@ class TelegramBot():
         await context.bot.send_message(chat_id=update.effective_chat.id, text="Thanks")
 
     async def startup(self):
+        # See the tip in https://docs.python-telegram-bot.org/en/latest/telegram.ext.application.html#telegram.ext.Application.run_polling
+        # Do each step manually
         await self.app.initialize()
-        await self.app.start()
         await self.app.updater.start_polling()
+        await self.app.start()
 
     async def shutdown(self):
         await self.app.updater.stop()

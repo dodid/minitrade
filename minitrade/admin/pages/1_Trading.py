@@ -189,7 +189,7 @@ def save_plan_and_dryrun(plan: TradePlan) -> None:
 
 
 def show_trade_plan_selector() -> TradePlan | None:
-    plan_lst = TradePlan.list_plans()
+    plan_lst = TradePlan.list()
     plan_idx = st.sidebar.radio('Trade plan', list(range(len(plan_lst))),
                                 format_func=lambda i: plan_lst[i].name)
     plan = plan_lst[int(plan_idx)] if plan_idx is not None else None

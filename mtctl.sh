@@ -23,6 +23,8 @@ fi
 if [ $1 == "start" ] || [ $1 == "restart" ]; then
     nohup minitrade scheduler start < /dev/null > minitrade.log 2>&1 &
     nohup minitrade ib start < /dev/null > minitrade.log 2>&1 &
+    # wait for scheduler/ib to finish launching before starting web
+    sleep 3
     nohup minitrade web start < /dev/null > minitrade.log 2>&1 &
     sleep 1
     pgrep -fla "minitrade " | awk '{print $1, $4, "started"}'
