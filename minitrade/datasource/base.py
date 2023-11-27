@@ -156,6 +156,33 @@ class QuoteSource(ABC):
         except Exception as e:
             raise AttributeError(e) from e
 
+    def monthly_bar(
+            self, tickers: list[str] | str, start: str = '2020-01-01', end: str = None, align: bool = True,
+            normalize: bool = False) -> pd.DataFrame:
+        ''' Read monthly OHLCV data for a list of `tickers` starting from `start` date and ending on `end` date (both inclusive).
+
+        Args:
+            tickers: Tickers as a list of string or a comma separated string without space
+            start: Start date in string format 'YYYY-MM'
+            end: End date in string format 'YYYY-MM'
+            align: True to align data to start on the same date, i.e. drop leading days when not all tickers have data available.
+            normalize: True to normalize the close price on the start date to 1 for all tickers and scale all price data accordingly.
+
+        Returns:
+            A dataframe with 2-level columns, first level being the tickers, and the second level being columns 'Open', 'High', 'Low', 'Close', 'Volume'. The dataframe is indexed by last day of month.
+        '''
+        start = pd.offsets.MonthBegin().rollback(pd.to_datetime(start)).strftime('%Y-%m-%d')
+        end = (pd.to_datetime(end) + pd.offsets.MonthEnd(1)).strftime('%Y-%m-%d')
+        daily = self.daily_bar(tickers, start, end, align, normalize)
+        monthly = daily.ta.apply(lambda x: x.resample('M').agg({
+            'Open': 'first',
+            'High': 'max',
+            'Low': 'min',
+            'Close': 'last',
+            'Volume': 'sum',
+        }))
+        return monthly
+
     @abstractmethod
     def _minute_bar(self, ticker: str, start: str, end: str, interval: int) -> pd.DataFrame:
         '''Same as `minute_bar()` for only one ticker.

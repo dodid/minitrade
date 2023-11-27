@@ -106,22 +106,34 @@ def compute_stats(
     c = ohlc_data.Close.values
     s.loc['Buy & Hold Return [%]'] = (c[-1] - c[0]) / c[0] * 100  # long-only return
 
-    gmean_day_return: float = 0
-    day_returns = np.array(np.nan)
-    annual_trading_days = np.nan
+    gmean_period_return: float = 0
+    period_returns = np.array(np.nan)
+    annual_trading_periods = np.nan
     if isinstance(index, pd.DatetimeIndex):
-        day_returns = equity_df['Equity'].resample('D').last().dropna().pct_change()
-        gmean_day_return = geometric_mean(day_returns)
-        annual_trading_days = float(
-            365 if index.dayofweek.to_series().between(5, 6).mean() > 2/7 * .6 else 252)
+        period = equity.index.to_series().diff().mean().days
+        if period <= 1:
+            period_returns = equity_df['Equity'].resample('D').last().dropna().pct_change()
+            gmean_period_return = geometric_mean(period_returns)
+            annual_trading_periods = float(
+                365 if index.dayofweek.to_series().between(5, 6).mean() > 2/7 * .6 else 252)
+        elif period >= 28 and period <= 31:
+            period_returns = equity_df['Equity'].pct_change()
+            gmean_period_return = geometric_mean(period_returns)
+            annual_trading_periods = 12
+        elif period >= 365 and period <= 366:
+            period_returns = equity_df['Equity'].pct_change()
+            gmean_period_return = geometric_mean(period_returns)
+            annual_trading_periods = 1
+        else:
+            warnings.warn(f'Unsupported data period from index: {period} days.')
 
     # Annualized return and risk metrics are computed based on the (mostly correct)
     # assumption that the returns are compounded. See: https://dx.doi.org/10.2139/ssrn.3054517
     # Our annualized return matches `empyrical.annual_return(day_returns)` whereas
     # our risk doesn't; they use the simpler approach below.
-    annualized_return = (1 + gmean_day_return)**annual_trading_days - 1
+    annualized_return = (1 + gmean_period_return)**annual_trading_periods - 1
     s.loc['Return (Ann.) [%]'] = annualized_return * 100
-    s.loc['Volatility (Ann.) [%]'] = np.sqrt((day_returns.var(ddof=int(bool(day_returns.shape))) + (1 + gmean_day_return)**2)**annual_trading_days - (1 + gmean_day_return)**(2*annual_trading_days)) * 100  # noqa: E501
+    s.loc['Volatility (Ann.) [%]'] = np.sqrt((period_returns.var(ddof=int(bool(period_returns.shape))) + (1 + gmean_period_return)**2)**annual_trading_periods - (1 + gmean_period_return)**(2*annual_trading_periods)) * 100  # noqa: E501
     # s.loc['Return (Ann.) [%]'] = gmean_day_return * annual_trading_days * 100
     # s.loc['Risk (Ann.) [%]'] = day_returns.std(ddof=1) * np.sqrt(annual_trading_days) * 100
 
@@ -133,7 +145,7 @@ def compute_stats(
         warnings.filterwarnings('error')
         try:
             # Our Sortino mismatches `empyrical.sortino_ratio()` because they use arithmetic mean return
-            s.loc['Sortino Ratio'] = (annualized_return - risk_free_rate) / (np.sqrt(np.mean(day_returns.clip(-np.inf, 0)**2)) * np.sqrt(annual_trading_days))  # noqa: E501
+            s.loc['Sortino Ratio'] = (annualized_return - risk_free_rate) / (np.sqrt(np.mean(period_returns.clip(-np.inf, 0)**2)) * np.sqrt(annual_trading_periods))  # noqa: E501
         except Warning:
             s.loc['Sortino Ratio'] = np.nan
     max_dd = -np.nan_to_num(dd.max())
