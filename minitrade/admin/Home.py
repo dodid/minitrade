@@ -1,4 +1,5 @@
 import os
+from contextlib import closing
 from importlib.metadata import version
 
 import pandas as pd
@@ -6,6 +7,7 @@ import requests
 import streamlit as st
 
 from minitrade.utils.config import config
+from minitrade.utils.mtdb import MTDB
 
 st.set_page_config(page_title='Minitrade Status', layout='wide')
 
@@ -90,11 +92,33 @@ def display_minitrade_version():
     st.text(version('minitrade'))
 
 
+def display_database_status():
+    tables = [
+        'TraderLog',
+        'BacktestLog',
+        'OrderValidatorLog',
+        'ManualTrade',
+        'IbOrderLog',
+        'IbOrder',
+        'IbTrade',
+        'RawOrder',
+        'TaskLog',
+    ]
+    st.caption('Database')
+    with closing(MTDB.conn()) as conn:
+        stats = {
+            table:
+            (conn.execute(f'select count(*) from {table}').fetchone()[0],
+             conn.execute(f'SELECT SUM("pgsize")/1024.0/1024.0 FROM "dbstat" WHERE name="{table}"').fetchone()[0])
+            for table in tables}
+        st.write(pd.DataFrame(stats, index=['Row', 'Size (MB)']))
+
+
 st.button('Refresh', type='primary')
 st.header('Minitrade Status')
 
 for func in [display_minitrade_version, display_process_status, display_trade_status, display_task_status,
-             display_ib_gateway_status]:
+             display_ib_gateway_status, display_database_status]:
     st.text("")
     func()
     st.text("")
