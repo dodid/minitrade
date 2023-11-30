@@ -121,7 +121,7 @@ def show_run_history(tab, plan: TaskPlan) -> None:
             log_status = '❌' if log.error else '✅'
             log_time = log.log_time.replace(tzinfo=ZoneInfo('UTC')).astimezone(
                 ZoneInfo(plan.timezone)).strftime('%Y-%m-%d %H:%M:%S')
-            label = f'{log_status} {log_time} [code {log.return_value}]'
+            label = f'{log_status} {log_time} [exit {log.return_value}]'
             with st.expander(label):
                 st.caption(f'Log - stderr')
                 if log.error:

@@ -31,17 +31,19 @@ def __call_ibgateway_admin(method: str, path: str, params: dict | None = None):
 
 def display_process_status():
     st.caption('Processes')
-    cmd = 'ps -o pid,command | grep python | grep minitrade | grep -v grep'
+    cmd = 'ps -o pid,ppid,command | grep python | grep minitrade | grep -v grep'
     output = os.popen(cmd).read()
-    pid_map = {pid: name for pid, _, _, name, _ in [line.split() for line in output.splitlines()]}
+    pid_map = {pid: name for pid, ppid, _, _, name, _ in [line.split() for line in output.splitlines()] if ppid == '1'}
     proc_map = {'scheduler': [], 'ib': [], 'web': []}
     for k, v in pid_map.items():
         proc_map[v] = proc_map.get(v, []) + [k]
+    ppid_map = {pid: ppid for pid, ppid, _, _, _, _ in [line.split() for line in output.splitlines()]}
     for k, v in proc_map.items():
         if len(v) == 0:
             st.warning(f'Process "{k}" is not running.')
         elif len(v) == 1:
-            st.text(f'Process "{k}" is running, pid {v}.')
+            child_pid = [i for i, j in ppid_map.items() if j == v[0]]
+            st.text(f'Process "{k}" is running, pid {v}' + (f', child pid {child_pid}.' if len(child_pid) > 0 else '.'))
         else:
             st.error(
                 f'Process "{k}" is running, {len(v)} instances found {v}, which is not right. Consider restarting the service.')
