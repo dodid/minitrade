@@ -175,7 +175,7 @@ class QuoteSource(ABC):
             A dataframe with 2-level columns, first level being the tickers, and the second level being columns 'Open', 'High', 'Low', 'Close', 'Volume'. The dataframe is indexed by last day of month.
         '''
         start = pd.offsets.MonthBegin().rollback(pd.to_datetime(start)).strftime('%Y-%m-%d')
-        end = (pd.to_datetime(end) + pd.offsets.MonthEnd(1)).strftime('%Y-%m-%d')
+        end = (pd.to_datetime(end) + pd.offsets.MonthEnd(1)).strftime('%Y-%m-%d') if end else None
         daily = self.daily_bar(tickers, start, end, align, normalize)
         monthly = daily.ta.apply(lambda x: x.resample('M').agg({
             'Open': 'first',
