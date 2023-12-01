@@ -88,38 +88,32 @@ def test_and_save_ib_account(alias):
 def config_sources():
     source = st.sidebar.radio('Source', QuoteSource.AVAILABLE_SOURCES)
 
+    st.subheader(source)
     if source == 'Yahoo':
-        st.subheader('Yahoo')
         proxy = st.text_input('HTTP Proxy (Socks proxy not supported)',
                               placeholder='http://host:port', value=config.sources.yahoo.proxy or '') or None
         if st.button('Test and save'):
             test_and_save_yahoo_proxy(proxy)
     elif source == 'EastMoney':
-        st.subheader('EastMoney')
         st.write('Nothing to configure')
     elif source == 'EODHistoricalData':
-        st.subheader('EODHistoricalData')
         api_key = st.text_input('API Key', value=config.sources.eodhd.api_key or '') or None
         if st.button('Test and save'):
             test_and_save_eodhd_api_key(api_key)
     elif source == 'TwelveData':
-        st.subheader('TwelveData')
         api_key = st.text_input('API Key', value=config.sources.twelvedata.api_key or '') or None
         if st.button('Test and save'):
             test_and_save_twelvedata_api_key(api_key)
     elif source == 'Alpaca':
-        st.subheader('Alpaca')
         api_key = st.text_input('API Key', value=config.sources.alpaca.api_key or '') or None
         api_secret = st.text_input('API Secret', value=config.sources.alpaca.api_secret or '') or None
         if st.button('Test and save'):
             test_and_save_alpaca_api_key(api_key, api_secret)
     elif source == 'Tiingo':
-        st.subheader('Tiingo')
         api_key = st.text_input('API Key', value=config.sources.tiingo.api_key or '') or None
         if st.button('Test and save'):
             test_and_save_tiingo_api_key(api_key)
     elif source == 'InteractiveBrokers':
-        st.subheader('InteractiveBrokers')
         accounts = [_ for _ in BrokerAccount.list() if _.broker == 'IB']
         if len(accounts) == 0:
             st.warning('Please make sure you have configured your IB account in the broker section.')
@@ -133,6 +127,8 @@ def config_sources():
             st.success(f'Currently using account "**{config.sources.ib.account}**" for data access.')
         else:
             st.error('No account is currently configured for data access.')
+    elif source == 'CboeIndex':
+        st.write('Nothing to configure')
 
 
 @st.cache_data(ttl='1h')

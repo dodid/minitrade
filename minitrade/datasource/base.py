@@ -20,7 +20,7 @@ class QuoteSource(ABC):
     '''
 
     AVAILABLE_SOURCES = sorted(['Yahoo', 'EODHistoricalData', 'TwelveData', 'Alpaca',
-                               'EastMoney', 'Tiingo', 'InteractiveBrokers'])
+                               'EastMoney', 'Tiingo', 'InteractiveBrokers', 'CboeIndex'])
     '''A list of names for supported quote sources as input to `QuoteSource.get_source()`.'''
 
     @staticmethod
@@ -58,6 +58,9 @@ class QuoteSource(ABC):
         elif name == 'InteractiveBrokers':
             from .ib import InteractiveBrokersQuoteSource
             return InteractiveBrokersQuoteSource(**kwargs)
+        elif name == 'CboeIndex':
+            from .cboe_index import CboeIndexQuoteSource
+            return CboeIndexQuoteSource(**kwargs)
         else:
             raise AttributeError(f'Quote source {name} is not supported')
 
