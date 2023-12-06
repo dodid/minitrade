@@ -1075,6 +1075,20 @@ files = [
 ]
 
 [[package]]
+name = "fredapi"
+version = "0.5.1"
+description = "Python API for Federal Reserve Economic Data (FRED) from St. Louis Fed"
+optional = false
+python-versions = "*"
+files = [
+    {file = "fredapi-0.5.1-py3-none-any.whl", hash = "sha256:3ad6c75e0c4278666d0c8248142bb6e74f51dc0a017063032cf6ee98d2a44203"},
+    {file = "fredapi-0.5.1.tar.gz", hash = "sha256:fe6e2320641ea6b516de8f2dbef8affd2a55f30efb189846a5c19078738ef162"},
+]
+
+[package.dependencies]
+pandas = "*"
+
+[[package]]
 name = "frozendict"
 version = "2.3.8"
 description = "A simple immutable dictionary"
@@ -3921,6 +3935,27 @@ files = [
 cffi = {version = "*", markers = "implementation_name == \"pypy\""}
 
 [[package]]
+name = "quantstats"
+version = "0.0.62"
+description = "Portfolio analytics for quants"
+optional = false
+python-versions = "*"
+files = [
+    {file = "QuantStats-0.0.62-py2.py3-none-any.whl", hash = "sha256:5b549d41d9edb2260ddc437440acfbb4e89cfe5388bc614247d61ec19bcdff10"},
+    {file = "QuantStats-0.0.62.tar.gz", hash = "sha256:64d8fa6284599c70d407debafbbc368b0d03bc67374ffdb4b4a0d19b335ef965"},
+]
+
+[package.dependencies]
+matplotlib = ">=3.0.0"
+numpy = ">=1.16.5"
+pandas = ">=0.24.0"
+python-dateutil = ">=2.0"
+scipy = ">=1.2.0"
+seaborn = ">=0.9.0"
+tabulate = ">=0.8.0"
+yfinance = ">=0.1.70"
+
+[[package]]
 name = "referencing"
 version = "0.30.2"
 description = "JSON Referencing + Python"
@@ -5296,4 +5331,4 @@ testing = ["big-O", "jaraco.functools", "jaraco.itertools", "more-itertools", "p
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.10, <3.13"
-content-hash = "daaf8a2b314c268bcfafe9fda89a78fe69b26c1c104aa5a7981db8cfdcdf4d08"
+content-hash = "5db87d4df838eccd8bfbd140c87b945d0e0a5d9c1d6bb1a165b7b2f09c5e58a0"

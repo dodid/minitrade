@@ -39,6 +39,10 @@ class SourceConfigInteractiveBrokers(BaseModel):
     account: str | None = None
 
 
+class SourceConfigFred(BaseModel):
+    api_key: str | None = None
+
+
 class SourceConfig(BaseModel):
     yahoo: SourceConfigYahoo = SourceConfigYahoo()
     eodhd: SourceConfigEODHD = SourceConfigEODHD()
@@ -46,6 +50,7 @@ class SourceConfig(BaseModel):
     alpaca: SourceConfigAlpaca = SourceConfigAlpaca()
     tiingo: SourceConfigTiingoData = SourceConfigTiingoData()
     ib: SourceConfigInteractiveBrokers = SourceConfigInteractiveBrokers()
+    fred: SourceConfigFred = SourceConfigFred()
 
 
 class BrokerConfigIB(BaseModel):

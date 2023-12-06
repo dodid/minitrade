@@ -217,6 +217,7 @@ def plot_ohlcv(data):
         # print ohlcv
         c1.write(f'### {ticker}')
         c1.dataframe(df)
+        c1.download_button(f'Download {ticker}', df.to_csv().encode('utf-8'), f'{ticker}.csv')
         # plot stats
         c2.write('### Stats')
         stats = df.describe()
@@ -256,7 +257,7 @@ def inspect_data():
         if len(sources) == 1:
             st.write(f'## {sources[0]}')
             try:
-                df = QuoteSource.get_source(sources[0]).daily_bar(tickers, start=start, end=end)
+                df = read_daily_bar(tickers, start, end, sources)[sources[0]]
                 plot_ohlcv(df)
             except Exception as e:
                 st.error(f'Getting {sources[0]} data error: {e}')
