@@ -19,7 +19,7 @@ def send_telegram_message(*text, html: str = '', silent: bool = False):
     if 'pytest' not in sys.modules:
         url = f'http://{config.scheduler.host}:{config.scheduler.port}/messages'
         resp = requests.request(method='POST', url=url, json={'text': '\n'.join(text)[
-                                :4096], 'html': html[:4096], 'silent': silent})  # Telegram message length limit
+                                :4000], 'html': html[:4000], 'silent': silent})  # Telegram message length limit
         if resp.status_code == 200:
             return resp.json()
         elif resp.status_code >= 400:

@@ -145,7 +145,7 @@ class InteractiveBrokers(Broker):
                      'trade_time_r', 'size', 'price', 'submitter', 'exchange', 'commission', 'net_amount', 'account',
                      'accountCode', 'company_name', 'contract_description_1', 'contract_description_2', 'sec_type',
                      'listing_exchange', 'conid', 'conidEx', 'open_close', 'directed_exchange', 'clearing_id',
-                     'clearing_name', 'liquidation_trade', 'is_event_trading', 'order_ref']
+                     'clearing_name', 'liquidation_trade', 'is_event_trading', 'order_ref', 'account_allocation_name']
         trades = self.__call_ibgateway('GET', '/iserver/account/trades')
         MTDB.save(trades, 'IbTrade', on_conflict='update', whitelist=whitelist)
         return pd.DataFrame(trades)

@@ -54,6 +54,7 @@ CREATE TABLE IF NOT EXISTS "IbTrade" (
 	"liquidation_trade" TEXT,
 	"is_event_trading" TEXT,
 	"order_ref" TEXT,
+	"account_allocation_name" TEXT,
 	PRIMARY KEY("execution_id")
 );
 

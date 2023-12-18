@@ -1091,7 +1091,7 @@ class TaskManager:
                 line = f.readline()
             try:
                 # The first line in file can be a comment that contains default config like:
-                # Default config: {"timezone": "America/New_York", "schedule": "0 9 * * MON-FRI", "enabled": true, "notification": {"telegram": "N", "email": "N"}}
+                # # Default config: {"timezone": "America/New_York", "schedule": "0 9 * * MON-FRI", "enabled": true, "notification": {"telegram": "N", "email": "N"}}
                 if line.startswith('# Default config:'):
                     config = json.loads(line[17:])
                     timezone = config.get('timezone')
