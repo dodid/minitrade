@@ -85,10 +85,22 @@ def test_and_save_ib_account(alias):
         st.error('Getting data from InteractiveBrokers not working, please check account')
 
 
-def config_sources():
+def show_source_page():
     source = st.sidebar.radio('Source', QuoteSource.AVAILABLE_SOURCES)
 
     st.subheader(source)
+    t1, t2 = st.tabs(['Config', 'About'])
+    with t1:
+        config_source(source)
+    with t2:
+        about_source(source)
+
+
+def about_source(source):
+    st.markdown(QuoteSource.get_source(source).__doc__ or '')
+
+
+def config_source(source):
     if source == 'Yahoo':
         proxy = st.text_input('HTTP Proxy (Socks proxy not supported)',
                               placeholder='http://host:port', value=config.sources.yahoo.proxy or '') or None
@@ -295,7 +307,7 @@ def lookup_ticker():
 action = st.sidebar.radio('Action', ['Config', 'Inspect', 'Lookup (IB only)'])
 
 if action == 'Config':
-    config_sources()
+    show_source_page()
 
 
 if action == 'Inspect':

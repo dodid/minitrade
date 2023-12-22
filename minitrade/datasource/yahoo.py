@@ -10,6 +10,38 @@ from minitrade.utils.config import config
 
 
 class YahooQuoteSource(QuoteSource):
+    '''YahooQuoteSource uses `yfinance` to access the financial data available on Yahoo Finance. 
+
+Yahoo Finance offers an excellent range of market data on stocks, bonds, currencies and cryptocurrencies.
+
+Usage:
+- Returned data are adjusted for splits and dividends by default. 
+- Pass `use_adjusted=False` to `get_source()` to get unadjusted data.
+
+Accepted symbol format:
+- U.S. stocks: AAPL, MSFT, BRK-B, ...
+- U.S. ETF: SPY, QQQ, ...
+- U.S. index: ^GSPC, ^DJI, ^IXIC, ^RUT, ^VIX, ...
+- U.S. futures: ES=F, YM=F, NQ=F, RTY=F, CL=F, GC=F, SI=F, HG=F, ...
+- U.S. options: TSLA260116C00210000, TSLA260116P00210000, ...
+- U.S. mutual fund: VWUSX, ...
+- U.S. bond: ^TNX, ^TYX, ^FVX, ^IRX, ...
+- U.S. currency: JPY=X, EURUSD=X, GBPUSD=X, ...
+- U.S. commodity: CL=F, GC=F, SI=F, HG=F, ...
+- Worldwide stocks: 0700.HK, 000001.SS, BMW.DE, VOD.L, ...
+- Worldwide ETF: 2800.HK, 510050.SS, ...
+- Worldwide index: ^HSI, ^N225, ^FTSE, ...
+- Crypto: BTC-USD, ETH-USD, ...
+
+Daily bar:
+- The daily OHLCV data includes historical data up to T-1 and the current spot price at T if it is available. Please note that the spot price might not be available for all tickers, could be delayed, and may not be entirely accurate. Therefore, it is advisable to verify the data quality specifically for the tickers you are interested in before use.
+
+Minute bar:
+- Experimental
+
+Spot price:
+- Experimental
+    '''
 
     def __init__(self, proxy: str = None, use_adjusted=True):
         ''' Yahoo data source
@@ -23,11 +55,7 @@ class YahooQuoteSource(QuoteSource):
         self.use_adjusted = use_adjusted
 
     def _format_ticker(self, ticker):
-        # Ignore market suffix
-        if ticker[-3] == '.' and ticker[-2:].isalpha():
-            return ticker
-        else:
-            return ticker.replace('.', '-')
+        return ticker
 
     def _ticker_timezone(self, ticker):
         return yf.Ticker(self._format_ticker(ticker)).fast_info['timezone']

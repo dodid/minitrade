@@ -10,7 +10,8 @@ from minitrade.datasource.base import QuoteSource
 
 
 class EastMoneyQuoteSource(QuoteSource):
-    '''EastMoney data source'''
+    '''EastMoneyQuoteSource retrieves data from https://www.eastmoney.com. (Experimental)
+    '''
 
     def _ticker_timezone(self, ticker):
         return 'Asia/Shanghai'

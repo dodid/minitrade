@@ -9,7 +9,8 @@ from minitrade.utils.config import config
 
 
 class TiingoQuoteSource(QuoteSource):
-    '''Tiingo Data source'''
+    '''TiingoQuoteSource retrieves data from https://www.tiingo.com. (Experimental)
+    '''
 
     def __init__(self, api_key: str = None, use_adjusted: bool = True) -> None:
         super().__init__()

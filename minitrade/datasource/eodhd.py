@@ -8,7 +8,8 @@ from minitrade.utils.config import config
 
 
 class EODHistoricalDataQuoteSource(QuoteSource):
-    '''EOD Historical Data source'''
+    '''EODHistoricalDataQuoteSource retrieves data from https://eodhd.com. (Experimental)
+    '''
 
     def __init__(self, api_key: str = None, use_adjusted: bool = True) -> None:
         super().__init__()

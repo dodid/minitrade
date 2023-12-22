@@ -8,7 +8,20 @@ from minitrade.datasource.base import QuoteSource
 
 
 class CboeIndexQuoteSource(QuoteSource):
-    '''CBOE index data source'''
+    '''CBOEIndexQuoteSource retrieves historical index data from CBOE website as listed on https://www.cboe.com/indices/.
+
+Accepted symbol format:
+- CBOE index: ^VIX, ^CALD, ^PUTD, ...
+
+Daily bar:
+- The daily OHLCV data returns historical data up to T-1.
+
+Minute bar:
+- Not available
+
+Spot price:
+- Not available
+    '''
 
     url = 'https://cdn.cboe.com/api/global/delayed_quotes/charts/historical/{}.json'
 

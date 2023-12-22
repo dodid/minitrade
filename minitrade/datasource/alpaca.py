@@ -11,7 +11,8 @@ from minitrade.utils.config import config
 
 
 class AlpacaQuoteSource(QuoteSource):
-    '''Twelve Data source'''
+    '''AlpacaQuoteSource retrieves data from https://alpaca.markets. (Experimental)
+    '''
 
     def __init__(self, api_key: str = None, api_secret: str = None, use_adjusted: bool = True) -> None:
         super().__init__()

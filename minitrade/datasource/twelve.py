@@ -7,7 +7,8 @@ from minitrade.utils.config import config
 
 
 class TwelveDataQuoteSource(QuoteSource):
-    '''Twelve Data source'''
+    '''TwelveDataQuoteSource retrieves data from https://twelvedata.com. (Experimental)
+    '''
 
     def __init__(self, api_key: str = None) -> None:
         super().__init__()
