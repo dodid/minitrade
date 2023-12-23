@@ -133,9 +133,9 @@ def test_yahoo_get_special_ticker():
     start = '2000-01-03'
     end = '2022-12-10'
 
-    for tickers in [['^VIX', 'BRK.B', '000001.SS'], '^VIX,BRK.B,000001.SS']:
+    for tickers in [['^VIX', 'BRK-B', '000001.SS'], '^VIX,BRK-B,000001.SS']:
         df = yahoo.daily_bar(tickers, start=start, end=end, align=True, normalize=True)
-        assert df.columns.get_level_values(0).to_list() == [*['^VIX']*5, *['BRK.B']*5, *['000001.SS']*5]
+        assert df.columns.get_level_values(0).to_list() == [*['^VIX']*5, *['BRK-B']*5, *['000001.SS']*5]
         assert df.columns.get_level_values(1).to_list() == 'Open,High,Low,Close,Volume'.split(',')*3
         assert (df.xs('Close', level=1, axis=1).iloc[0] == 1).all() == True
         assert isinstance(df.index, pd.DatetimeIndex)
