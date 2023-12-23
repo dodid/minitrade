@@ -1,5 +1,8 @@
 # Minitrade Changelog
 
+## 0.1.33
+- [Fix] Fix process status display on `Home` page.
+
 ## 0.1.32
 - [New] Add `monthly_bar()` to QuoteSource, which allow for backtesting using monthly data for strategy development. (Trading is still on daily bar.)
 - [New] Add database statistics to `Home` page.

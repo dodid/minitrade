@@ -35,11 +35,11 @@ def display_process_status():
     st.caption('Processes')
     cmd = 'ps -o pid,ppid,command | grep python | grep minitrade | grep -v grep'
     output = os.popen(cmd).read()
-    pid_map = {pid: name for pid, ppid, _, _, name, _ in [line.split() for line in output.splitlines()] if ppid == '1'}
+    pid_map = {pid: name for pid, ppid, _, _, name, *_ in [line.split() for line in output.splitlines()] if ppid == '1'}
     proc_map = {'scheduler': [], 'ib': [], 'web': []}
     for k, v in pid_map.items():
         proc_map[v] = proc_map.get(v, []) + [k]
-    ppid_map = {pid: ppid for pid, ppid, _, _, _, _ in [line.split() for line in output.splitlines()]}
+    ppid_map = {pid: ppid for pid, ppid, _, _, _, *_ in [line.split() for line in output.splitlines()]}
     for k, v in proc_map.items():
         if len(v) == 0:
             st.warning(f'Process "{k}" is not running.')
