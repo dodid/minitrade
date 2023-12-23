@@ -9,12 +9,12 @@ import sys
 from minitrade.broker import Broker, BrokerAccount
 
 # Change this to exclude accounts that you don't want to check.
-EXCLUSED_ACCOUNT_ALIASES = []
+EXCLUDED_ACCOUNT_ALIASES = []
 
 
 def check_login_status():
     ib_accounts = [account for account in BrokerAccount.list() if account.broker == 'IB']
-    brokers = [Broker.get_broker(account) for account in ib_accounts if account.alias not in EXCLUSED_ACCOUNT_ALIASES]
+    brokers = [Broker.get_broker(account) for account in ib_accounts if account.alias not in EXCLUDED_ACCOUNT_ALIASES]
     status = {broker.account.alias: broker.is_ready() for broker in brokers}
     not_ready = [alias for alias, ready in status.items() if not ready]
     if not_ready:

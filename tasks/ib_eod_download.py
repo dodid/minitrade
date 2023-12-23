@@ -11,12 +11,12 @@ from tabulate import tabulate
 from minitrade.broker import Broker, BrokerAccount
 
 # Change this to exclude accounts that you don't want to check.
-EXCLUSED_ACCOUNT_ALIASES = []
+EXCLUDED_ACCOUNT_ALIASES = []
 
 
 def download_trades():
     ib_accounts = [account for account in BrokerAccount.list() if account.broker == 'IB']
-    brokers = [Broker.get_broker(account) for account in ib_accounts if account.alias not in EXCLUSED_ACCOUNT_ALIASES]
+    brokers = [Broker.get_broker(account) for account in ib_accounts if account.alias not in EXCLUDED_ACCOUNT_ALIASES]
     skipped = []
     for broker in brokers:
         if broker.is_ready():
