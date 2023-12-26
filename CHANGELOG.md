@@ -1,5 +1,8 @@
 # Minitrade Changelog
 
+## Upcoming
+- [New] QuoteSource supports getting data in parallel when `num_workers` > 1.
+
 ## 0.1.33
 - [Fix] Fix process status display on `Home` page.
 

@@ -95,7 +95,7 @@ def test_yahoo_get_multiple_tickers():
     end, prev_close = '2022-12-10', '2022-12-09'
 
     for tickers in [['AAPL', 'GOOG', 'META'], 'AAPL,GOOG,META']:
-        df = yahoo.daily_bar(tickers, start=start, end=end)
+        df = yahoo.daily_bar(tickers, start=start, end=end, num_workers=3)
         assert df.columns.get_level_values(0).to_list() == [*['AAPL']*5, *['GOOG']*5, *['META']*5]
         assert df.columns.get_level_values(1).to_list() == 'Open,High,Low,Close,Volume'.split(',')*3
         assert isinstance(df.index, pd.DatetimeIndex)
@@ -104,7 +104,7 @@ def test_yahoo_get_multiple_tickers():
         assert df.notna().all(None) == True
 
     for tickers in [['AAPL', 'GOOG', 'META'], 'AAPL,GOOG,META']:
-        df = yahoo.daily_bar(tickers, start=start, end=end, align=False)
+        df = yahoo.daily_bar(tickers, start=start, end=end, align=False, num_workers=3)
         assert df.columns.get_level_values(0).to_list() == [*['AAPL']*5, *['GOOG']*5, *['META']*5]
         assert df.columns.get_level_values(1).to_list() == 'Open,High,Low,Close,Volume'.split(',')*3
         assert isinstance(df.index, pd.DatetimeIndex)
@@ -115,7 +115,7 @@ def test_yahoo_get_multiple_tickers():
         assert df.loc[df['META'].first_valid_index():].notna().all(None) == True
 
     for tickers in [['AAPL', 'GOOG', 'META'], 'AAPL,GOOG,META']:
-        df = yahoo.daily_bar(tickers, start=start, end=end, align=True, normalize=True)
+        df = yahoo.daily_bar(tickers, start=start, end=end, align=True, normalize=True, num_workers=3)
         assert df.columns.get_level_values(0).to_list() == [*['AAPL']*5, *['GOOG']*5, *['META']*5]
         assert df.columns.get_level_values(1).to_list() == 'Open,High,Low,Close,Volume'.split(',')*3
         assert (df.xs('Close', level=1, axis=1).iloc[0] == 1).all() == True
@@ -134,7 +134,7 @@ def test_yahoo_get_special_ticker():
     end = '2022-12-10'
 
     for tickers in [['^VIX', 'BRK-B', '000001.SS'], '^VIX,BRK-B,000001.SS']:
-        df = yahoo.daily_bar(tickers, start=start, end=end, align=True, normalize=True)
+        df = yahoo.daily_bar(tickers, start=start, end=end, align=True, normalize=True, num_workers=3)
         assert df.columns.get_level_values(0).to_list() == [*['^VIX']*5, *['BRK-B']*5, *['000001.SS']*5]
         assert df.columns.get_level_values(1).to_list() == 'Open,High,Low,Close,Volume'.split(',')*3
         assert (df.xs('Close', level=1, axis=1).iloc[0] == 1).all() == True

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timedelta
 from typing import Any
 from zoneinfo import ZoneInfo
@@ -130,7 +131,8 @@ class QuoteSource(ABC):
 
     def daily_bar(
             self, tickers: list[str] | str,
-            start: str = '2020-01-01', end: str = None, align: bool = True, normalize: bool = False) -> pd.DataFrame:
+            start: str = '2020-01-01', end: str = None, align: bool = True, normalize: bool = False,
+            num_workers: int = 1) -> pd.DataFrame:
         '''Read end-of-day OHLCV data for a list of `tickers` starting from `start` date and ending on `end` date (both inclusive).
 
         Args:
@@ -139,14 +141,25 @@ class QuoteSource(ABC):
             end: End date in string format 'YYYY-MM-DD'
             align: True to align data to start on the same date, i.e. drop leading days when not all tickers have data available.
             normalize: True to normalize the close price on the start date to 1 for all tickers and scale all price data accordingly.
+            num_workers: Number of parallel workers to use for fetching data.
 
         Returns:
             A dataframe with 2-level columns, first level being the tickers, and the second level being columns 'Open', 'High', 'Low', 'Close', 'Volume'. The dataframe is indexed by datetime.
         '''
+        def fetch_data(ticker):
+            return ticker, self._daily_bar(ticker, start, end)
+
         try:
             if isinstance(tickers, str):
                 tickers = tickers.split(',')
-            data = {ticker: self._daily_bar(ticker, start, end) for ticker in tickers}
+
+            with ThreadPoolExecutor(max_workers=num_workers) as executor:
+                data = {ticker: None for ticker in tickers}
+                futures = [executor.submit(fetch_data, ticker) for ticker in tickers]
+                for future in as_completed(futures):
+                    ticker, result = future.result()
+                    data[ticker] = result
+
             df = pd.concat(data, axis=1).ffill()
             if align:
                 start_index = df[df.notna().all(axis=1)].index[0]
@@ -161,7 +174,7 @@ class QuoteSource(ABC):
 
     def monthly_bar(
             self, tickers: list[str] | str, start: str = '2020-01-01', end: str = None, align: bool = True,
-            normalize: bool = False) -> pd.DataFrame:
+            normalize: bool = False, num_workers: int = 1) -> pd.DataFrame:
         ''' Read monthly OHLCV data for a list of `tickers` starting from `start` date and ending on `end` date (both inclusive).
 
         Args:
@@ -170,13 +183,14 @@ class QuoteSource(ABC):
             end: End date in string format 'YYYY-MM'
             align: True to align data to start on the same date, i.e. drop leading days when not all tickers have data available.
             normalize: True to normalize the close price on the start date to 1 for all tickers and scale all price data accordingly.
+            num_workers: Number of parallel workers to use for fetching data.
 
         Returns:
             A dataframe with 2-level columns, first level being the tickers, and the second level being columns 'Open', 'High', 'Low', 'Close', 'Volume'. The dataframe is indexed by last day of month.
         '''
         start = pd.offsets.MonthBegin().rollback(pd.to_datetime(start)).strftime('%Y-%m-%d')
         end = (pd.to_datetime(end) + pd.offsets.MonthEnd(1)).strftime('%Y-%m-%d') if end else None
-        daily = self.daily_bar(tickers, start, end, align, normalize)
+        daily = self.daily_bar(tickers, start, end, align, normalize, num_workers=num_workers)
         monthly = daily.ta.apply(lambda x: x.resample('M').agg({
             'Open': 'first',
             'High': 'max',
@@ -198,7 +212,8 @@ class QuoteSource(ABC):
         raise NotImplementedError()
 
     def minute_bar(
-            self, tickers: list[str] | str, start: str = None, end: str = None, interval: int = 1) -> pd.DataFrame:
+            self, tickers: list[str] | str, start: str = None, end: str = None, interval: int = 1,
+            num_workers: int = 1) -> pd.DataFrame:
         '''Read minute OHLCV data for a `ticker` starting from `start` date and ending on `end` date (both inclusive).
 
         Args:
@@ -206,15 +221,26 @@ class QuoteSource(ABC):
             start: Start date in string format 'YYYY-MM-DD'
             end: End date in string format 'YYYY-MM-DD'
             interval: Interval in minutes
+            num_workers: Number of parallel workers to use for fetching data.
 
         Returns:
             A dataframe with columns 'Open', 'High', 'Low', 'Close', 'Volume' indexed by datetime
         '''
+        def fetch_data(ticker):
+            return ticker, self._minute_bar(ticker, start, end, interval)
+
         try:
             if isinstance(tickers, str):
                 tickers = tickers.split(',')
-            data = {ticker: self._minute_bar(ticker, start, end, interval) for ticker in tickers}
+
+            with ThreadPoolExecutor(max_workers=num_workers) as executor:
+                data = {ticker: None for ticker in tickers}
+                futures = [executor.submit(fetch_data, ticker) for ticker in tickers]
+                for future in as_completed(futures):
+                    ticker, result = future.result()
+                    data[ticker] = result
+
             df = pd.concat(data, axis=1).ffill()
             return df
         except Exception:
-            raise AttributeError(f'Data error')
+            raise AttributeError('Data error')
