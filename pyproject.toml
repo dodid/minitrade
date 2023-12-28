@@ -46,6 +46,7 @@ twelvedata = "^1.2.12"
 alpaca-py = "^0.13.2"
 fredapi = "^0.5.1"
 quantstats = "^0.0.62"
+ipython = "^8.19.0"
 
 
 [tool.poetry.group.dev.dependencies]
