@@ -125,18 +125,24 @@ class InteractiveBrokers(Broker):
             logger.exception(f'Logout failed for IB account {self.account.alias}')
 
     def get_account_info(self) -> Any:
-        return self.__call_ibgateway('GET', '/portfolio/accounts')
+        accounts = self.__call_ibgateway('GET', '/portfolio/accounts')
+        for account in accounts:
+            account['ledger'] = self.__call_ibgateway('GET', f'/portfolio/{account["id"]}/ledger')
+            account['performance'] = self.__call_ibgateway(
+                'POST', f'/pa/performance', json={'acctIds': [account['id']], 'freq': 'D'})
+        return accounts
 
     def get_portfolio(self) -> pd.DataFrame:
         portfolio = []
-        i = 0
-        while True:
-            page = self.__call_ibgateway('GET', f'/portfolio/{self.account_id}/positions/{i}')
-            portfolio.extend(page)
-            if len(page) < 100:
-                break
-            else:
-                i += 1
+        for account in self.get_account_info():
+            i = 0
+            while True:
+                page = self.__call_ibgateway('GET', f'/portfolio/{account["id"]}/positions/{i}')
+                portfolio.extend(page)
+                if len(page) < 100:
+                    break
+                else:
+                    i += 1
         return pd.DataFrame(portfolio)
 
     def download_trades(self) -> pd.DataFrame:

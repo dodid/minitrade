@@ -1,3 +1,8 @@
+import os
+import tempfile
+
+import pandas as pd
+import quantstats as qs
 import streamlit as st
 
 from minitrade.broker import Broker, BrokerAccount
@@ -67,17 +72,84 @@ def show_broker_account_header_and_controls(account: BrokerAccount):
         confirm_delete_broker_account(account)
 
 
+def show_ib_account_overview(tab, info, portfolio):
+    with tab:
+        account = st.selectbox(
+            'Account', info, format_func=lambda x: f'{x["displayName"]} ({x["accountId"]})', key='ib_account_overview')
+        if 'ledger' in account:
+            ledger = account['ledger']['BASE']
+            c1, c2, c3, c4, c5, c6 = st.columns(6)
+            c1.metric('Net Liquidation', f'{ledger["netliquidationvalue"]:,.0f}')
+            c2.metric('Cash Balance', f'{ledger["cashbalance"]:,.0f}')
+            c3.metric('Interest', f'{ledger["interest"]:,.0f}')
+            c4.metric('Dividends', f'{ledger["dividends"]:,.0f}')
+            c5.metric('Unrealized PnL', f'{ledger["unrealizedpnl"]:,.0f}')
+            c6.metric('Realized PnL', f'{ledger["realizedpnl"]:,.0f}')
+            c1.metric('Stock Value', f'{ledger["stockmarketvalue"]:,.0f}')
+            c2.metric('Option Value', f'{ledger["stockoptionmarketvalue"]:,.0f}')
+            c3.metric('Future Value', f'{ledger["futuremarketvalue"]:,.0f}')
+            c4.metric('Future Option Value', f'{ledger["futureoptionmarketvalue"]:,.0f}')
+            c5.metric('Warrant Value', f'{ledger["warrantsmarketvalue"]:,.0f}')
+            c6.metric('Commodity Value', f'{ledger["commoditymarketvalue"]:,.0f}')
+            c1.metric('Bond Value', f'{ledger["tbondsmarketvalue"]:,.0f}')
+            c2.metric('Bill Value', f'{ledger["tbillsmarketvalue"]:,.0f}')
+            c3.metric('Corporate Bond Value', f'{ledger["corporatebondsmarketvalue"]:,.0f}')
+            c4.metric('Fund Value', f'{ledger["funds"]:,.0f}')
+            c5.metric('Money Fund Value', f'{ledger["moneyfunds"]:,.0f}')
+            c6.metric('Crypto Value', f'{ledger["cryptocurrencyvalue"]:,.0f}')
+        if 'performance' in account:
+            c1, c2 = st.columns(2)
+            c1.caption('NAV')
+            nav = account['performance']['nav']
+            nav_s = pd.Series(nav['data'][0]['navs'], index=pd.to_datetime(nav['dates'], format='%Y%m%d'))
+            c1.line_chart(nav_s, height=300)
+            c2.caption('Cumulative PnL')
+            cps = account['performance']['cps']
+            cps_s = pd.Series(cps['data'][0]['returns'], index=pd.to_datetime(cps['dates'], format='%Y%m%d'))
+            c2.line_chart(cps_s, height=300)
+        st.caption('Portfolio')
+        st.write(portfolio[portfolio['acctId'] == account['id']])
+
+
+def show_ib_tearsheet(tab, info):
+    with tab:
+        account = st.selectbox(
+            'Account', info, format_func=lambda x: f'{x["displayName"]} ({x["accountId"]})', key='ib_tearsheet')
+        if 'performance' in account:
+            nav = account['performance']['nav']
+            nav_s = pd.Series(nav['data'][0]['navs'], index=pd.to_datetime(nav['dates'], format='%Y%m%d'))
+            temp = os.path.join(tempfile.gettempdir(), 'quantstats-tearsheet.html')
+            qs.reports.html(nav_s.pct_change().dropna(), benchmark='SPY', rf=0.0, display=False,
+                            output=temp, title=f'{account["displayName"]} ({account["accountId"]})')
+            with open(temp) as f:
+                st.components.v1.html(f.read(), height=6000)
+
+
 def show_broker_account_portfolio_and_trades(account: BrokerAccount):
-    tab1, tab2, tab3, tab4 = st.tabs(['Portfolio', 'Recent trades', 'Orders', 'Account info'])
+    tab1, tab2, tab3, tab4, tab5 = st.tabs(['Overview', 'Recent trades', 'Orders', 'Account info', 'Performance'])
+    try:
+        info, portfolio, trades, orders = get_account_info(account)
+        if account.broker == 'IB':
+            show_ib_account_overview(tab1, info, portfolio)
+            show_ib_tearsheet(tab5, info)
+        else:
+            tab1.caption('Portfolio')
+            tab1.write(portfolio)
+            tab5.write('Not available for this account')
+        tab2.write(trades)
+        tab3.write(orders)
+        tab4.write(info)
+    except ConnectionError:
+        st.info('Login to see account info')
+
+
+@st.cache_data(ttl='1h')
+def get_account_info(account):
     broker = Broker.get_broker(account)
     if broker.is_ready():
-        info = broker.get_account_info()
-        tab1.write(broker.get_portfolio())
-        tab2.write(broker.download_trades())
-        tab3.write(broker.download_orders())
-        tab4.write(info)
+        return broker.get_account_info(), broker.get_portfolio(), broker.download_trades(), broker.download_orders()
     else:
-        st.info('Login to see account info')
+        raise ConnectionError('Broker is not ready')
 
 
 action = st.sidebar.radio('Action', ['Browse existing', 'Add new'])
