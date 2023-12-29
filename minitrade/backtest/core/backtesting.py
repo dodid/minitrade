@@ -1547,6 +1547,7 @@ class Backtest:
             _trades                       Size  EntryB...
             _orders                              Ticke...
             _positions                           {'GOO...
+            _trade_start_bar                           0
             dtype: object
 
         .. warning::
@@ -1609,7 +1610,7 @@ class Backtest:
 
                 # take note of the final positions
                 final_positions = ({t: p.size for t, p in broker.positions.items()}
-                                   | {'Margin': int(broker.margin_available)})
+                                   | {'Cash': int(broker.margin_available)})
 
                 if start < len(self._data):
                     broker.finalize()
@@ -1619,7 +1620,7 @@ class Backtest:
             data._set_length(len(self._data))
 
             equity = pd.DataFrame(broker._equity, index=data.index,
-                                  columns=['Equity', *data.tickers, 'Margin']).bfill().fillna(broker._cash)
+                                  columns=['Equity', *data.tickers, 'Cash']).bfill().fillna(broker._cash)
 
             self._results = compute_stats(
                 orders=processed_orders,
@@ -1629,6 +1630,7 @@ class Backtest:
                 risk_free_rate=0.0,
                 strategy_instance=strategy,
                 positions=final_positions,
+                trade_start_bar=start,
             )
 
         return self._results.copy()

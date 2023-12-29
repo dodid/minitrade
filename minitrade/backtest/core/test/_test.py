@@ -287,7 +287,7 @@ class TestBacktest(TestCase):
 
         self.assertSequenceEqual(
             sorted(stats['_equity_curve'].columns),
-            sorted(['Asset', 'Equity', 'Margin', 'DrawdownPct', 'DrawdownDuration']))
+            sorted(['Asset', 'Equity', 'Cash', 'DrawdownPct', 'DrawdownDuration']))
 
         self.assertEqual(len(stats['_trades']), 66)
 

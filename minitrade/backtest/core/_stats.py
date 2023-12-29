@@ -41,6 +41,7 @@ def compute_stats(
         strategy_instance: 'Strategy',
         risk_free_rate: float = 0,
         positions: dict = None,
+        trade_start_bar: int = 0,
 ) -> pd.Series:
     assert -1 < risk_free_rate < 1
 
@@ -104,7 +105,7 @@ def compute_stats(
     s.loc['Equity Peak [$]'] = equity['Equity'].max()
     s.loc['Return [%]'] = (equity['Equity'].iloc[-1] - equity['Equity'].iloc[0]) / equity['Equity'].iloc[0] * 100
     c = ohlc_data.Close.values
-    s.loc['Buy & Hold Return [%]'] = (c[-1] - c[0]) / c[0] * 100  # long-only return
+    s.loc['Buy & Hold Return [%]'] = (c[-1] - c[trade_start_bar]) / c[trade_start_bar] * 100  # long-only return
 
     gmean_period_return: float = 0
     period_returns = np.array(np.nan)
@@ -173,6 +174,7 @@ def compute_stats(
     s.loc['_trades'] = trades_df
     s.loc['_orders'] = orders_df
     s.loc['_positions'] = positions
+    s.loc['_trade_start_bar'] = trade_start_bar
 
     s = _Stats(s)
     return s

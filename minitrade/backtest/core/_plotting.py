@@ -87,12 +87,12 @@ def lightness(color, lightness=.94):
 _MAX_CANDLES = 10_000
 
 
-def _maybe_resample_data(resample_rule, df, indicators, equity_data, trades):
+def _maybe_resample_data(resample_rule, data, baseline, indicators, equity_data, trades, bnh_perf):
     if isinstance(resample_rule, str):
         freq = resample_rule
     else:
-        if resample_rule is False or len(df) <= _MAX_CANDLES:
-            return df, indicators, equity_data, trades
+        if resample_rule is False or len(baseline) <= _MAX_CANDLES:
+            return data, baseline, indicators, equity_data, trades, bnh_perf
 
         freq_minutes = pd.Series({
             "1T": 1,
@@ -108,29 +108,31 @@ def _maybe_resample_data(resample_rule, df, indicators, equity_data, trades):
             "1W": 60*24*7,
             "1M": np.inf,
         })
-        timespan = df.index[-1] - df.index[0]
+        timespan = baseline.index[-1] - baseline.index[0]
         require_minutes = (timespan / _MAX_CANDLES).total_seconds() // 60
         freq = freq_minutes.where(freq_minutes >= require_minutes).first_valid_index()
         warnings.warn(f"Data contains too many candlesticks to plot; downsampling to {freq!r}. "
                       "See `Backtest.plot(resample=...)`")
 
     from .lib import _EQUITY_AGG, OHLCV_AGG, TRADES_AGG
-    df = df.resample(freq, label='right').agg(OHLCV_AGG).dropna()
+    data = data.ta.apply(lambda s: s.resample(freq, label='right').agg(OHLCV_AGG)).dropna()
 
-    indicators = [i.resample(freq, label='right').mean().dropna().reindex(df.index)
+    baseline = baseline.resample(freq, label='right').agg(OHLCV_AGG).dropna()
+
+    indicators = [i.resample(freq, label='right').mean().dropna().reindex(baseline.index)
                   for i in indicators]
-    assert not indicators or indicators[0].index.equals(df.index)
+    assert not indicators or indicators[0].index.equals(baseline.index)
 
-    ticker_agg = {ticker: 'last' for ticker in equity_data.columns if ticker not in _EQUITY_AGG}
-    equity_data = equity_data.resample(freq, label='right').agg(_EQUITY_AGG | ticker_agg).dropna(how='all')
-    assert equity_data.index.equals(df.index)
+    column_agg = {ticker: _EQUITY_AGG[ticker] if ticker in _EQUITY_AGG else 'last' for ticker in equity_data.columns}
+    equity_data = equity_data.resample(freq, label='right').agg(column_agg).dropna(how='all')
+    assert equity_data.index.equals(baseline.index)
 
     def _weighted_returns(s, trades=trades):
         df = trades.loc[s.index]
         return ((df['Size'].abs() * df['ReturnPct']) / df['Size'].abs().sum()).sum()
 
     def _group_trades(column):
-        def f(s, new_index=pd.Index(df.index.view(int)), bars=trades[column]):
+        def f(s, new_index=pd.Index(baseline.index.view(int)), bars=trades[column]):
             if s.size:
                 # Via int64 because on pandas recently broken datetime
                 mean_time = int(bars.loc[s.index].view(int).mean())
@@ -147,7 +149,9 @@ def _maybe_resample_data(resample_rule, df, indicators, equity_data, trades):
             ExitBar=_group_trades('ExitTime'),
         )).dropna()
 
-    return df, indicators, equity_data, trades
+    bnh_perf = bnh_perf.resample(freq, label='right').last().dropna()
+
+    return data, baseline, indicators, equity_data, trades, bnh_perf
 
 
 def plot(*, results: pd.Series,
@@ -190,10 +194,14 @@ def plot(*, results: pd.Series,
     # ohlc df may contain many columns. We're only interested in, and pass on to Bokeh, these
     baseline = baseline[list(OHLCV_AGG.keys())].copy(deep=False)
 
+    # Buy-and-hold cumulative returns
+    bnh_perf = baseline['Close'] / baseline['Close'].iloc[results['_trade_start_bar']]
+    bnh_perf.iloc[:results['_trade_start_bar']] = 1.0
+
     # Limit data to max_candles
     if is_datetime_index:
-        baseline, indicators, equity_data, trades = _maybe_resample_data(
-            resample, baseline, indicators, equity_data, trades)
+        data, baseline, indicators, equity_data, trades, bnh_perf = _maybe_resample_data(
+            resample, data, baseline, indicators, equity_data, trades, bnh_perf)
 
     baseline.index.name = None  # Provides source name @index
     baseline['datetime'] = baseline.index  # Save original, maybe datetime index
@@ -221,7 +229,7 @@ def plot(*, results: pd.Series,
 
     source = ColumnDataSource(baseline)
     source.add((baseline.Close >= baseline.Open).values.astype(np.uint8).astype(str), 'inc')
-    source.add(baseline['Close']/baseline['Close'][0], 'bnh_perf')
+    source.add(bnh_perf, 'bnh_perf')
 
     trade_source = ColumnDataSource(dict(
         index=trades['ExitBar'],
