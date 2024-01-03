@@ -3,6 +3,7 @@
 ## Upcoming
 - [New] QuoteSource supports getting data in parallel when `num_workers` > 1.
 - [New] Add performance tearsheet for IB account.
+- [Fix] Change equal weight buy-n-hold benchmark to start on trading start date.
 
 ## 0.1.33
 - [Fix] Fix process status display on `Home` page.

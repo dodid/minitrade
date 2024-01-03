@@ -298,7 +298,7 @@ class Strategy(ABC):
             if is_arraylike and np.argmin(value.shape) == 0:
                 value = value.T
 
-            if not is_arraylike or not 1 <= value.ndim <= 2 or value.shape[0] != len(self._data.Close):
+            if not is_arraylike or not 1 <= value.ndim <= 2 or value.shape[0] != len(self._data):
                 raise ValueError(
                     'Indicators of numpy.ndarray must have the same '
                     f'length as `data` (data shape: {len(self._data)}; indicator "{name}" '
@@ -1109,7 +1109,7 @@ class _Broker:
         # Close any remaining open trades so they produce some stats
         final_orders = [trade.close(finalize=True) for trade in self.all_trades]
         for order in final_orders:
-            price = self._data[order.ticker, 'Close'][-1]
+            price = self.last_price(order.ticker)
             time_index = len(self._data) - 1
             trade = order.parent_trade
             _prev_size = trade.size
@@ -1132,7 +1132,7 @@ class _Broker:
         if equity[0] <= 0:
             assert self.margin_available <= 0
             for trade in self.all_trades:
-                self._close_trade(trade, self._data.Close[-1], i)
+                self._close_trade(trade, self.last_price(trade.ticker), i)
             self._cash = 0
             self._equity[i:] = 0
             raise _OutOfMoneyError
@@ -1205,8 +1205,7 @@ class _Broker:
                 if trade in self.trades[order.ticker]:
                     self._reduce_trade(trade, price, size, time_index)
                     assert order.size != -_prev_size or trade not in self.trades[order.ticker]
-                if order in (trade._sl_order,
-                             trade._tp_order):
+                if order in (trade._sl_order, trade._tp_order):
                     assert order.size == -trade.size
                     assert order not in self.orders  # Removed when trade was closed
                 else:
