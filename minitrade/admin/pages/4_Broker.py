@@ -116,10 +116,10 @@ def show_ib_tearsheet(tab, info):
         account = st.selectbox(
             'Account', info, format_func=lambda x: f'{x["displayName"]} ({x["accountId"]})', key='ib_tearsheet')
         if 'performance' in account:
-            nav = account['performance']['nav']
-            nav_s = pd.Series(nav['data'][0]['navs'], index=pd.to_datetime(nav['dates'], format='%Y%m%d'))
+            cps = account['performance']['cps']
+            cps_s = pd.Series(cps['data'][0]['returns'], index=pd.to_datetime(cps['dates'], format='%Y%m%d'))
             temp = os.path.join(tempfile.gettempdir(), 'quantstats-tearsheet.html')
-            qs.reports.html(nav_s.pct_change().dropna(), benchmark='SPY', rf=0.0, display=False,
+            qs.reports.html((cps_s+1).pct_change().dropna(), benchmark='SPY', rf=0.0, display=False,
                             output=temp, title=f'{account["displayName"]} ({account["accountId"]})')
             with open(temp) as f:
                 st.components.v1.html(f.read(), height=6000)

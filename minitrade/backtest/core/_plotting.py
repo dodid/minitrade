@@ -39,12 +39,7 @@ with open(os.path.join(os.path.dirname(__file__), 'autoscale_cb.js'),
 IS_JUPYTER_NOTEBOOK = 'ipykernel' in sys.modules
 
 if IS_JUPYTER_NOTEBOOK:
-    warnings.warn('Jupyter Notebook detected. '
-                  'Setting Bokeh output to notebook. '
-                  'This may not work in Jupyter clients without JavaScript '
-                  'support (e.g. PyCharm, Spyder IDE). '
-                  'Reset with `backtesting.set_bokeh_output(notebook=False)`.')
-    output_notebook()
+    output_notebook(hide_banner=True)
 
 
 def set_bokeh_output(notebook=False):
