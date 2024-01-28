@@ -2,20 +2,16 @@ import os
 import pkgutil
 import sqlite3
 import time
-from datetime import datetime
 from multiprocessing import Process
 from pathlib import Path
 from posixpath import expanduser
 
-import numpy as np
-import pandas as pd
 import pytest
 
 from minitrade.backtest import *
 from minitrade.broker import *
 from minitrade.datasource import *
 from minitrade.trader import *
-from minitrade.utils.mtdb import MTDB
 
 
 @pytest.fixture

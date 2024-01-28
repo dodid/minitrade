@@ -1,6 +1,8 @@
+from datetime import datetime
 from zoneinfo import ZoneInfo
 
 from minitrade.broker.ib import InteractiveBrokersValidator
+from minitrade.utils.mtdb import MTDB
 
 from .fixture import *
 
@@ -158,10 +160,10 @@ def test_ib_order_validator(launch_scheduler):
     # with pytest.raises(AttributeError):
     #     validator.order_in_time_window(order)
     with pytest.raises(AttributeError):
-        MTDB.save({'execution_id': 'an_id', 'order_ref': order.id}, 'IbTrade', on_conflict='update')
+        MTDB.save('IbTrade', {'execution_id': 'an_id', 'order_ref': order.id}, on_conflict='update')
         validator.order_not_in_finished_trades(order)
     with pytest.raises(AttributeError):
-        MTDB.save({'orderId': 'an_id', 'order_ref': order.id}, 'IbOrder', on_conflict='update')
+        MTDB.save('IbOrder', {'orderId': 'an_id', 'order_ref': order.id}, on_conflict='update')
         validator.order_not_in_open_orders(order)
     # with pytest.raises(AttributeError):
     #     validator.order_size_is_within_limit(order)

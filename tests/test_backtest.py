@@ -1,3 +1,5 @@
+import pandas as pd
+
 from minitrade.backtest.core.backtesting import Allocation
 
 from .fixture import *

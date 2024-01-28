@@ -1,8 +1,9 @@
 # Minitrade Changelog
 
-## Upcoming
+## 0.1.34
 - [New] QuoteSource supports getting data in parallel when `num_workers` > 1.
 - [New] Add performance tearsheet for IB account.
+- [New] Add CBOE futures data source.
 - [Fix] Change equal weight buy-n-hold benchmark to start on trading start date.
 
 ## 0.1.33

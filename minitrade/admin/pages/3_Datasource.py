@@ -141,6 +141,8 @@ def config_source(source):
             st.error('No account is currently configured for data access.')
     elif source == 'CboeIndex':
         st.write('Nothing to configure')
+    elif source == 'CboeFutures':
+        st.write('Nothing to configure')
 
 
 @st.cache_data(ttl='1h')
@@ -150,17 +152,11 @@ def read_daily_bar(ticker, start, end, sources):
         try:
             data[s] = QuoteSource.get_source(s).daily_bar(ticker, start=start, end=end)
         except Exception as e:
-            data[s] = e
+            raise RuntimeError(f'Getting {s} data error: {e}')
     return data
 
 
 def compare_data_from_sources(data, s1, s2, tab):
-    if isinstance(data[s1], Exception):
-        tab.error(f'Getting {s1} data error: {data[s1]}')
-        return
-    if isinstance(data[s2], Exception):
-        tab.error(f'Getting {s2} data error: {data[s2]}')
-        return
     df1 = data[s1].droplevel(0, axis=1)
     df2 = data[s2].droplevel(0, axis=1)
     df = pd.merge(df1, df2, how='outer', left_index=True, right_index=True, suffixes=('_1', '_2'))
@@ -261,7 +257,7 @@ def plot_ohlcv(data):
 
 def inspect_data():
     tickers = st.sidebar.text_input('Ticker', value='SPY')
-    start = st.sidebar.text_input('Start date', value='2020-01-01') or None
+    start = st.sidebar.text_input('Start date', value='2000-01-01') or None
     end = st.sidebar.text_input('End date') or None
     sources = st.sidebar.multiselect('Sources', QuoteSource.AVAILABLE_SOURCES, default=['Yahoo'])
 
@@ -272,7 +268,7 @@ def inspect_data():
                 df = read_daily_bar(tickers, start, end, sources)[sources[0]]
                 plot_ohlcv(df)
             except Exception as e:
-                st.error(f'Getting {sources[0]} data error: {e}')
+                st.error(e)
     if len(sources) > 1 and st.sidebar.button('Compare'):
         if len(tickers.split(',')) > 1:
             st.sidebar.warning('Only the first ticker will be compared.')

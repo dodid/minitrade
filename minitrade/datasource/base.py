@@ -21,7 +21,7 @@ class QuoteSource(ABC):
     '''
 
     AVAILABLE_SOURCES = sorted(['Yahoo', 'EODHistoricalData', 'TwelveData', 'Alpaca',
-                               'EastMoney', 'Tiingo', 'InteractiveBrokers', 'CboeIndex'])
+                               'EastMoney', 'Tiingo', 'InteractiveBrokers', 'CboeIndex', 'CboeFutures'])
     '''A list of names for supported quote sources as input to `QuoteSource.get_source()`.'''
 
     @staticmethod
@@ -36,7 +36,7 @@ class QuoteSource(ABC):
             A QuoteSource instance
 
         Raises:
-            AttributeError: If the asked data source is not supported
+            ValueError: If the asked data source is not supported
         '''
         if name == 'Yahoo':
             from .yahoo import YahooQuoteSource
@@ -62,8 +62,11 @@ class QuoteSource(ABC):
         elif name == 'CboeIndex':
             from .cboe_index import CboeIndexQuoteSource
             return CboeIndexQuoteSource(**kwargs)
+        elif name == 'CboeFutures':
+            from .cboe_futures import CboeFuturesQuoteSource
+            return CboeFuturesQuoteSource(**kwargs)
         else:
-            raise AttributeError(f'Quote source {name} is not supported')
+            raise ValueError(f'Quote source {name} is not supported')
 
     @abstractmethod
     def _ticker_timezone(self, ticker: str) -> str:
@@ -74,7 +77,7 @@ class QuoteSource(ABC):
         try:
             return self._ticker_timezone(ticker)
         except Exception as e:
-            raise AttributeError(f'Cannot get market timezone for {ticker}') from e
+            raise RuntimeError(f'Cannot get market timezone for {ticker}') from e
 
     @abstractmethod
     def _ticker_calendar(self, ticker: str) -> str:
@@ -85,7 +88,7 @@ class QuoteSource(ABC):
         try:
             return self._ticker_calendar(ticker)
         except Exception as e:
-            raise AttributeError(f'Cannot get market calendar for {ticker}') from e
+            raise RuntimeError(f'Cannot get market calendar for {ticker}') from e
 
     def today(self, ticker: str) -> datetime:
         '''Get today's date in a ticker's local timezone.'''
@@ -114,9 +117,12 @@ class QuoteSource(ABC):
         Returns:
             Current quotes indexed by ticker as a pandas Series
         '''
-        if isinstance(tickers, str):
-            tickers = tickers.split(',')
-        return self._spot(tickers)
+        try:
+            if isinstance(tickers, str):
+                tickers = tickers.split(',')
+            return self._spot(tickers)
+        except Exception as e:
+            raise RuntimeError(e) from e
 
     @abstractmethod
     def _daily_bar(self, ticker: str, start: str, end: str) -> pd.DataFrame:
@@ -131,7 +137,7 @@ class QuoteSource(ABC):
 
     def daily_bar(
             self, tickers: list[str] | str,
-            start: str = '2020-01-01', end: str = None, align: bool = True, normalize: bool = False,
+            start: str = '2000-01-01', end: str = None, align: bool = True, normalize: bool = False,
             num_workers: int = 1) -> pd.DataFrame:
         '''Read end-of-day OHLCV data for a list of `tickers` starting from `start` date and ending on `end` date (both inclusive).
 
@@ -170,7 +176,7 @@ class QuoteSource(ABC):
                         df.loc[:, (s, ohlc)] = df.loc[:, (s, ohlc)] / df[s].loc[start_index, 'Close']
             return df
         except Exception as e:
-            raise AttributeError(e) from e
+            raise RuntimeError(e) from e
 
     def monthly_bar(
             self, tickers: list[str] | str, start: str = '2020-01-01', end: str = None, align: bool = True,
@@ -188,17 +194,20 @@ class QuoteSource(ABC):
         Returns:
             A dataframe with 2-level columns, first level being the tickers, and the second level being columns 'Open', 'High', 'Low', 'Close', 'Volume'. The dataframe is indexed by last day of month.
         '''
-        start = pd.offsets.MonthBegin().rollback(pd.to_datetime(start)).strftime('%Y-%m-%d')
-        end = (pd.to_datetime(end) + pd.offsets.MonthEnd(1)).strftime('%Y-%m-%d') if end else None
-        daily = self.daily_bar(tickers, start, end, align, normalize, num_workers=num_workers)
-        monthly = daily.ta.apply(lambda x: x.resample('M').agg({
-            'Open': 'first',
-            'High': 'max',
-            'Low': 'min',
-            'Close': 'last',
-            'Volume': 'sum',
-        }))
-        return monthly
+        try:
+            start = pd.offsets.MonthBegin().rollback(pd.to_datetime(start)).strftime('%Y-%m-%d')
+            end = (pd.to_datetime(end) + pd.offsets.MonthEnd(1)).strftime('%Y-%m-%d') if end else None
+            daily = self.daily_bar(tickers, start, end, align, normalize, num_workers=num_workers)
+            monthly = daily.ta.apply(lambda x: x.resample('M').agg({
+                'Open': 'first',
+                'High': 'max',
+                'Low': 'min',
+                'Close': 'last',
+                'Volume': 'sum',
+            }))
+            return monthly
+        except Exception as e:
+            raise RuntimeError(e) from e
 
     @abstractmethod
     def _minute_bar(self, ticker: str, start: str, end: str, interval: int) -> pd.DataFrame:
@@ -242,5 +251,5 @@ class QuoteSource(ABC):
 
             df = pd.concat(data, axis=1).ffill()
             return df
-        except Exception:
-            raise AttributeError('Data error')
+        except Exception as e:
+            raise RuntimeError(e) from e
