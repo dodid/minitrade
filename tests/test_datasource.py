@@ -542,7 +542,7 @@ date	Open	High	Low	Close	Volume	expire_date
         # Test case 1: Test getting the calendar for a ticker
         ticker = "VX"
         calendar = quote_source._ticker_calendar(ticker)
-        assert calendar == "CME"
+        assert calendar == "CBOE_Futures"
 
     def test__daily_bar(self, quote_source):
         # Test case 1: Test getting daily bar data for a specific ticker and date range
