@@ -68,7 +68,7 @@ class BrokerAccount:
 
     def save(self) -> None:
         '''Save a broker account to database.'''
-        MTDB.save(self, 'BrokerAccount', on_conflict='error')
+        MTDB.save('BrokerAccount', self, on_conflict='error')
 
     def delete(self) -> None:
         '''Delete broker account from database.'''
@@ -184,7 +184,7 @@ class OrderValidator:
             exception=exception,
             log_time=datetime.utcnow()
         )
-        MTDB.save(log, 'OrderValidatorLog')
+        MTDB.save('OrderValidatorLog', log)
 
 
 class Broker(ABC):

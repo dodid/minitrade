@@ -111,7 +111,7 @@ Spot price:
     def _minute_bar(self, ticker: str, start: str, end: str, interval: int):
         # Supported intervals: 1, 2, 5, 15, 30, 60
         if interval not in [1, 2, 5, 15, 30, 60]:
-            raise AttributeError(f'Interval {interval} is not supported')
+            raise ValueError(f'Interval {interval} is not supported')
         # resolution vs range per request, 1m - 7d, 2m - 60d, 5m - 60d, 15m - 60d, 30m - 60d, 60m - 730d
         period = {1: 7, 2: 60, 5: 60, 15: 60, 30: 60, 60: 730}
         # Push 1 day out to include "end" in final data

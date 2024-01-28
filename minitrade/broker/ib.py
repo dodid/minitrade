@@ -153,7 +153,7 @@ class InteractiveBrokers(Broker):
                      'listing_exchange', 'conid', 'conidEx', 'open_close', 'directed_exchange', 'clearing_id',
                      'clearing_name', 'liquidation_trade', 'is_event_trading', 'order_ref', 'account_allocation_name']
         trades = self.__call_ibgateway('GET', '/iserver/account/trades')
-        MTDB.save(trades, 'IbTrade', on_conflict='update', whitelist=whitelist)
+        MTDB.save('IbTrade', trades, on_conflict='update', whitelist=whitelist)
         return pd.DataFrame(trades)
 
     def download_orders(self) -> pd.DataFrame | None:
@@ -166,7 +166,7 @@ class InteractiveBrokers(Broker):
             'lastExecutionTime_r', 'side', 'order_cancellation_by_system_reason', 'outsideRTH', 'price']
         orders = self.__call_ibgateway('GET', '/iserver/account/orders')
         if orders and orders['orders']:
-            MTDB.save(orders['orders'], 'IbOrder', on_conflict='update', whitelist=whitelist)
+            MTDB.save('IbOrder', orders['orders'], on_conflict='update', whitelist=whitelist)
             return pd.DataFrame(orders['orders'])
 
     def submit_order(self, plan: TradePlan, order: RawOrder) -> str | None:
@@ -239,7 +239,7 @@ class InteractiveBrokers(Broker):
             broker_order_id=broker_order_id,
             log_time=datetime.utcnow()
         )
-        MTDB.save(log, 'IbOrderLog', on_conflict='error')
+        MTDB.save('IbOrderLog', log, on_conflict='error')
 
     @lru_cache(maxsize=100)
     def resolve_tickers(self, ticker_css) -> dict[str, list]:

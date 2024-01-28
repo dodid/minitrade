@@ -205,7 +205,7 @@ class TradePlan:
 
         Fail if plan ID or plan name already exists.
         '''
-        MTDB.save(self, 'TradePlan', blacklist=['storage'], on_conflict='update')
+        MTDB.save('TradePlan', self, blacklist=['storage'], on_conflict='update')
         self.__call_scheduler('PUT', f'/strategy/{self.id}')
 
     def delete(self) -> None:
@@ -421,7 +421,7 @@ class RawOrder:
 
         Overwrite existing ones if order id already exists.
         '''
-        MTDB.save(self, 'RawOrder', on_conflict='update')
+        MTDB.save('RawOrder', self, on_conflict='update')
 
     @property
     def tag(self):
@@ -486,7 +486,7 @@ class BacktestLog:
         return bool(self.result is None or self.exception or self.stderr)
 
     def save(self):
-        MTDB.save(self, 'BacktestLog', on_conflict='error')
+        MTDB.save('BacktestLog', self, on_conflict='error')
 
 
 class BacktestRunner:
@@ -651,7 +651,7 @@ class BacktestRunner:
         orders['run_id'] = self.run_id
         orders['id'] = orders.apply(lambda x: hash(x), axis=1)
         orders['cancelled'] = False
-        MTDB.save(orders.to_dict('records'), 'RawOrder', on_conflict='ignore')
+        MTDB.save('RawOrder', orders.to_dict('records'), on_conflict='ignore')
 
     def execute(self, dryrun: bool = False) -> BacktestLog:
         '''Run backtest in an isolated process.
@@ -799,7 +799,7 @@ class TraderLog:
     log_time: datetime
 
     def save(self):
-        MTDB.save(self, 'TraderLog', on_conflict='error')
+        MTDB.save('TraderLog', self, on_conflict='error')
 
 
 class Trader:
@@ -929,7 +929,7 @@ class TaskLog:
         return self.return_value != 0
 
     def save(self):
-        MTDB.save(self, 'TaskLog', on_conflict='error')
+        MTDB.save('TaskLog', self, on_conflict='error')
 
 
 @dataclass(kw_only=True)
@@ -1020,7 +1020,7 @@ class TaskPlan:
 
         Fail if plan ID or plan name already exists.
         '''
-        MTDB.save(self, 'TaskPlan', on_conflict='update')
+        MTDB.save('TaskPlan', self, on_conflict='update')
         self.__call_scheduler('PUT', f'/task/{self.id}')
 
     def delete(self) -> None:

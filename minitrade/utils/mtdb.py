@@ -162,7 +162,7 @@ class MTDB:
             conn.execute(str(stmt))
 
     @staticmethod
-    def save(objects, tablename: str, *, on_conflict='error', whitelist=None, blacklist=None):
+    def save(tablename: str, objects, *, on_conflict='error', whitelist=None, blacklist=None):
         '''Save objects to ddb'''
         if not isinstance(objects, list):
             objects = [objects]

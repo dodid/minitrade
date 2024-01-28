@@ -36,7 +36,7 @@ class ManualBroker(Broker):
         order = asdict(order)
         order['broker_order_id'] = order_id
         order['submit_time'] = datetime.utcnow()
-        MTDB.save(order, 'ManualTrade')
+        MTDB.save('ManualTrade', order)
         return order_id
 
     def cancel_order(self, plan: TradePlan, order: RawOrder = None) -> bool:

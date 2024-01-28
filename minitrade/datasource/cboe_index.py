@@ -30,7 +30,7 @@ Spot price:
         return ticker.replace('^', '_')
 
     def _ticker_timezone(self, ticker):
-        raise 'America/New_York'
+        return 'America/New_York'
 
     def _ticker_calendar(self, ticker):
         return 'NYSE'
