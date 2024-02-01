@@ -1,5 +1,8 @@
 # Minitrade Changelog
 
+## 0.1.35
+- [Fix] Fix QuoteSource may return data not in ascending time order in some cases.
+
 ## 0.1.34
 - [New] QuoteSource supports getting data in parallel when `num_workers` > 1.
 - [New] Add performance tearsheet for IB account.

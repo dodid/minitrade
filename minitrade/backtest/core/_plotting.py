@@ -130,7 +130,7 @@ def _maybe_resample_data(resample_rule, data, baseline, indicators, equity_data,
         def f(s, new_index=pd.Index(baseline.index.view(int)), bars=trades[column]):
             if s.size:
                 # Via int64 because on pandas recently broken datetime
-                mean_time = int(bars.loc[s.index].view(int).mean())
+                mean_time = int(bars.loc[s.index].astype(int).mean())
                 new_bar_idx = new_index.get_indexer([mean_time], method='nearest')[0]
                 return new_bar_idx
         return f

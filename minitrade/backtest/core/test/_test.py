@@ -398,7 +398,7 @@ class TestBacktest(TestCase):
             def init(self): pass
 
             def next(self):
-                self.buy(tp=self.data.Close * 1.01)
+                self.buy(tp=self.data.Close[-1] * 1.01)
 
         self.assertRaises(ValueError, Backtest(SHORT_DATA, S, commission=.02).run)
 
