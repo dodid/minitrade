@@ -176,6 +176,8 @@ class QuoteSource(ABC):
                         df.loc[:, (s, ohlc)] = df.loc[:, (s, ohlc)] / df[s].loc[start_index, 'Close']
             elif normalize:
                 raise ValueError('normalize=True requires align=True')
+            assert isinstance(df.index, pd.DatetimeIndex)
+            assert df.index.is_monotonic_increasing
             return df
         except Exception as e:
             raise RuntimeError(e) from e
@@ -207,6 +209,8 @@ class QuoteSource(ABC):
                 'Close': 'last',
                 'Volume': 'sum',
             }))
+            assert isinstance(monthly.index, pd.DatetimeIndex)
+            assert monthly.index.is_monotonic_increasing
             return monthly
         except Exception as e:
             raise RuntimeError(e) from e
@@ -251,7 +255,9 @@ class QuoteSource(ABC):
                     ticker, result = future.result()
                     data[ticker] = result
 
-            df = pd.concat(data, axis=1).ffill()
+            df = pd.concat(data, axis=1).sort_index().ffill()
+            assert isinstance(df.index, pd.DatetimeIndex)
+            assert df.index.is_monotonic_increasing
             return df
         except Exception as e:
             raise RuntimeError(e) from e

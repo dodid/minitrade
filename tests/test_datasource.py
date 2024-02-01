@@ -30,6 +30,7 @@ class MockQuoteSource(QuoteSource):
         return pd.Series([100.0, 200.0], index=tickers)
 
     def _daily_bar(self, ticker: str, start: str, end: str) -> pd.DataFrame:
+        start = '2022-01-02' if ticker == 'AAPL' else start
         dates = pd.date_range(start=start, end=end)
         data = {
             'Open': [100.0] * len(dates),
@@ -38,9 +39,10 @@ class MockQuoteSource(QuoteSource):
             'Close': [105.0] * len(dates),
             'Volume': [1000] * len(dates),
         }
-        return pd.DataFrame(data, index=dates)
+        return pd.DataFrame(data, index=dates).sample(frac=1)
 
     def _minute_bar(self, ticker: str, start: str, end: str, interval: int) -> pd.DataFrame:
+        start = '2022-01-02' if ticker == 'AAPL' else start
         dates = pd.date_range(start=start, end=end, freq=f'{interval}min')
         data = {
             'Open': [100.0] * len(dates),
@@ -49,7 +51,7 @@ class MockQuoteSource(QuoteSource):
             'Close': [105.0] * len(dates),
             'Volume': [1000] * len(dates),
         }
-        return pd.DataFrame(data, index=dates)
+        return pd.DataFrame(data, index=dates).sample(frac=1)
 
 
 class TestQuoteSource:
@@ -69,37 +71,7 @@ class TestQuoteSource:
         assert_series_equal(quote_source.spot('AAPL,GOOGL'), expected)
 
     def test_daily_bar(self, quote_source):
-        expected_index = pd.date_range(start='2022-01-01', end='2022-01-05')
-        expected_data = {
-            'Open': [100.0] * 5,
-            'High': [110.0] * 5,
-            'Low': [90.0] * 5,
-            'Close': [105.0] * 5,
-            'Volume': [1000] * 5,
-        }
-        single = pd.DataFrame(expected_data, index=expected_index)
-        expected = pd.concat([single]*2, axis=1, keys=['AAPL', 'GOOGL'])
-        assert_frame_equal(quote_source.daily_bar(['AAPL', 'GOOGL'], start='2022-01-01', end='2022-01-05'), expected)
-        assert_frame_equal(quote_source.daily_bar('AAPL,GOOGL', start='2022-01-01', end='2022-01-05'), expected)
-
-    def test_daily_bar2(self, quote_source):
-        expected_index = pd.date_range(start='2022-01-01', end='2022-01-05')
-        expected_data = {
-            'Open': [100.0 / 105] * 5,
-            'High': [110.0 / 105] * 5,
-            'Low': [90.0 / 105] * 5,
-            'Close': [105.0 / 105] * 5,
-            'Volume': [1000] * 5,
-        }
-        single = pd.DataFrame(expected_data, index=expected_index)
-        expected = pd.concat([single]*2, axis=1, keys=['AAPL', 'GOOGL'])
-        assert_frame_equal(quote_source.daily_bar(
-            ['AAPL', 'GOOGL'],
-            start='2022-01-01', end='2022-01-05', normalize=True),
-            expected)
-
-    def test_minute_bar(self, quote_source):
-        expected_index = pd.date_range(start='2022-01-01 09:30:00', end='2022-01-01 16:00:00', freq='1min')
+        expected_index = pd.date_range(start='2022-01-02', end='2022-01-05')
         expected_data = {
             'Open': [100.0] * len(expected_index),
             'High': [110.0] * len(expected_index),
@@ -110,15 +82,49 @@ class TestQuoteSource:
         single = pd.DataFrame(expected_data, index=expected_index)
         expected = pd.concat([single]*2, axis=1, keys=['AAPL', 'GOOGL'])
         assert_frame_equal(
+            quote_source.daily_bar(['AAPL', 'GOOGL'], start='2022-01-01', end='2022-01-05'),
+            expected, check_freq=False, check_dtype=False)
+        assert_frame_equal(quote_source.daily_bar('AAPL,GOOGL', start='2022-01-01',
+                           end='2022-01-05'), expected, check_freq=False, check_dtype=False)
+
+    def test_daily_bar2(self, quote_source):
+        expected_index = pd.date_range(start='2022-01-02', end='2022-01-05')
+        expected_data = {
+            'Open': [100.0 / 105] * len(expected_index),
+            'High': [110.0 / 105] * len(expected_index),
+            'Low': [90.0 / 105] * len(expected_index),
+            'Close': [105.0 / 105] * len(expected_index),
+            'Volume': [1000] * len(expected_index),
+        }
+        single = pd.DataFrame(expected_data, index=expected_index)
+        expected = pd.concat([single]*2, axis=1, keys=['AAPL', 'GOOGL'])
+        assert_frame_equal(quote_source.daily_bar(
+            ['AAPL', 'GOOGL'],
+            start='2022-01-01', end='2022-01-05', normalize=True),
+            expected, check_freq=False, check_dtype=False)
+
+    def test_minute_bar(self, quote_source):
+        expected_index = pd.date_range(start='2022-01-01', end='2022-01-03', freq='1min')
+        expected_data = {
+            'Open': [100.0] * len(expected_index),
+            'High': [110.0] * len(expected_index),
+            'Low': [90.0] * len(expected_index),
+            'Close': [105.0] * len(expected_index),
+            'Volume': [1000] * len(expected_index),
+        }
+        long = pd.DataFrame(expected_data, index=expected_index)
+        short = long.loc[long.index >= '2022-01-02']
+        expected = pd.concat([short, long], axis=1, keys=['AAPL', 'GOOGL']).sort_index()
+        assert_frame_equal(
             quote_source.minute_bar(
                 ['AAPL', 'GOOGL'],
-                start='2022-01-01 09:30:00', end='2022-01-01 16:00:00', interval=1),
-            expected)
+                start='2022-01-01', end='2022-01-03', interval=1),
+            expected, check_freq=False, check_dtype=False)
         assert_frame_equal(
             quote_source.minute_bar(
                 'AAPL,GOOGL',
-                start='2022-01-01 09:30:00', end='2022-01-01 16:00:00', interval=1),
-            expected)
+                start='2022-01-01', end='2022-01-03', interval=1),
+            expected, check_freq=False, check_dtype=False)
 
 
 class TestYahooQuoteSource:
