@@ -512,6 +512,7 @@ class BacktestRunner:
     def _check_data(self, data: pd.DataFrame):
         '''Check if price data is valid.'''
         # Check if data is invariant with previous backtest data.
+        ohlc = ['Open', 'High', 'Low', 'Close']
         if self.plan.strict:
             logs = self.plan.list_logs()
             log = next((l for l in logs if l.data is not None and not l.error), None)
@@ -519,7 +520,7 @@ class BacktestRunner:
                 # exclude the last data point which may change intraday
                 # only check for price change as volume data from Yahoo do change sometimes
                 prefix_len = len(log.data) - 1
-                for col in ['Open', 'High', 'Low', 'Close']:
+                for col in ohlc:
                     if not np.allclose(
                             log.data.xs(col, 1, 1).iloc[: prefix_len],
                             data.xs(col, 1, 1).iloc[: prefix_len],
@@ -528,7 +529,8 @@ class BacktestRunner:
                             'Data change detected. If this is due to dividend or stock split, please start a new trade plan.')
         # Check if most recent data are actually updated, otherwise issue a warning
         if len(data) > 1:
-            same = np.isclose(data.iloc[-1], data.iloc[-2], rtol=1e-5)
+            same = np.isclose(data.iloc[-1].loc[:, ohlc].astype(float),
+                              data.iloc[-2].loc[:, ohlc].astype(float), rtol=1e-5)
             if same.any():
                 print('Warning: Data may not be updated. Please verify.')
                 print(data.iloc[-2:])
