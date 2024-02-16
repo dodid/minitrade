@@ -3,6 +3,7 @@ import asyncio
 import logging
 import sys
 
+import lxml.html
 import requests
 from telegram import Update
 from telegram.ext import (ApplicationBuilder, CommandHandler, ContextTypes,
@@ -17,9 +18,13 @@ logging.getLogger("httpx").setLevel(logging.WARNING)
 def send_telegram_message(*text, html: str = '', silent: bool = False):
     '''Send message to Telegram`'''
     if 'pytest' not in sys.modules:
+        text = '\n'.join(text)[:4096]
+        if html and len(html) > 4096:
+            html = html[:4000] + '... (truncated)'
+            tree = lxml.html.fragment_fromstring(html, create_parent='html')
+            html = lxml.html.tostring(tree, encoding='unicode')[6:-7]   # remove <html> and </html>
         url = f'http://{config.scheduler.host}:{config.scheduler.port}/messages'
-        resp = requests.request(method='POST', url=url, json={'text': '\n'.join(text)[
-                                :4000], 'html': html[:4000], 'silent': silent})  # Telegram message length limit
+        resp = requests.request(method='POST', url=url, json={'text': text, 'html': html, 'silent': silent})
         if resp.status_code == 200:
             return resp.json()
         elif resp.status_code >= 400:
