@@ -24,8 +24,8 @@ def get_market_calendar_and_timezone(data_source: str, ticker_css: str):
     if ticker_css.strip() == '':
         return None, None
     ds = QuoteSource.get_source(data_source)
-    calendars = list(set([ds.ticker_calendar(t) for t in ticker_css.split(',')]))
-    zones = list(set([ds.ticker_timezone(t) for t in ticker_css.split(',')]))
+    calendars = list(dict.fromkeys([ds.ticker_calendar(t) for t in ticker_css.split(',')]))
+    zones = list(dict.fromkeys([ds.ticker_timezone(t) for t in ticker_css.split(',')]))
     if len(calendars) > 1 or len(zones) > 1:
         st.info(
             f'Cross market trading detected. Use "{calendars[0]}" for market calendar, "{zones[0]}" for market timezone.')
@@ -48,7 +48,7 @@ def ticker_resolver(account: BrokerAccount, ticker_css: str) -> dict:
             except ConnectionError:
                 st.error('Need to login to broker account to resolve tickers. Please pay attention to 2FA notification if enabled.')
                 st.button('Retry')
-    return None
+    return {}
 
 
 def parse_trade_time_of_day(trade_time_of_day: str) -> str:
@@ -72,7 +72,7 @@ def parse_trade_time_of_day(trade_time_of_day: str) -> str:
 def show_create_trade_plan_form() -> TradePlan | None:
     account = st.selectbox('Select a broker account', BrokerAccount.list(), format_func=lambda b: b.alias)
     strategy_file = st.selectbox('Pick a strategy', StrategyManager.list())
-    data_source = st.selectbox('Select a data source', QuoteSource.AVAILABLE_SOURCES)
+    data_source = st.selectbox('Select a data source', QuoteSource.list())
     ticker_css = st.text_input(
         'Define the asset space (a list of tickers separated by comma without space)', placeholder='e.g. AAPL,GOOG')
     try:

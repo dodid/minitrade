@@ -13,4 +13,4 @@ class RotateBuying(Strategy):
     def next(self):
         self.weight = pd.Series(np.roll(self.weight, 1), index=self.data.tickers)
         self.alloc.add(self.weight).equal_weight()
-        self.rebalance()
+        self.rebalance(cash_reserve=0.5)

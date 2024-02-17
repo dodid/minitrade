@@ -1499,10 +1499,10 @@ class Backtest:
         self._results: Optional[pd.Series] = None
 
         # equal weighed average, as if buy and hold an equal weighed portfolio
-        ohlc = ['Open', 'High', 'Low', 'Close']
+        ohlcv = ['Open', 'High', 'Low', 'Close', 'Volume']
         weights = 1 / self._data.xs('Close', axis=1, level=1).iloc[0]
         weighted_data = self._data.copy()
-        weighted_data = weighted_data.loc[:, (slice(None), ohlc)]
+        weighted_data = weighted_data.loc[:, (slice(None), ohlcv)]
         for ticker in weights.index:
             weighted_data[ticker] = weighted_data[ticker] * weights[ticker]
         weighted_data = weighted_data.T.groupby(level=1).agg('sum').T / weights.sum()

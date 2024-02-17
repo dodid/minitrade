@@ -20,9 +20,15 @@ class QuoteSource(ABC):
     to add a concrete implementation to get data from particular data source.
     '''
 
-    AVAILABLE_SOURCES = sorted(['Yahoo', 'EODHistoricalData', 'TwelveData', 'Alpaca',
-                               'EastMoney', 'Tiingo', 'InteractiveBrokers', 'CboeIndex', 'CboeFutures'])
+    SYSTEM_SOURCES = sorted(['Yahoo', 'EODHistoricalData', 'TwelveData', 'Alpaca',
+                             'EastMoney', 'Tiingo', 'InteractiveBrokers', 'CboeIndex', 'CboeFutures'])
     '''A list of names for supported quote sources as input to `QuoteSource.get_source()`.'''
+
+    @staticmethod
+    def list() -> list[str]:
+        '''List all available quote sources.'''
+        from minitrade.datasource.union import UnionQuoteSourceConfig
+        return QuoteSource.SYSTEM_SOURCES + UnionQuoteSourceConfig.list()
 
     @staticmethod
     def get_source(name: str, **kwargs: dict[str, Any]) -> QuoteSource:
@@ -66,7 +72,11 @@ class QuoteSource(ABC):
             from .cboe_futures import CboeFuturesQuoteSource
             return CboeFuturesQuoteSource(**kwargs)
         else:
-            raise ValueError(f'Quote source {name} is not supported')
+            from .union import UnionQuoteSource, UnionQuoteSourceConfig
+            try:
+                return UnionQuoteSource(UnionQuoteSourceConfig.get_config(name).config)
+            except ValueError:
+                raise ValueError(f'Quote source {name} is not supported')
 
     @abstractmethod
     def _ticker_timezone(self, ticker: str) -> str:
@@ -121,6 +131,8 @@ class QuoteSource(ABC):
             if isinstance(tickers, str):
                 tickers = tickers.split(',')
             return self._spot(tickers)
+        except NotImplementedError as e:
+            raise e
         except Exception as e:
             raise RuntimeError(e) from e
 
@@ -179,6 +191,8 @@ class QuoteSource(ABC):
             assert isinstance(df.index, pd.DatetimeIndex)
             assert df.index.is_monotonic_increasing
             return df
+        except NotImplementedError as e:
+            raise e
         except Exception as e:
             raise RuntimeError(e) from e
 
@@ -212,6 +226,8 @@ class QuoteSource(ABC):
             assert isinstance(monthly.index, pd.DatetimeIndex)
             assert monthly.index.is_monotonic_increasing
             return monthly
+        except NotImplementedError as e:
+            raise e
         except Exception as e:
             raise RuntimeError(e) from e
 
@@ -259,5 +275,7 @@ class QuoteSource(ABC):
             assert isinstance(df.index, pd.DatetimeIndex)
             assert df.index.is_monotonic_increasing
             return df
+        except NotImplementedError as e:
+            raise e
         except Exception as e:
             raise RuntimeError(e) from e

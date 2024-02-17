@@ -1,5 +1,9 @@
 # Minitrade Changelog
 
+## Upcoming
+- [New] Add UnionQuoteSource that supports getting data from different sources.
+- [New] Allow columns other than OHLCV in data for backtesting.
+
 ## 0.1.35
 - [Fix] Fix QuoteSource may return data not in ascending time order in some cases.
 

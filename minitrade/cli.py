@@ -202,6 +202,9 @@ def scheduler_unschedule(plan_id):
 @click.option('--pytest', is_flag=True, help='Run in test mode')
 def backtest(plan_id_or_name, run_id, dryrun, pytest):
     '''Run backtest for particular plan'''
+    import warnings
+    warnings.simplefilter(action='ignore', category=FutureWarning)
+
     from minitrade.trader.trader import BacktestRunner
     if pytest:
         # import pytest which will trigger running in test mode using test db

@@ -10,6 +10,7 @@ from pandas.testing import assert_frame_equal, assert_series_equal
 
 from minitrade.datasource.base import QuoteSource
 from minitrade.datasource.cboe_futures import CboeFuturesQuoteSource
+from minitrade.datasource.union import UnionQuoteSource
 from minitrade.datasource.yahoo import YahooQuoteSource
 from minitrade.utils.mtdb import MTDB
 
@@ -602,3 +603,81 @@ date	Open	High	Low	Close	Volume	expire_date
         assert df.index[0].strftime('%Y-%m-%d') == '2022-01-03'
         assert df.index[-1].strftime('%Y-%m-%d') == '2022-01-31'
         assert df.index.duplicated().sum() == 0
+
+
+class TestUnionQuoteSource:
+    def test_ticker_timezone(self):
+        config = [
+            ('AAPL', 'Yahoo', None),
+            ('GOOGL', 'Yahoo', None),
+            (None, 'Yahoo', None)
+        ]
+        quote_source = UnionQuoteSource(config)
+        assert quote_source.ticker_timezone('AAPL') == 'America/New_York'
+        assert quote_source.ticker_timezone('GOOGL') == 'America/New_York'
+        assert quote_source.ticker_timezone('MSFT') == 'America/New_York'
+
+    def test_ticker_calendar(self):
+        config = [
+            ('AAPL,GOOGL', 'Yahoo', None),
+            (None, 'Yahoo', None)
+        ]
+        quote_source = UnionQuoteSource(config)
+        assert quote_source.ticker_calendar('AAPL') == 'NYSE'
+        assert quote_source.ticker_calendar('GOOGL') == 'NYSE'
+        assert quote_source.ticker_calendar('MSFT') == 'NYSE'
+
+    def test_daily_bar(self):
+        config = [
+            ('VX', 'CboeFutures', {'cf_method': 'backward', 'roll_day': -7}),
+            ('AAPL,GOOGL', 'Yahoo', None),
+            (None, 'Yahoo', None)
+        ]
+        quote_source = UnionQuoteSource(config)
+        cf = QuoteSource.get_source('CboeFutures', cf_method='backward', roll_day=-7)
+        yh = QuoteSource.get_source('Yahoo')
+        start = '2022-01-01'
+        data = quote_source.daily_bar('VX,AAPL,GOOGL,MSFT', start=start)
+        vx = cf.daily_bar('VX', start=start)['VX']
+        assert_frame_equal(data['VX'].iloc[:len(vx)], vx, check_freq=False, check_dtype=False)
+        assert_frame_equal(
+            data[['AAPL', 'GOOGL', 'MSFT']],
+            yh.daily_bar('AAPL,GOOGL,MSFT', start=start),
+            check_freq=False, check_dtype=False)
+
+        config = [
+            ('VX', 'CboeFutures', {'cf_method': 'backward', 'roll_day': -7}),
+            ('AAPL,GOOGL', 'Yahoo', None)
+        ]
+        quote_source = UnionQuoteSource(config)
+        with pytest.raises(RuntimeError):
+            quote_source.daily_bar('VX,AAPL,GOOGL,MSFT')    # MSFT is not in the config
+
+        config = [
+            ('VX', 'CboeFutures', {'cf_method': 'backward', 'roll_day': -7}),
+            ('AAPL,GOOGL', 'Yahoo', None),
+            (None, 'Yahoo', None),
+            (None, 'CboeFutures', None)     # Invalid config
+        ]
+        with pytest.raises(ValueError):
+            quote_source = UnionQuoteSource(config)
+
+    def test_minute_bar_not_implemented(self):
+        config = [
+            ('AAPL', 'Yahoo', None),
+            ('GOOGL', 'Yahoo', None),
+            (None, 'Yahoo', None)
+        ]
+        quote_source = UnionQuoteSource(config)
+        with pytest.raises(NotImplementedError):
+            quote_source.minute_bar('AAPL', start='2022-01-01', end='2022-01-02', interval=1)
+
+    def test_spot_not_implemented(self):
+        config = [
+            ('AAPL', 'Yahoo', None),
+            ('GOOGL', 'Yahoo', None),
+            (None, 'Yahoo', None)
+        ]
+        quote_source = UnionQuoteSource(config)
+        with pytest.raises(NotImplementedError):
+            quote_source.spot(['AAPL', 'GOOGL'])

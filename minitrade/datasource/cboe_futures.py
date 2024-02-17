@@ -1,5 +1,6 @@
 import hashlib
 import re
+import sys
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timedelta
 from io import StringIO
@@ -77,7 +78,7 @@ Limitations:
             for future in tqdm(
                     as_completed(futures),
                     total=len(data_files),
-                    desc='Downloading data', unit='file', leave=False):
+                    desc='Downloading data', unit='file', leave=False, file=sys.stdout):  # do not clutter the stderr log
                 key, df = future.result()
                 data[key] = df
 

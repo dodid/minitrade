@@ -1,5 +1,7 @@
 
 import itertools
+import json
+from datetime import datetime
 
 import pandas as pd
 import streamlit as st
@@ -7,6 +9,7 @@ from matplotlib import pyplot as plt
 
 from minitrade.broker.base import BrokerAccount
 from minitrade.datasource import QuoteSource
+from minitrade.datasource.union import UnionQuoteSource, UnionQuoteSourceConfig
 from minitrade.utils.config import config
 
 st.set_page_config(page_title='Datasource', layout='wide')
@@ -85,10 +88,22 @@ def test_and_save_ib_account(alias):
         st.error('Getting data from InteractiveBrokers not working, please check account')
 
 
-def show_source_page():
-    source = st.sidebar.radio('Source', QuoteSource.AVAILABLE_SOURCES)
+def confirm_delete_union_data_source(source) -> None:
+    def confirm_delete():
+        if st.session_state.delete_confirm_textinput == source:
+            UnionQuoteSourceConfig.get_config(source).delete()
+    st.text_input(f'Type "{source}" and press Enter to delete',
+                  on_change=confirm_delete, key='delete_confirm_textinput')
 
-    st.subheader(source)
+
+def show_source_page():
+    source = st.sidebar.radio('Source', QuoteSource.list())
+
+    c1, c2 = st.columns([5, 1], gap='large')
+    c1.subheader(source)
+    if source in QuoteSource.list():
+        if c2.button('Delete', type='primary'):
+            confirm_delete_union_data_source(source)
     t1, t2 = st.tabs(['Config', 'About'])
     with t1:
         config_source(source)
@@ -97,7 +112,10 @@ def show_source_page():
 
 
 def about_source(source):
-    st.markdown(QuoteSource.get_source(source).__doc__ or '')
+    if source in QuoteSource.list():
+        st.markdown(QuoteSource.get_source(source).__doc__ or '')
+    else:
+        st.write('Unknown data source')
 
 
 def config_source(source):
@@ -143,6 +161,18 @@ def config_source(source):
         st.write('Nothing to configure')
     elif source == 'CboeFutures':
         st.write('Nothing to configure')
+    elif source in UnionQuoteSource.list():
+        st.write('This is an union data source configured as follows:')
+        union_config = UnionQuoteSourceConfig.get_config(source).config
+        for ticker, name, params in union_config:
+            st.caption(ticker or 'Catch-all')
+            if params:
+                params = ', '.join([f'{k}={v}' for k, v in params.items()])
+                st.code(f'QuoteSource.get_source("{name}", {params})')
+            else:
+                st.code(f'QuoteSource.get_source("{name}")')
+    else:
+        st.write('Unknown data source')
 
 
 @st.cache_data(ttl='1h')
@@ -259,7 +289,7 @@ def inspect_data():
     tickers = st.sidebar.text_input('Ticker', value='SPY')
     start = st.sidebar.text_input('Start date', value='2000-01-01') or None
     end = st.sidebar.text_input('End date') or None
-    sources = st.sidebar.multiselect('Sources', QuoteSource.AVAILABLE_SOURCES, default=['Yahoo'])
+    sources = st.sidebar.multiselect('Sources', QuoteSource.list(), default=['Yahoo'])
 
     if len(sources) == 1 and st.sidebar.button('Inspect'):
         if len(sources) == 1:
@@ -300,10 +330,67 @@ def lookup_ticker():
                         st.write(f'{item["id"]} - {item["label"]}')
 
 
-action = st.sidebar.radio('Action', ['Config', 'Inspect', 'Lookup (IB only)'])
+def create_union_source():
+    st.subheader('Create union data source')
+    st.info('A union data source let you retrieve data for different tickers using different data sources. '
+            'You can explicitly map tickers to data sources. '
+            'You can also define a catch-all data source for tickers not found in the mapping.')
+
+    source_name = st.text_input('Data source name')
+    with st.expander('Sources', expanded=True):
+        tabs = st.tabs('12345678')
+        ticker = [None] * 8
+        name = [None] * 8
+        params = [None] * 8
+        for i, tab in enumerate(tabs):
+            with tab:
+                ticker[i] = st.text_input('Tickers (comma separated list without space)', key=f'ticker_{i}')
+                name[i] = st.selectbox('Source', QuoteSource.SYSTEM_SOURCES, key=f'name_{i}')
+                params[i] = st.text_input(
+                    'Params (parameters to be passed to `QuoteSource.get_source()` in JSON format)', key=f'params_{i}',
+                    placeholder='{}') or None
+                try:
+                    if params[i]:
+                        params[i] = json.loads(params[i])
+                except Exception as e:
+                    st.error(f'Invalid JSON: {e}')
+    with st.expander('Catch-all source', expanded=True):
+        catchall = st.selectbox('Source', [None] + QuoteSource.SYSTEM_SOURCES)
+        catchall_params = st.text_input('Params') or None
+        try:
+            if catchall_params:
+                json.loads(catchall_params)
+        except Exception as e:
+            st.error(f'Invalid JSON: {e}')
+    save = st.button('Save')
+    if save:
+        if not source_name:
+            st.error('Data source name is required')
+            return
+        elif source_name in QuoteSource.SYSTEM_SOURCES:
+            st.error(f'"{source_name}" is a built-in data source')
+            return
+        union_config = [(t, n, p) for t, n, p in zip(ticker, name, params) if t and n]
+        if catchall:
+            union_config.append((None, catchall, catchall_params))
+        UnionQuoteSource(union_config)    # test if the config is valid
+        union = UnionQuoteSourceConfig(
+            name=source_name,
+            config=union_config,
+            update_time=datetime.utcnow()
+        )
+        union.save()
+        st.success(f'Union data source "{source_name}" saved')
+
+
+action = st.sidebar.radio('Action', ['Config', 'Create', 'Inspect', 'Lookup (IB only)'])
 
 if action == 'Config':
     show_source_page()
+
+
+if action == 'Create':
+    create_union_source()
 
 
 if action == 'Inspect':
