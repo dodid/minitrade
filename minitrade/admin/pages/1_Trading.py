@@ -1,9 +1,10 @@
 
+import zoneinfo
 from dataclasses import asdict
 from datetime import datetime, time, timedelta
-from zoneinfo import ZoneInfo
 
 import pandas as pd
+import pandas_market_calendars as mcal
 import streamlit as st
 from matplotlib import pyplot as plt
 from tabulate import tabulate
@@ -72,13 +73,23 @@ def parse_trade_time_of_day(trade_time_of_day: str) -> str:
 def show_create_trade_plan_form() -> TradePlan | None:
     account = st.selectbox('Select a broker account', BrokerAccount.list(), format_func=lambda b: b.alias)
     strategy_file = st.selectbox('Pick a strategy', StrategyManager.list())
-    data_source = st.selectbox('Select a data source', QuoteSource.list())
+    data_source = st.selectbox(
+        'Select a data source', QuoteSource.list() + [None], index=QuoteSource.list().index('Yahoo'),
+        format_func=lambda x: x or 'Use Strategy.prepare_data()')
     ticker_css = st.text_input(
         'Define the asset space (a list of tickers separated by comma without space)', placeholder='e.g. AAPL,GOOG')
+    market_calendar, market_timezone = None, None
     try:
-        market_calendar, market_timezone = get_market_calendar_and_timezone(data_source, ticker_css)
+        if data_source:
+            market_calendar, market_timezone = get_market_calendar_and_timezone(data_source, ticker_css)
     except Exception as e:
-        st.error(e)
+        st.warning(f'{e}. Please select market and timezone manually.')
+    c1, c2 = st.columns(2)
+    markets = mcal.get_calendar_names()
+    zones = sorted(list(zoneinfo.available_timezones()))
+    market_calendar = c1.selectbox('Select market', options=markets, index=markets.index(market_calendar or 'NYSE'))
+    market_timezone = c2.selectbox('Select market timezone', options=zones, index=zones.index(
+        market_timezone or 'America/New_York'))
     backtest_start_date = st.date_input(
         'Pick a backtest start date (run backtest from that date to give enough lead time to calculate indicators)',
         value=datetime.today() - timedelta(days=30))
@@ -123,8 +134,10 @@ def show_create_trade_plan_form() -> TradePlan | None:
         if initial_holding:
             initial_holding = {k.strip(): int(v)
                                for k, v in [x.strip().split(':') for x in initial_holding.split(',')]}
-        if len(ticker_css.strip()) == 0 or len(name.strip()) == 0 or not trade_time_of_day:
-            st.error('Please do not leave any required field empty.')
+        if len(name.strip()) == 0:
+            st.error('Trade plan name is required')
+        elif not trade_time_of_day:
+            st.error('Trade time of day is required')
         else:
             return TradePlan(
                 id=MTDB.uniqueid(),
@@ -152,15 +165,18 @@ def show_create_trade_plan_form() -> TradePlan | None:
 def display_run(plan: TradePlan, log: BacktestLog):
     orders = plan.get_orders(log.id)
     log_status = '❌' if log.error else '✅' if orders else '🟢'
-    log_time = log.log_time.replace(tzinfo=ZoneInfo('UTC')).astimezone(
-        ZoneInfo(plan.market_timezone)).strftime('%Y-%m-%d %H:%M:%S')
+    log_time = log.log_time.replace(tzinfo=zoneinfo.ZoneInfo('UTC')).astimezone(
+        zoneinfo.ZoneInfo(plan.market_timezone)).strftime('%Y-%m-%d %H:%M:%S')
     label = f'{log_status} {log_time}' + (f' **{len(orders)} orders**' if orders else '')
     with st.expander(label):
         tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs(
             ['Input', 'Data', 'Result', 'Error', 'Log', 'Orders'])
         if log.params:
             tab1.write(log.params)
-        tab2.write(log.data)
+        if log.data.size > 100_000:
+            tab2.write(f'Data too large to display, shape: {log.data.shape}')
+        else:
+            tab2.write(log.data)
         if log.result is not None:
             df = log.result
             df = df[~df.index.str.startswith('_')]
@@ -178,6 +194,7 @@ def display_run(plan: TradePlan, log: BacktestLog):
 
 def save_plan_and_dryrun(plan: TradePlan) -> None:
     plan.save()
+    st.success('Trade plan saved')
     runner = BacktestRunner(plan)
     log = runner.execute(dryrun=True)
     display_run(plan, log)
@@ -283,7 +300,7 @@ def show_orders(plan, account, broker, orders):
                                        value=trade[0]['trade_time'] or time(9, 30), label_visibility='hidden')
                     if t3.button('Save', key=f'{order.id}-save'):
                         broker.update_trade(trade[0]['id'], price, commission,
-                                            datetime.combine(dt, tm, ZoneInfo(plan.market_timezone)))
+                                            datetime.combine(dt, tm, zoneinfo.ZoneInfo(plan.market_timezone)))
                         st.warning('Click "Refresh" button to see change')
 
 
@@ -292,7 +309,7 @@ def show_performance(plan, logs, broker, orders):
         data = logs[0].data
         trades = broker.format_trades(orders)
         trade_start_date = datetime.strptime(
-            plan.trade_start_date, '%Y-%m-%d').replace(tzinfo=ZoneInfo(plan.market_timezone))
+            plan.trade_start_date, '%Y-%m-%d').replace(tzinfo=zoneinfo.ZoneInfo(plan.market_timezone))
         offset = (data.index < trade_start_date).sum()
         # calculate trade stats from trade_start_date
         # data.index may have mixed timezone due to daylight saving time

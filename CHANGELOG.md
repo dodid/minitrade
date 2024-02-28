@@ -1,8 +1,13 @@
 # Minitrade Changelog
 
-## Upcoming
+## 0.1.36
+- [New] Add `Strategy.prepare_data()` to suppport strategy specific data provider.
+- [New] Add `Strategy.start_on_day()` to control how many data bars should be initially available in `next()`.
 - [New] Add UnionQuoteSource that supports getting data from different sources.
 - [New] Allow columns other than OHLCV in data for backtesting.
+- [New] Indicator plot can be turned off using by `plot_indicator=False`.
+- [New] Better handling of very large asset space, e.g. truncating data in display/charting.
+- [Change] "Volume" is now an optional column in data for backtesting.
 
 ## 0.1.35
 - [Fix] Fix QuoteSource may return data not in ascending time order in some cases.

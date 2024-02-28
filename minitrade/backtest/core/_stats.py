@@ -113,16 +113,16 @@ def compute_stats(
     if isinstance(index, pd.DatetimeIndex):
         period = equity.index.to_series().diff().mean().days
         if period <= 1:
-            period_returns = equity_df['Equity'].resample('D').last().dropna().pct_change()
+            period_returns = equity_df['Equity'].iloc[trade_start_bar:].resample('D').last().dropna().pct_change()
             gmean_period_return = geometric_mean(period_returns)
             annual_trading_periods = float(
                 365 if index.dayofweek.to_series().between(5, 6).mean() > 2/7 * .6 else 252)
         elif period >= 28 and period <= 31:
-            period_returns = equity_df['Equity'].pct_change()
+            period_returns = equity_df['Equity'].iloc[trade_start_bar:].pct_change()
             gmean_period_return = geometric_mean(period_returns)
             annual_trading_periods = 12
         elif period >= 365 and period <= 366:
-            period_returns = equity_df['Equity'].pct_change()
+            period_returns = equity_df['Equity'].iloc[trade_start_bar:].pct_change()
             gmean_period_return = geometric_mean(period_returns)
             annual_trading_periods = 1
         else:

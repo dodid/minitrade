@@ -82,7 +82,7 @@ CREATE TABLE IF NOT EXISTS "TradePlan" (
 	"ticker_css" TEXT NOT NULL,
 	"market_calendar" TEXT NOT NULL,
 	"market_timezone" TEXT NOT NULL,
-	"data_source" TEXT NOT NULL,
+	"data_source" TEXT,
 	"backtest_start_date" TEXT NOT NULL,
 	"trade_start_date" TEXT,
 	"trade_time_of_day" TEXT NOT NULL,

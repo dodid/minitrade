@@ -160,7 +160,8 @@ def plot(*, results: pd.Series,
          superimpose=False, resample=True,
          reverse_indicators=True,
          show_legend=True, open_browser=True,
-         plot_allocation=False, relative_allocation=True):
+         plot_allocation=False, relative_allocation=True,
+         plot_indicator=True):
     """
     Like much of GUI code everywhere, this is a mess.
     """
@@ -187,6 +188,8 @@ def plot(*, results: pd.Series,
     from .lib import OHLCV_AGG
 
     # ohlc df may contain many columns. We're only interested in, and pass on to Bokeh, these
+    if 'Volume' not in baseline:
+        baseline['Volume'] = 0
     baseline = baseline[list(OHLCV_AGG.keys())].copy(deep=False)
 
     # Buy-and-hold cumulative returns
@@ -393,6 +396,7 @@ return this.labels[index] || "";
     def _plot_equity_stack_section(relative=True):
         """Equity stack area chart section"""
         equity = equity_data.iloc[:, 1:-2].copy().abs()
+        equity = equity.loc[:, equity.sum() > 0]
         names = list(equity.columns)
         if relative:
             equity = equity.divide(equity.sum(axis=1), axis=0)
@@ -400,7 +404,7 @@ return this.labels[index] || "";
         equity_source.add(data.index, 'datetime')
 
         yaxis_label = 'Allocation'
-        fig = new_indicator_figure(y_axis_label=yaxis_label, height=60 + 10 * len(names))
+        fig = new_indicator_figure(y_axis_label=yaxis_label, height=60 + len(names))
 
         if relative:
             tooltip_format = [f'@{ticker}{{+0,0.[000]%}}' for ticker in names]
@@ -536,7 +540,7 @@ return this.labels[index] || "";
         fig = fig_ohlc
         ohlc_colors = colorgen()
         label_tooltip_pairs = []
-        for ticker in data.columns.levels[0]:
+        for ticker in data.columns.levels[0][:10]:
             color = next(ohlc_colors)
             source_name = ticker
             arr = data.loc[:, (ticker, 'Close')]
@@ -548,6 +552,8 @@ return this.labels[index] || "";
                 legend_label=source_name, line_color=color,
                 line_width=2)
         ohlc_tooltips.extend(label_tooltip_pairs)
+        if len(data.columns.levels[0]) > 10:
+            fig.line(0, 0, legend_label=f'{len(data.columns.levels[0])-10} more tickers hidden', line_color='black')
         fig.legend.orientation = "horizontal"
         fig.legend.background_fill_alpha = 0.8
         fig.legend.border_line_alpha = 0
@@ -676,14 +682,15 @@ return this.labels[index] || "";
         _plot_superimposed_ohlc()
 
     ohlc_bars = _plot_ohlc()
-    if plot_trades:
+    if plot_trades and len(data.columns.levels[0]) <= 10:
         _plot_ohlc_trades()
     if len(data.columns.levels[0]) > 1:
         _plot_ohlc_universe()
-    indicator_figs = _plot_indicators()
-    if reverse_indicators:
-        indicator_figs = indicator_figs[::-1]
-    figs_below_ohlc.extend(indicator_figs)
+    if plot_indicator:
+        indicator_figs = _plot_indicators()
+        if reverse_indicators:
+            indicator_figs = indicator_figs[::-1]
+        figs_below_ohlc.extend(indicator_figs)
 
     set_tooltips(fig_ohlc, ohlc_tooltips, vline=True, renderers=[ohlc_bars])
 

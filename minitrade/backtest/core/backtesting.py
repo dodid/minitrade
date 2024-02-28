@@ -205,6 +205,7 @@ class Strategy(ABC):
         self._alloc = Allocation(data.tickers)
         self._data_index = data.index.copy()
         self._registers = {}
+        self._start_on_day = 0
 
     def __repr__(self):
         return '<Strategy ' + str(self) + '>'
@@ -509,6 +510,38 @@ class Strategy(ABC):
         as an input to `Stategy.rebalance()`.
         """
         return self._alloc
+
+    def start_on_day(self, n: int):
+        """Start the backtest on a specific day, skipping all data before that day.
+
+        `next()` will be called after the data of the specified day is revealed.
+        This can be useful for warm-up period to ensure a certain amount of data is available.
+
+        This method should be called in `init()`.
+
+        Args:
+            n: Day index to start on. Must be within [0, len(data)-1].
+        """
+        assert 0 <= n < len(self._data), f"day must be within [0, {len(self._data)-1}]"
+        self._start_on_day = n
+
+    @classmethod
+    def prepare_data(cls, tickers: 'List[str]', start: str) -> pd.DataFrame | None:
+        """Prepare data for backtest.
+
+        This class method can be overridden in a `Strategy` implementation to provide
+        data for backtest. The can be useful when the data is not provided externally
+        and must be prepared in a way specific to the strategy, such as fetching data 
+        from a database or an API.
+
+        Args:
+            tickers: List of tickers to fetch data for.
+            start: Start date of the data to fetch.
+
+        Returns:
+            A `pd.DataFrame` with 2-level columns as required by `Backtest()` or None.
+        """
+        return None
 
 
 class Position:
@@ -954,19 +987,19 @@ class _Broker:
         self._equity = np.tile(np.nan, (len(data.index), len(data.tickers)+2))
         self.orders: List[Order] = []
         self.trades: Dict[str, List[Trade]] = {ticker: [] for ticker in self._data.tickers}
+        self._trade_start_bar = min(
+            (self._data.index.tz_localize(None) < self._trade_start_date).sum(),
+            len(self._data)-1) if self._trade_start_date else 0
         # Handle preexisting positions as if they are acquired on the first bar but
         # at the close price of trade_start_date, so that the portfolio return is 0
         # between backtest start date and trade_start_date.
         if self._holding:
-            trade_start_bar = min(
-                (self._data.index.tz_localize(None) < self._trade_start_date).sum(),
-                len(self._data)-1) if self._trade_start_date else 0
             for ticker, size in self._holding.items():
                 if size:
                     self.trades[ticker].append(Trade(self, ticker=ticker, size=size, entry_price=self._data[
-                        ticker, 'Close'][trade_start_bar], entry_bar=0, tag='preexisting'))
+                        ticker, 'Close'][self._trade_start_bar], entry_bar=0, tag='preexisting'))
                     # add the cost for preexisting positions to initial cash
-                    self._cash += size * self._data[ticker, 'Close'][trade_start_bar]
+                    self._cash += size * self._data[ticker, 'Close'][self._trade_start_bar]
         self.positions: Dict[str, Position] = {ticker: Position(self, ticker) for ticker in self._data.tickers}
         self.closed_trades: List[Trade] = []
 
@@ -975,6 +1008,10 @@ class _Broker:
         return f'<Broker: margin_available:{self.margin_available:.0f},{pos} ({len(self.all_trades)} trades)>'
 
     def rebalance(self, alloc: Allocation, force: bool = False, rtol: float = 0.01, atol: int = 0, cash_reserve: float = 0.1):
+        assert 0 <= cash_reserve < 1, "cash_reserve should be between 0 and 1"
+        assert 0 <= rtol < 1, "rtol should be between 0 and 1"
+        assert 0 <= atol, "atol should be non-negative"
+
         # ignore any trade actions before trade_start_date
         if self._trade_start_date and self.now.replace(tzinfo=None) < self._trade_start_date:
             alloc._clear()
@@ -1448,6 +1485,7 @@ class Backtest:
                             'entry order price')
 
         data = data.copy(deep=False)
+        ohlc = ['Open', 'High', 'Low', 'Close']
 
         # Convert single asset data into 2-level column index
         if data.columns.nlevels == 1:
@@ -1463,15 +1501,10 @@ class Backtest:
                 data.index = pd.to_datetime(data.index, infer_datetime_format=True)
             except ValueError:
                 pass
-        if not set(data.columns.levels[1]).issuperset(set(['Open', 'High', 'Low', 'Close', 'Volume'])):
-            raise ValueError("`data` must be a pandas.DataFrame containing columns "
-                             "'Open', 'High', 'Low', 'Close', and 'Volume'")
+        if not set(data.columns.levels[1]).issuperset(set(ohlc)):
+            raise ValueError("`data` must be a pandas.DataFrame containing columns 'Open', 'High', 'Low', 'Close'")
         if len(data) == 0:
             raise ValueError("`data` cannot be empty")
-        if data.isnull().values.any():
-            raise ValueError('Some OHLC values are missing (NaN). '
-                             'Please strip those lines with `df.dropna()` or '
-                             'fill them in with `df.interpolate()` or whatever.')
         if np.any(data.xs('Close', axis=1, level=1) > cash):
             warnings.warn('Some prices are larger than initial cash value. Note that fractional '
                           'trading is not supported. If you want to trade Bitcoin, '
@@ -1481,6 +1514,10 @@ class Backtest:
             warnings.warn('Data index is not sorted in ascending order. Sorting.',
                           stacklevel=2)
             data = data.sort_index()
+        if data.loc[:, (slice(None), ohlc)].apply(lambda s: s.loc[s.first_valid_index():].isna().sum()).sum() > 0:
+            raise ValueError('Some OHLC values are missing (NaN). '
+                             'Please strip those lines with `df.dropna()` or '
+                             'fill them in with `df.interpolate()` or whatever.')
         if not isinstance(data.index, pd.DatetimeIndex):
             warnings.warn('Data index is not datetime. Assuming simple periods, '
                           'but `pd.DateTimeIndex` is advised.',
@@ -1499,10 +1536,9 @@ class Backtest:
         self._results: Optional[pd.Series] = None
 
         # equal weighed average, as if buy and hold an equal weighed portfolio
-        ohlcv = ['Open', 'High', 'Low', 'Close', 'Volume']
         weights = 1 / self._data.xs('Close', axis=1, level=1).iloc[0]
         weighted_data = self._data.copy()
-        weighted_data = weighted_data.loc[:, (slice(None), ohlcv)]
+        weighted_data = weighted_data.loc[:, (slice(None), ohlc)]
         for ticker in weights.index:
             weighted_data[ticker] = weighted_data[ticker] * weights[ticker]
         weighted_data = weighted_data.T.groupby(level=1).agg('sum').T / weights.sum()
@@ -1578,6 +1614,7 @@ class Backtest:
         # Skip first few candles where indicators are still "warming up"
         start = max((indicator.isna().any(axis=1).argmin() if isinstance(indicator, pd.DataFrame)
                      else indicator.isna().argmin() for indicator in indicator_attrs.values()), default=0)
+        start = max(start, strategy._start_on_day)
 
         # Preprocess indicators to numpy array for better performance
         def deframe(df): return df.iloc[:, 0] if isinstance(df, pd.DataFrame) and len(df.columns) == 1 else df
@@ -1953,7 +1990,8 @@ class Backtest:
              superimpose: Union[bool, str] = False,
              resample=True, reverse_indicators=False,
              show_legend=True, open_browser=True,
-             plot_allocation=False, relative_allocation=True):
+             plot_allocation=False, relative_allocation=True,
+             plot_indicator=True):
         """
         Plot the progression of the last backtest run.
 
@@ -2038,6 +2076,9 @@ class Backtest:
 
         If `relative_allocation` is `True`, scale and label equity allocation graph axis
         with return percent, not absolute cash-equivalent values.
+
+        If `plot_indicator` is `True`, the resulting plot will contain
+        a section for each indicator used in the strategy.
         """
         if results is None:
             if self._results is None:
@@ -2067,4 +2108,5 @@ class Backtest:
             show_legend=show_legend,
             open_browser=open_browser,
             plot_allocation=plot_allocation,
-            relative_allocation=relative_allocation)
+            relative_allocation=relative_allocation,
+            plot_indicator=plot_indicator)

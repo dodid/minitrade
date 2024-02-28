@@ -87,7 +87,7 @@ class TradePlan:
     market_timezone: str
     '''Timezone of the market where the tickers are traded'''
 
-    data_source: str
+    data_source: str | None
     '''Quote source name as in QuoteSource.AVAILABLE_SOURCES'''
 
     backtest_start_date: str
@@ -205,7 +205,7 @@ class TradePlan:
 
         Fail if plan ID or plan name already exists.
         '''
-        MTDB.save('TradePlan', self, blacklist=['storage'], on_conflict='update')
+        MTDB.save('TradePlan', self, blacklist=['storage'], on_conflict='error')
         self.__call_scheduler('PUT', f'/strategy/{self.id}')
 
     def delete(self) -> None:
@@ -576,10 +576,13 @@ class BacktestRunner:
         exception = None
         try:
             self.run_id = run_id if run_id else MTDB.uniqueid()
-            source = QuoteSource.get_source(self.plan.data_source)
-            self.data = source.daily_bar(tickers=self.plan.ticker_css, start=self.plan.backtest_start_date)
             self.code = StrategyManager.read(self.plan.strategy_file)
             self.strategy = StrategyManager.load(self.plan.strategy_file)
+            if self.plan.data_source:
+                source = QuoteSource.get_source(self.plan.data_source)
+                self.data = source.daily_bar(tickers=self.plan.ticker_css, start=self.plan.backtest_start_date)
+            else:
+                self.data = self.strategy.prepare_data(self.plan.ticker_css.split(','), self.plan.backtest_start_date)
             self._check_data(self.data)
             if self.plan.strict:
                 bt = _record_backtest_params(strategy=self.strategy,
@@ -666,12 +669,16 @@ class BacktestRunner:
         '''
         try:
             self.run_id = MTDB.uniqueid()
+            env = os.environ.copy()
+            env.update({'TQDM_DISABLE': '1'})
             proc = subprocess.run(
                 [sys.executable, '-m', 'minitrade.cli', 'backtest', '--run_id', self.run_id, self.plan.id] +
                 (['--dryrun'] if dryrun else []) + (['--pytest'] if 'pytest' in sys.modules else []),
                 capture_output=True,
                 cwd=os.getcwd(),
-                timeout=600)
+                timeout=3600,
+                env=env,
+            )
             self._log_backtest_run(stdout=proc.stdout if proc.stdout else None,
                                    stderr=proc.stderr if proc.stderr else None)
             return self.plan.get_log(self.run_id)
@@ -729,13 +736,16 @@ class BacktestRunner:
             if log.data is not None:
                 data = log.data.xs('Close', 1, 1).tail(2).T
                 data.columns = pd.to_datetime(data.columns).strftime('%Y-%m-%d')
-                plan_data = tabulate(data, stralign="right", headers='keys')
+                plan_data = tabulate(data.head(20), stralign="right", headers='keys')
+                if len(data) > 20:
+                    plan_data += '\n... (truncated)'
 
             if log.result is not None:
                 if '_positions' in log.result.index:
                     positions = log.result.loc['_positions'][0]
                     positions = json.loads(positions.replace("'", '"'))
-                    plan_positions = tabulate(positions.items(), headers=['Ticker', 'Share'])
+                    positions = {k: v for k, v in positions.items() if v}
+                    plan_positions = tabulate(positions, headers=['Ticker', 'Share'])
                 result = log.result
                 result = result[~result.index.str.startswith('_')].T.apply(pd.to_numeric, errors='ignore')
                 result = result.round(2).T
