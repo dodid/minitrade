@@ -744,8 +744,9 @@ class BacktestRunner:
                 if '_positions' in log.result.index:
                     positions = log.result.loc['_positions'][0]
                     positions = json.loads(positions.replace("'", '"'))
-                    positions = {k: v for k, v in positions.items() if v}
-                    plan_positions = tabulate(positions, headers=['Ticker', 'Share'])
+                    if len(positions) > 20:
+                        positions = {k: v for k, v in positions.items() if v} | {'Others...': 0}
+                    plan_positions = tabulate(positions.items(), headers=['Ticker', 'Share'])
                 result = log.result
                 result = result[~result.index.str.startswith('_')].T.apply(pd.to_numeric, errors='ignore')
                 result = result.round(2).T
