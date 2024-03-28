@@ -5,6 +5,7 @@ module directly, e.g.
 
     from minitrade.backtest import Backtest, Strategy
 """
+import functools
 import multiprocessing as mp
 import os
 import sys
@@ -44,148 +45,385 @@ __pdoc__ = {
 
 
 class Allocation:
-    def __init__(self, tickers):
-        self.tickers = tickers
-        self.alloc = pd.DataFrame({'s': False, 'c': 0., 'p': 0.}, index=tickers)
 
-    def __str__(self):
-        return self.alloc.to_string()
+    class Bucket:
+        '''`Bucket` is a container that groups assets together and applies weight allocation among them.
+        A bucket is associated with a parent allocation object, while the allocation object can be
+        associated with multiple buckets.
+
+        Assets in a bucket are identified by their tickers. They are unique within the bucket, but can be
+        repeated in different buckets. 
+
+        Using `Bucket` for weight allocation takes 3 steps: 
+
+        1. Assets are added to the bucket by appending lists or filtering conditions. The rank of the assets 
+        in the bucket is preserved and can be used to assign weights. 
+        2. Weights are assigned to the assets using different allocation methods. 
+        3. Once the weight allocation at bucket level is done, the weights of the bucket can be applied 
+        those of the parent allocation object.
+        '''
+
+        def __init__(self, alloc: 'Allocation') -> None:
+            self._alloc = alloc
+            self._tickers = []
+            self._weights = None
+
+        @property
+        def tickers(self) -> list:
+            '''Assets in the bucket.'''
+            return self._tickers.copy()
+
+        @property
+        def weights(self) -> pd.Series:
+            '''Weights of the assets in the bucket.'''
+            assert (self._weights >= 0).all(), 'Weight should be non-negative.'
+            assert self._weights.sum(
+            ) <= 1, f'Total weight should be less than or equal to 1. Got {self._weights.sum()}'
+            return self._weights.copy()
+
+        def append(self, ranked_list, *conditions) -> 'Allocation.Bucket':
+            '''Add assets that are in the ranked list to the end of the bucket.
+
+            `ranked_list` can be specified in three ways:
+
+            1. A list of assets or anything list-like should be added.
+            2. A boolean Series with assets as the index and a True value to indicate the asset should be added.
+            3. A non-boolean Series with assets as the index and all assets in the index should be added.
+
+            The rank of the assets is determined by its order in the list or in the index. The rank of the assets 
+            in the bucket is preserved. If an asset is already in the bucket, its rank in bucket will not be affected
+            by appending new list to the bucket, even if the asset is ranked differently in the new list.
+
+            Multiple conditions can be specified as filters to exclude certain assets in the ranked list from being 
+            added. Assets must satisfy all the conditions in order to be added to the bucket.
+
+            `conditions` can be specified in the same way as `ranked_list`, only that the asset order in a condition
+            is not important.
+
+            Example:
+            ```python
+            # Append 'A' and 'B' to the bucket
+            bucket.append(['A', 'B'])
+
+            # Append 'A' and 'C' to the bucket
+            bucket.append(pd.Series([True, False, True], index=['A', 'B', 'C']))
+
+            # Append 'C' to the bucket
+            bucket.append(pd.Series([1, 2, 3], index=['A', 'B', 'C']).nlargest(2), pd.Series([1, 2, 3], index=['A', 'B', 'C']) > 2)
+            '''
+            list_and_conditions = [ranked_list] + list(conditions)
+            candidates = {}
+            for item in list_and_conditions:
+                item = [index for index, value in item.items() if not isinstance(
+                    value, bool) or value] if isinstance(item, pd.Series) else list(item)
+                for x in item:
+                    candidates[x] = candidates.get(x, 0) + 1
+            candidates = [x for x in candidates if candidates[x] == len(list_and_conditions)]
+            self._tickers.extend([x for x in candidates if x not in self._tickers])
+            return self
+
+        def remove(self, *conditions) -> 'Allocation.Bucket':
+            '''Remove assets that satisify all the given conditions from the bucket.
+
+            `conditions` can be specified in three ways:
+
+            1. A list of assets or anything list-like that should be removed.
+            2. A boolean Series with assets as the index and a True value to indicate the asset should be removed.
+            3. A non-boolean Series with assets as the index and all assets in the index should be removed.
+
+            Example:
+            ```python
+            # Remove 'A' and 'B' from the bucket
+            bucket.remove(['A', 'B'])
+
+            # Remove 'A' and 'C' from the bucket
+            bucket.remove(pd.Series([True, False, True], index=['A', 'B', 'C']))
+
+            # Remove 'A' and 'B' from the bucket
+            bucket.remove(pd.Series([1, 2, 3], index=['A', 'B', 'C']).nsmallest(2))
+
+            # Remove 'B' from the bucket
+            bucket.remove(pd.Series([1, 2, 3], index=['A', 'B', 'C']) > 1, pd.Series([1, 2, 3], index=['A', 'B', 'C']) < 3)
+            '''
+            if len(conditions) == 0:
+                return
+            candidates = {}
+            for item in conditions:
+                item = [index for index, value in item.items() if not isinstance(
+                    value, bool) or value] if isinstance(item, pd.Series) else list(item)
+                for x in item:
+                    candidates[x] = candidates.get(x, 0) + 1
+            self._tickers = [x for x in self._tickers if candidates.get(x, 0) < len(conditions)]
+            return self
+
+        def trim(self, limit: int) -> 'Allocation.Bucket':
+            '''Trim the bucket to a maximum number of assets.
+
+            Args:
+                limit: Maximum number of assets should be included
+            '''
+            self._tickers = self._tickers[:limit]
+            return self
+
+        def weight_explicitly(self, weight: float | list | pd.Series) -> 'Allocation.Bucket':
+            '''Assign weights to the assets in the bucket.
+
+            `weight` can be specified in three ways:
+
+            1. A single weight should be assigned to all assets in the bucket.
+            2. A list of weights should be assigned to the assets in the bucket in rank order. If more weights are provided than the number of assets in the bucket, the extra weights are ignored. If fewer weights are provided, the remaining assets will be assigned a weight of 0.
+            3. A Series with assets as the index and the weight as the value. If no weight is provided for an asset, it will be assigned a weight of 0. If a weight is provided for an asset that is not in the bucket, it will be ignored.
+
+            Example:
+            ```python
+            bucket.weight_explicitly(0.5)
+            bucket.weight_explicitly([0.1, 0.2, 0.3])
+            bucket.weight_explicitly(pd.Series([0.1, 0.2, 0.3], index=['A', 'B', 'C']))
+            ```
+            Args:
+                weight: A single value, a list of values or a Series of weights.
+            '''
+            if len(self._tickers) == 0:
+                self._weights = pd.Series()
+            elif isinstance(weight, Number):
+                assert 0 <= weight * len(self._tickers) <= 1, 'Total weight should be within [0, 1].'
+                self._weights = pd.Series(weight, index=self._tickers)
+            elif isinstance(weight, list):
+                assert all(0 <= x <= 1 for x in weight), 'Weight should be non-negative.'
+                assert sum(weight) <= 1, 'Total weight should be less than or equal to 1.'
+                weight = weight[:len(self._tickers)]
+                weight.extend([0.] * (len(self._tickers) - len(weight)))
+                self._weights = pd.Series(weight, index=self._tickers)
+            elif isinstance(weight, pd.Series):
+                assert (weight >= 0).all(), 'Weight should be non-negative.'
+                assert weight.sum() <= 1, 'Total weight should be less than or equal to 1.'
+                weight = weight[weight.index.isin(self._tickers)]
+                self._weights = pd.Series(0., index=self._tickers)
+                self._weights.loc[weight.index] = weight
+            else:
+                raise ValueError('Weight should be a single value, a list of values or a Series of weights.')
+            return self
+
+        def weight_equally(self, sum_: float = None) -> 'Allocation.Bucket':
+            '''Allocate equity value equally to the assets in the bucket.
+
+            `sum_` should be between 0 and 1, with 1 means 100% of value should be allocated.
+
+            Example:
+            ```python
+            bucket.weight_equally(0.5)
+            ```
+
+            Args:
+                sum_: Total weight that should be allocated. 
+            '''
+            assert sum_ is None or 0 <= sum_ <= 1, 'Total weight should be within [0, 1].'
+            if sum_ is None:
+                sum_ = self._alloc.unallocated
+            if len(self._tickers) == 0:
+                self._weights = pd.Series()
+            else:
+                self._weights = pd.Series(1 / len(self._tickers), index=self._tickers) * sum_
+            return self
+
+        def weight_proportionally(self, relative_weights: list, sum_: float = None) -> 'Allocation.Bucket':
+            '''Allocate equity value proportionally to the assets in the bucket.
+
+            `sum_` should be between 0 and 1, with 1 means 100% of value should be allocated.
+
+            Example:
+            ```python
+            bucket.weight_proportionally([1, 2, 3], 0.5)
+            ```
+
+            Args:
+                relative_weight: A list of relative weights. The length of the list should be the same as the number of assets in the bucket.
+                sum_: Total weight that should be allocated. 
+            '''
+            assert len(relative_weights) == len(
+                self._tickers), f'Length of relative_weight {len(relative_weights)} does not match number of assets {len(self._tickers)}'
+            assert all(x >= 0 for x in relative_weights), 'Relative weights should be non-negative.'
+            assert sum_ is None or 0 <= sum_ <= 1, 'Total weight should be within [0, 1].'
+            if sum_ is None:
+                sum_ = self._alloc.unallocated
+            if len(self._tickers) == 0:
+                self._weights = pd.Series()
+            else:
+                self._weights = pd.Series(relative_weights, index=self._tickers) / sum(relative_weights) * sum_
+            return self
+
+        def apply(self, method: str) -> 'Allocation.Bucket':
+            '''Apply the weight allocation to the parent allocation object.
+
+            `method` controls how the bucket weight allocation should be merged into the parent allocation object.
+
+            When `method` is 'patch', the weights of assets in the bucket will replace the weights of the same assets
+            in the parent allocation object. If an asset is not in the bucket, its weight in the parent allocation object 
+            will not be changed.
+
+            When `method` is 'replace', the weights of the parent allocation object will be replaced by the weights of the 
+            assets in the bucket or set to 0 if the asset is not in the bucket.
+
+            When `method` is 'sum', the weights of the assets in the bucket will be added to the weights of the same assets.
+
+            If the bucket is empty, no change will be made to the parent allocation object.
+
+            Note that no validation is performed on the weights of the parent allocation object after the bucket weight
+            is merged. It is the responsibility of the user to ensure the final weights are valid before use.
+
+            Args:
+                name: Name of the bucket
+                method: Method to merge the bucket into the current weight allocation. 
+                    Available methods are 'patch', 'replace', 'sum'.
+            '''
+            if self._weights is None:
+                raise RuntimeError('Bucket.weight_*() should be called before apply()')
+            if self.weights.empty:
+                return self
+            index = self.weights.index
+            if method == 'patch':
+                self._alloc.weights.loc[index] = self.weights
+            elif method == 'replace':
+                self._alloc.weights.loc[:] = 0.
+                self._alloc.weights.loc[index] = self.weights
+            elif method == 'sum':
+                self._alloc.weights.loc[index] = self._alloc.weights.loc[index] + self.weights
+            else:
+                raise ValueError(f'Invalid method {method}')
+            return self
+
+        def __len__(self) -> int:
+            return len(self._tickers)
+
+        def __iter__(self):
+            return iter(self._tickers)
+
+        def __eq__(self, other):
+            if isinstance(other, pd.Series):
+                return self._weights.equals(other)
+            elif isinstance(other, list):
+                return self._tickers == other
+            else:
+                return False
+
+        def __repr__(self) -> str:
+            return f'Bucket(tickers={self._tickers})'
+
+    class BucketGroup:
+        def __init__(self, alloc: 'Allocation') -> None:
+            self._alloc = alloc
+            self._buckets = {}
+
+        def clear(self) -> None:
+            self._buckets.clear()
+
+        def __getitem__(self, name: str) -> 'Allocation.Bucket':
+            if name not in self._buckets:
+                self._buckets[name] = Allocation.Bucket(self._alloc)
+            return self._buckets[name]
+
+        def __iter__(self):
+            return iter(self._buckets)
+
+        def __len__(self) -> int:
+            return len(self._buckets)
+
+    def __init__(self, tickers: list) -> None:
+        self._tickers = tickers
+        self._previous_weights = pd.Series(0., index=tickers)
+        self._weights = None
+        self._bucket_group = Allocation.BucketGroup(self)
+
+    def _after_assume(func):
+        @functools.wraps(func)
+        def inner(self, *args, **kwargs):
+            if self._weights is None:
+                raise RuntimeError('"Allocation.assume_*()" must be called first.')
+            return func(self, *args, **kwargs)
+        return inner
+    
+    @property
+    def tickers(self) -> list:
+        '''Assets in the allocation.'''
+        return self._tickers.copy()
 
     @property
-    def selected(self):
-        '''Assets in the candidate pool'''
-        return self.alloc['s'].copy()
+    @_after_assume
+    def bucket(self) -> BucketGroup:
+        return self._bucket_group
 
     @property
-    def current(self):
-        '''Current weights being assigned to assets'''
-        return self.alloc['c'].copy()
+    @_after_assume
+    def weights(self) -> pd.Series:
+        '''Current weight allocation.'''
+        assert (self._weights >= 0).all(), 'Weight should be non-negative.'
+        assert self._weights.sum() <= 1, f'Total weight should be less than or equal to 1. Got {self._weights.sum()}'
+        return self._weights
 
-    @current.setter
-    def current(self, value):
-        if (value < 0).any() or value.sum() > 1.:
-            raise AttributeError(f'Weight must be positive and sum up to less than 1. Got {value}')
-        self.alloc['c'] = value
+    @weights.setter
+    @_after_assume
+    def weights(self, value: pd.Series) -> None:
+        '''Assign weights to the assets in the allocation.
+
+        `value` can be specified as a Series with assets as the index and the weight as the value. 
+        Not all assets need to be included in the Series. If an asset is not included, its weight will be set to 0.
+
+        Args:
+            value: A Series of weights. The index of the Series should be the tickers of the assets.
+        '''
+        assert (value >= 0).all(), 'Weight should be non-negative.'
+        assert value.sum() <= 1, f'Total weight should be less than or equal to 1. Got {value.sum()}'
+        self._weights.loc[:] = 0.
+        self._weights.loc[value.index] = value
 
     @property
-    def previous(self):
-        '''Previous weights being assigned to assets'''
-        return self.alloc['p'].copy()
+    def previous_weights(self) -> pd.Series:
+        '''Previous weight allocation.'''
+        return self._previous_weights.copy()
+
+    def assume_zero(self):
+        '''Assume all assets have zero weight to begin with in a new rebalance cycle. 
+        '''
+        self._weights = pd.Series(0., index=self._tickers)
+
+    def assume_previous(self):
+        '''Assume all assets inherit the same weight as used in the previous rebalance cycle.
+        '''
+        self._weights = self.previous_weights.copy()
 
     @property
-    def delta(self):
-        '''Weight change of current allocation vs. previous one'''
-        return self.current - self.previous
+    @_after_assume
+    def unallocated(self) -> float:
+        '''Unallocated equity weight.'''
+        allocated = self._weights.abs().sum()
+        assert allocated <= 1, f'Total weight should be less than or equal to 1. Got {allocated}'
+        return 1 - allocated
+
+    @_after_assume
+    def normalize(self):
+        '''Normalize the weight allocation so that the sum of weights equals 1.'''
+        self._weights = self._weights / self._weights.abs().sum()
+        return self.weights
 
     @property
+    @_after_assume
     def modified(self):
-        '''True if weight allocation changes from previous to current.'''
-        return self.delta.any()
-
-    def add(self, *where: pd.Series | list, limit: int = None):
-        '''Add assets to the candidate pool that will make up the new portfolio.
-
-        Multiple conditions can be specified and assets meet all conditions, i.e.,
-        conditions joined by logical `and`, will be added to the candidate pool. 
-        Each condition can take one of two forms:
-
-        1. As a boolean Series with assets as the index and a True value to indicate 
-        the asset should be included.
-        2. A list of assets or anything list-like. Assets appeared in the list are to be included.
-
-        `limit` controls the maximum number of assets that should be included in the 
-        portfolio. Suppose the candidate pool contains 2 assets before the call. During
-        the call, 3 new assets meet all conditions, and the limit is 4, then only the 
-        first 2 new assets will be added to the pool. However, if limit is 1, it will
-        not drop assets from the pool, only no new asset will be added.
-
-        Args:
-            where: A list of conditions
-            limit: Maximum number of assets should be included
-        '''
-        selected = pd.Series(True, index=self.tickers)
-        for condition in where:
-            if not isinstance(condition, pd.Series):
-                items = list(condition)
-                assert all(x in self.tickers for x in items)
-                condition = pd.Series(True, index=items)
-            selected &= condition
-        if limit:
-            selected = selected[selected].index
-            for ticker in selected:
-                if self.alloc['s'].sum() < limit:
-                    self.alloc.loc[ticker, 's'] = True
-                else:
-                    break
-        else:
-            self.alloc.loc[selected, 's'] = True
-        return self
-
-    def drop(self, *where: pd.Series | list, limit: int = None):
-        '''Drop assets from the candidate pool that will make up the new portfolio.
-
-        Multiple conditions can be specified and assets meet all conditions, i.e.,
-        conditions joined by logical `and`, will be dropped from the candidate pool. 
-        Each condition can take one of two forms:
-
-        1. As a boolean Series with assets as the index and a True value to indicate 
-        the asset should be removed.
-        2. A list of assets or anything list-like. Assets appeared in the list are to be removed.
-
-        `limit` controls the maximum number of assets that should be included in the 
-        portfolio. Suppose the candidate pool contains 4 assets before the call. During
-        the call, 3 new assets meet all conditions, and the limit is 2, then only the 
-        first 2 assets will be dropped from the pool. However, if no assets meet the 
-        conditions, the pool will not automatically shrink in size to satisify the limit.
-
-        Args:
-            where: A list of conditions
-            limit: Maximum number of assets should be included
-        '''
-        selected = pd.Series(True, index=self.tickers)
-        for condition in where:
-            if not isinstance(condition, pd.Series):
-                items = list(condition)
-                assert all(x in self.tickers for x in items)
-                condition = pd.Series(True, index=items)
-            selected &= condition
-        if limit:
-            selected = selected[selected].index
-            for ticker in selected:
-                if self.alloc['s'].sum() > limit:
-                    self.alloc.loc[ticker, 's'] = False
-                else:
-                    break
-        else:
-            self.alloc.loc[selected, 's'] = False
-        return self
-
-    def equal_weight(self, sum_: float = 1.):
-        '''Allocate equity value equally to the candidate pool.
-
-        `sum_` should be between 0 and 1, with 1 means 100% of value should be allocated.
-
-        Args:
-            sum_: Total weight that should be allocated. 
-        '''
-        if sum_ > 1. or sum_ < 0.:
-            raise AttributeError(f'Total weight should be within [0, 1], given {sum_}')
-        if self.alloc['s'].any():
-            selected = self.alloc['s'].astype(int)
-            self.alloc.loc[:, 'c'] = selected * sum_ / selected.sum()
-        else:
-            self.alloc.loc[:, 'c'] = 0.
-        return self
+        '''True if weight allocation is changed from previous values.'''
+        return (self.weights - self.previous_weights).any()
 
     def _next(self):
-        self.alloc.loc[:, 's'] = False
-        self.alloc.loc[:, 'p'] = self.alloc['c']
-        self.alloc.loc[:, 'c'] = 0.
+        '''Prepare for the next rebalance cycle. This is called after each call to `Strategy.rebalance()`.
+        '''
+        self._previous_weights = self._weights.copy()
+        self._weights = None
+        self._bucket_group.clear()
 
     def _clear(self):
-        self.alloc.loc[:, 's'] = False
-        self.alloc.loc[:, 'p'] = 0.
-        self.alloc.loc[:, 'c'] = 0.
+        '''Clear the weight allocation and bucket group.
+        '''
+        self._previous_weights = pd.Series(0., index=self._tickers)
+        self._weights = None
+        self._bucket_group.clear()
 
 
 class Strategy(ABC):
@@ -1021,7 +1259,7 @@ class _Broker:
             # money value of current portfolio
             total_equity = self.equity()
             # desired values for each ticker excluding cash reserve that is not to be allocated
-            value_allocation = alloc.current * total_equity * (1 - cash_reserve)
+            value_allocation = alloc.weights * total_equity * (1 - cash_reserve)
             # calculate the amount to buy or sell
             current_value = pd.Series([self.equity(ticker)
                                        for ticker in self._data.tickers], index=self._data.tickers)
@@ -1031,7 +1269,7 @@ class _Broker:
             # sort in ascending order so that sell orders are placed first then buy orders to make sure that cash
             # balance is always positive in simulation
             for ticker in value_diff.sort_values().index:
-                if alloc.current.loc[ticker] == 0:
+                if alloc.weights.loc[ticker] == 0:
                     # this may generate multiple orders for the same ticker if multiple long positions are opened
                     # for the same ticker previously over time
                     for trade in self.trades[ticker]:

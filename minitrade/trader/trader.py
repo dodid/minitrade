@@ -1159,7 +1159,7 @@ class TaskRunner:
                 [sys.executable, TaskManager.locate(self.plan.task_file)],
                 capture_output=True,
                 cwd=TaskManager.locate('.'),
-                timeout=600)
+                timeout=3600)
             log = TaskLog(
                 id=MTDB.uniqueid(),
                 plan_id=self.plan.id,
