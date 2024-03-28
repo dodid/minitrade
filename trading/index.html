@@ -1,0 +1,1257 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+      
+      
+      <link rel="icon" href="../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.5.3, mkdocs-material-8.5.10">
+    
+    
+      
+        <title>Trading - Minitrade</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.975780f9.min.css">
+      
+        
+        <link rel="stylesheet" href="../assets/stylesheets/palette.2505c338.min.css">
+        
+      
+      
+
+    
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/_mkdocstrings.css">
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce((e,_)=>(e<<5)-e+_.charCodeAt(0),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+  
+
+
+  
+  
+
+
+  <script id="__analytics">function __md_analytics(){function n(){dataLayer.push(arguments)}window.dataLayer=window.dataLayer||[],n("js",new Date),n("config","G-HK9C9K1N4Q"),document.addEventListener("DOMContentLoaded",function(){document.forms.search&&document.forms.search.query.addEventListener("blur",function(){this.value&&n("event","search",{search_term:this.value})}),document$.subscribe(function(){var a=document.forms.feedback;if(void 0!==a)for(var e of a.querySelectorAll("[type=submit]"))e.addEventListener("click",function(e){e.preventDefault();var t=document.location.pathname,e=this.getAttribute("data-md-value");n("event","feedback",{page:t,data:e}),a.firstElementChild.disabled=!0;e=a.querySelector(".md-feedback__note [data-md-value='"+e+"']");e&&(e.hidden=!1)}),a.hidden=!1}),location$.subscribe(function(e){n("config","G-HK9C9K1N4Q",{page_path:e.pathname})})});var e=document.createElement("script");e.async=!0,e.src="https://www.googletagmanager.com/gtag/js?id=G-HK9C9K1N4Q",document.getElementById("__analytics").insertAdjacentElement("afterEnd",e)}</script>
+
+  
+    <script>"undefined"!=typeof __md_analytics&&__md_analytics()</script>
+  
+
+    
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="" data-md-color-accent="">
+  
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&"object"==typeof palette.color)for(var key of Object.keys(palette.color))document.body.setAttribute("data-md-color-"+key,palette.color[key])</script>
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#trading" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+<header class="md-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href=".." title="Minitrade" class="md-header__button md-logo" aria-label="Minitrade" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54Z"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3V6m0 5h18v2H3v-2m0 5h18v2H3v-2Z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Minitrade
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Trading
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      <form class="md-header__option" data-md-component="palette">
+        
+          
+          
+          
+          <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="" data-md-color-accent=""  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_1">
+          
+            <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_2" hidden>
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12 20 8.69Z"/></svg>
+            </label>
+          
+        
+          
+          
+          
+          <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="" data-md-color-accent=""  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_2">
+          
+            <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_1" hidden>
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12c0-2.42-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12 20 8.69Z"/></svg>
+            </label>
+          
+        
+      </form>
+    
+    
+    
+      <label class="md-header__button md-icon" for="__search">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.516 6.516 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5Z"/></svg>
+      </label>
+      <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.516 6.516 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5Z"/></svg>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11h12Z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12 19 6.41Z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/dodid/minitrade" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 6.2.1 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc.--><path d="M439.55 236.05 244 40.45a28.87 28.87 0 0 0-40.81 0l-40.66 40.63 51.52 51.52c27.06-9.14 52.68 16.77 43.39 43.68l49.66 49.66c34.23-11.8 61.18 31 35.47 56.69-26.49 26.49-70.21-2.87-56-37.34L240.22 199v121.85c25.3 12.54 22.26 41.85 9.08 55a34.34 34.34 0 0 1-48.55 0c-17.57-17.6-11.07-46.91 11.25-56v-123c-20.8-8.51-24.6-30.74-18.64-45L142.57 101 8.45 235.14a28.86 28.86 0 0 0 0 40.81l195.61 195.6a28.86 28.86 0 0 0 40.8 0l194.69-194.69a28.86 28.86 0 0 0 0-40.81z"/></svg>
+  </div>
+  <div class="md-source__repository">
+    GitHub
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+            
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-tabs__inner md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+    
+  
+
+
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href=".." class="md-tabs__link md-tabs__link--active">
+        Home
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+
+
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../backtest/" class="md-tabs__link">
+        API Reference
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+
+
+  
+  
+  
+    
+
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../examples/" class="md-tabs__link">
+        Examples
+      </a>
+    </li>
+  
+
+  
+
+      
+    </ul>
+  </div>
+</nav>
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+                
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href=".." title="Minitrade" class="md-nav__button md-logo" aria-label="Minitrade" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54Z"/></svg>
+
+    </a>
+    Minitrade
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/dodid/minitrade" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 6.2.1 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc.--><path d="M439.55 236.05 244 40.45a28.87 28.87 0 0 0-40.81 0l-40.66 40.63 51.52 51.52c27.06-9.14 52.68 16.77 43.39 43.68l49.66 49.66c34.23-11.8 61.18 31 35.47 56.69-26.49 26.49-70.21-2.87-56-37.34L240.22 199v121.85c25.3 12.54 22.26 41.85 9.08 55a34.34 34.34 0 0 1-48.55 0c-17.57-17.6-11.07-46.91 11.25-56v-123c-20.8-8.51-24.6-30.74-18.64-45L142.57 101 8.45 235.14a28.86 28.86 0 0 0 0 40.81l195.61 195.6a28.86 28.86 0 0 0 40.8 0l194.69-194.69a28.86 28.86 0 0 0 0-40.81z"/></svg>
+  </div>
+  <div class="md-source__repository">
+    GitHub
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+      
+
+  
+  
+    
+  
+  
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--nested">
+      
+      
+        <input class="md-nav__toggle md-toggle" data-md-toggle="__nav_1" type="checkbox" id="__nav_1" checked>
+      
+      
+      
+        
+          
+            
+          
+        
+          
+        
+          
+        
+          
+        
+          
+        
+          
+        
+          
+        
+          
+        
+      
+      
+        
+        
+        <div class="md-nav__link md-nav__link--index ">
+          <a href="..">Home</a>
+          
+            <label for="__nav_1">
+              <span class="md-nav__icon md-icon"></span>
+            </label>
+          
+        </div>
+      
+      <nav class="md-nav" aria-label="Home" data-md-level="1">
+        <label class="md-nav__title" for="__nav_1">
+          <span class="md-nav__icon md-icon"></span>
+          Home
+        </label>
+        <ul class="md-nav__list" data-md-scrollfix>
+          
+            
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../install/" class="md-nav__link">
+        Installation
+      </a>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../backtesting/" class="md-nav__link">
+        Backtesting
+      </a>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../strategy/" class="md-nav__link">
+        Writing strategy
+      </a>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+    
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" data-md-toggle="toc" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          Trading
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        Trading
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#launch" class="md-nav__link">
+    Launch
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#configure" class="md-nav__link">
+    Configure
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#how-trading-works" class="md-nav__link">
+    How trading works
+  </a>
+  
+    <nav class="md-nav" aria-label="How trading works">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#broker-account" class="md-nav__link">
+    Broker account
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#asset-space" class="md-nav__link">
+    Asset space
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#data-source" class="md-nav__link">
+    Data source
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#backtest-start-date" class="md-nav__link">
+    Backtest start date
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#trade-start-date" class="md-nav__link">
+    Trade start date
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#order-entry-type" class="md-nav__link">
+    Order entry type
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#backtest-run-time" class="md-nav__link">
+    Backtest run time
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cash-amount" class="md-nav__link">
+    Cash amount
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#preexisting-asset-positions" class="md-nav__link">
+    Preexisting asset positions
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#backtest-mode" class="md-nav__link">
+    Backtest mode
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#ib-gateway" class="md-nav__link">
+    IB gateway
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../cli/" class="md-nav__link">
+        Command Line
+      </a>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../compatibility/" class="md-nav__link">
+        Compatibility
+      </a>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../contributing/" class="md-nav__link">
+        Contributing
+      </a>
+    </li>
+  
+
+            
+          
+        </ul>
+      </nav>
+    </li>
+  
+
+    
+      
+      
+      
+
+  
+  
+  
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+      
+        <input class="md-nav__toggle md-toggle" data-md-toggle="__nav_2" type="checkbox" id="__nav_2" >
+      
+      
+      
+        
+          
+        
+          
+        
+          
+        
+          
+        
+      
+      
+        <label class="md-nav__link" for="__nav_2">
+          API Reference
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <nav class="md-nav" aria-label="API Reference" data-md-level="1">
+        <label class="md-nav__title" for="__nav_2">
+          <span class="md-nav__icon md-icon"></span>
+          API Reference
+        </label>
+        <ul class="md-nav__list" data-md-scrollfix>
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../backtest/" class="md-nav__link">
+        minitrade.backtest
+      </a>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../datasource/" class="md-nav__link">
+        minitrade.datasource
+      </a>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../broker/" class="md-nav__link">
+        minitrade.broker
+      </a>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../trader/" class="md-nav__link">
+        minitrade.trader
+      </a>
+    </li>
+  
+
+            
+          
+        </ul>
+      </nav>
+    </li>
+  
+
+    
+      
+      
+      
+
+  
+  
+  
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+      
+        <input class="md-nav__toggle md-toggle" data-md-toggle="__nav_3" type="checkbox" id="__nav_3" >
+      
+      
+      
+        
+          
+        
+      
+      
+        <label class="md-nav__link" for="__nav_3">
+          Examples
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <nav class="md-nav" aria-label="Examples" data-md-level="1">
+        <label class="md-nav__title" for="__nav_3">
+          <span class="md-nav__icon md-icon"></span>
+          Examples
+        </label>
+        <ul class="md-nav__list" data-md-scrollfix>
+          
+            
+              
+  
+  
+  
+    
+      
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+      
+        <input class="md-nav__toggle md-toggle" data-md-toggle="__nav_3_1" type="checkbox" id="__nav_3_1" >
+      
+      
+      
+        
+          
+            
+          
+        
+          
+        
+          
+        
+          
+        
+          
+        
+          
+        
+      
+      
+        
+        
+        <div class="md-nav__link md-nav__link--index ">
+          <a href="../examples/">Original from Backtesting.py</a>
+          
+            <label for="__nav_3_1">
+              <span class="md-nav__icon md-icon"></span>
+            </label>
+          
+        </div>
+      
+      <nav class="md-nav" aria-label="Original from Backtesting.py" data-md-level="2">
+        <label class="md-nav__title" for="__nav_3_1">
+          <span class="md-nav__icon md-icon"></span>
+          Original from Backtesting.py
+        </label>
+        <ul class="md-nav__list" data-md-scrollfix>
+          
+            
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../examples/Quick%20Start%20User%20Guide/" class="md-nav__link">
+        Backtesting.py Quick Start User Guide
+      </a>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../examples/Strategies%20Library/" class="md-nav__link">
+        Library of Composable Base Strategies
+      </a>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../examples/Multiple%20Time%20Frames/" class="md-nav__link">
+        Multiple Time Frames
+      </a>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../examples/Parameter%20Heatmap%20%26%20Optimization/" class="md-nav__link">
+        Parameter Heatmap
+      </a>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../examples/Trading%20with%20Machine%20Learning/" class="md-nav__link">
+        Trading with Machine Learning Models
+      </a>
+    </li>
+  
+
+            
+          
+        </ul>
+      </nav>
+    </li>
+  
+
+            
+          
+        </ul>
+      </nav>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+                
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" hidden>
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#launch" class="md-nav__link">
+    Launch
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#configure" class="md-nav__link">
+    Configure
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#how-trading-works" class="md-nav__link">
+    How trading works
+  </a>
+  
+    <nav class="md-nav" aria-label="How trading works">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#broker-account" class="md-nav__link">
+    Broker account
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#asset-space" class="md-nav__link">
+    Asset space
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#data-source" class="md-nav__link">
+    Data source
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#backtest-start-date" class="md-nav__link">
+    Backtest start date
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#trade-start-date" class="md-nav__link">
+    Trade start date
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#order-entry-type" class="md-nav__link">
+    Order entry type
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#backtest-run-time" class="md-nav__link">
+    Backtest run time
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cash-amount" class="md-nav__link">
+    Cash amount
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#preexisting-asset-positions" class="md-nav__link">
+    Preexisting asset positions
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#backtest-mode" class="md-nav__link">
+    Backtest mode
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#ib-gateway" class="md-nav__link">
+    IB gateway
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+  <a href="https://github.com/dodid/minitrade/edit/master/docs/trading.md" title="Edit this page" class="md-content__button md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20.71 7.04c.39-.39.39-1.04 0-1.41l-2.34-2.34c-.37-.39-1.02-.39-1.41 0l-1.84 1.83 3.75 3.75M3 17.25V21h3.75L17.81 9.93l-3.75-3.75L3 17.25Z"/></svg>
+  </a>
+
+
+<h1 id="trading">Trading</h1>
+<p>Trading a strategy manually is demanding. Running backtest, submitting orders, adhering to the plan despite ups and downs in the market, and monitoring performance takes not only effort, but also discipline. Minitrade makes it easy by automating the entire process.</p>
+<p>The trading system provided by Minitrade comprises three modules:</p>
+<ol>
+<li>Scheduler: This module runs strategies at regular intervals and handles order submissions.</li>
+<li>Broker Gateway: The broker gateway module serves as an interface between Minitrade and the broker system, specifically Interactive Brokers (IB), facilitating seamless communication.</li>
+<li>Web UI: Minitrade's web user interface allows users to manage trading plans and monitor the execution of trades.</li>
+</ol>
+<h2 id="launch">Launch</h2>
+<p>Launch Minitrade with the following commands:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a># start scheduler
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>minitrade scheduler start
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a># start ibgateway
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>minitrade ib start 
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>
+<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a># start web UI
+<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>minitrade web start
+</code></pre></div>
+<p>You can also manage Minitrade using <a href="https://github.com/dodid/minitrade/blob/main/mtctl.sh">the script</a>.</p>
+<p>The web UI can be accessed at: <code>http://127.0.0.1:8501</code></p>
+<p><img alt="Minitrade web UI - trading" src="https://imgur.com/1oOPcU7.jpg" /></p>
+<p><img alt="Minitrade web UI - performance " src="https://imgur.com/ofc9k4i.jpg" /></p>
+<h2 id="configure">Configure</h2>
+<p>Configuring the system takes a few steps:</p>
+<ol>
+<li>
+<p>Telegram bot (required)</p>
+<p>Configure a Telegram bot to receive notifications and to control trader execution. <strong>It's important to do this first since setting up brokers relies on this to be functional.</strong> Follow <a href="https://medium.com/geekculture/generate-telegram-token-for-bot-api-d26faf9bf064">the instructions</a> to create a bot, and take note of the token and chat ID. Configure those in web UI. On saving the configuration, a test message will be sent. Setup is successful if the message can be received.</p>
+<p>After changing telegram settings, restart all Minitrade processes to make the change effective.</p>
+</li>
+<li>
+<p>Email provider (optional)</p>
+<p>Configure a <strong><a href="https://mailjet.com">Mailjet</a></strong> account to receive email notifcations about backtesting and trading results. A free-tier account should be enough. Configure authorized senders in Mailjet, otherwise sending will fail. Try use different domains for senders and receivers if free email services like Hotmail, Gmail are used, otherwise, e.g., an email sending from a Hotmail address, through 3rd part servers, to the same or another Hotmail address is likely to be treated as spam and not delivered. Sending from Hotmail address to Gmail address or vice versa increases the chance of going through. On saving the configuration, a test email will be sent. Setup is successful if the email can be received.</p>
+<p>After changing email settings, restart all Minitrade processes to make the change effective.</p>
+</li>
+<li>
+<p>Data source</p>
+<p>Test the data source and make sure it works. Currently Yahoo and EasyMoney are supported. If accessing Yahoo requires a proxy, configure it in the web UI. </p>
+</li>
+<li>
+<p>Broker</p>
+<p>The "Manual" broker allows for automated backtesting and manual order placement.</p>
+<p>To set up InteractiveBrokers, enter the username, password, and assign an alias to the account. The selected "Account type" is merely a reminder and does not determine whether it is a paper or live account.</p>
+<p>Before saving the account, a test connection is made to verify the correctness of the credentials and establish a successful connection. For InteractiveBrokers, if two-factor authentication is enabled, pay attention to Telegram notifications to complete the login process. </p>
+<p>The credentials are stored in a local database. Ensure that server access is properly secured.</p>
+<p><img alt="Minitrade web UI - performance " src="https://imgur.com/Y0lPTQx.jpg" /></p>
+</li>
+<li>
+<p>Strategy</p>
+<p>Strategies are Python files that contain a strategy class, which should inherit from the <code>Strategy</code> class. These files can be uploaded through the UI and be made available for defining a trade plan. If a strategy class cannot be found in the uploaded file, an error will be displayed. In case there are multiple strategy classes in a file, the one intended to be executed should be decorated with @entry_strategy. To update a strategy, upload a different file with the same filename.</p>
+</li>
+<li>
+<p>Trade plan</p>
+<p>A trade plan encompasses essential information for executing a strategy, including:</p>
+<ul>
+<li>Specifying the strategy to be executed.</li>
+<li>Providing a list of tickers that make up the asset universe.</li>
+<li>Selecting the data source for price data.</li>
+<li>Setting the starting date for backtesting.</li>
+<li>Determining the date from which trade orders should be generated.</li>
+<li>Scheduling the time of day for running the backtest.</li>
+<li>Assigning the broker account for order submission.</li>
+<li>Defining the initial cash investment and asset holdings.</li>
+</ul>
+<p>After defining the trade plan, a test backtest dry run will be initiated. This dry run should finish error-free but will not generate any actual orders.</p>
+<p>Upon successful completion of the test run, the trade plan will be scheduled to execute on every market trading day at the specified time.</p>
+<p>Backtesting and trading functionalities can be enabled or disabled through the web UI.</p>
+</li>
+</ol>
+<h2 id="how-trading-works">How trading works</h2>
+<p>Defining a trade plan requires various inputs as depicted in the following image.</p>
+<p><img alt="Minitrade web UI - trade plan" src="https://imgur.com/MofEeIT.png" /></p>
+<h4 id="broker-account">Broker account</h4>
+<p>Specify the broker account to be used for order placement. If you have configured an InteractiveBrokers account, it will be set as the default option. Alternatively, you can choose the built-in "Manual" account. With the "Manual" account, Minitrade automatically runs backtests at scheduled intervals and generates raw orders. However, it's your responsibility to place the orders through your broker's system, which is beyond the control of Minitrade. You can input the actual trade prices into Minitrade to track the performance of your strategy.</p>
+<h4 id="asset-space">Asset space</h4>
+<p>Specify the universe of assets for your strategy. For a single-asset strategy, enter a single symbol. For a multi-asset strategy, provide a comma-separated list of symbols. Please note that the generic stock symbol we commonly use may not represent the actual tradable asset recognized by the broker. InteractiveBrokers uses a contract ID to uniquely identify tradable assets. For example, the symbol "AAPL" can correspond to different contracts:</p>
+<p><div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="n">APPLE</span> <span class="n">INC</span> <span class="p">{</span><span class="s1">&#39;conid&#39;</span><span class="p">:</span> <span class="mi">265598</span><span class="p">,</span> <span class="s1">&#39;exchange&#39;</span><span class="p">:</span> <span class="s1">&#39;NASDAQ&#39;</span><span class="p">,</span> <span class="s1">&#39;isUS&#39;</span><span class="p">:</span> <span class="kc">True</span><span class="p">}</span>
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="n">LS</span> <span class="mi">1</span><span class="n">X</span> <span class="n">AAPL</span> <span class="p">{</span><span class="s1">&#39;conid&#39;</span><span class="p">:</span> <span class="mi">493546048</span><span class="p">,</span> <span class="s1">&#39;exchange&#39;</span><span class="p">:</span> <span class="s1">&#39;LSEETF&#39;</span><span class="p">,</span> <span class="s1">&#39;isUS&#39;</span><span class="p">:</span> <span class="kc">False</span><span class="p">}</span>
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="n">APPLE</span> <span class="n">INC</span><span class="o">-</span><span class="n">CDR</span> <span class="p">{</span><span class="s1">&#39;conid&#39;</span><span class="p">:</span> <span class="mi">532640894</span><span class="p">,</span> <span class="s1">&#39;exchange&#39;</span><span class="p">:</span> <span class="s1">&#39;AEQLIT&#39;</span><span class="p">,</span> <span class="s1">&#39;isUS&#39;</span><span class="p">:</span> <span class="kc">False</span><span class="p">}</span>
+</code></pre></div>
+Minitrade allows you to select the specific contract you wish to trade. The process of mapping a generic symbol to a broker-specific contract ID requires an active connection to the broker. If a connection is not already established, Minitrade will initiate one. Please pay attention to Telegram notifications on your mobile device after filling in this field.</p>
+<h4 id="data-source">Data source</h4>
+<p>Choose the desired data source. "Yahoo" is recommended for U.S. markets, while "EastMoney" is suitable for the China market. When the market is open, "Yahoo" provides real-time OHLCV data until the present moment, as well as historical data for previous days.</p>
+<h4 id="backtest-start-date">Backtest start date</h4>
+<p>Specify the starting date for the backtest. Consider the lead time required by the strategy to calculate indicators. For example, if the strategy uses a 20-day Simple Moving Average (SMA), it is advisable to set the backtest start date to a month earlier from the present date. Setting the start date too far in the past unnecessarily prolongs the backtesting process.</p>
+<h4 id="trade-start-date">Trade start date</h4>
+<p>Specify the date from which the backtest should begin generating trade orders. Generating orders for dates prior to today is futile, as the opportunities to place orders have already passed. Therefore, the backtest will suppress any trade signals generated before the specified date.</p>
+<h4 id="order-entry-type">Order entry type</h4>
+<p>Specify the timing or type of an order. Three order entry types are defined:</p>
+<ol>
+<li>
+<p>Trade on open (TOO)</p>
+<p>Use this type if you want trades to happen on market open. This is a regular market order but is submitted outside of regular market hours, so that it can be executed on next market open. Make sure you run backtests outside of regular market hours.</p>
+</li>
+<li>
+<p>Trade on close (TOC)</p>
+<p>Use this type if you want trades to happen on market close. This is a <a href="https://www.interactivebrokers.com/en/trading/orders/moc.php">market-on-close</a> order. It should be submitted during market hours and before market close. Usually you want to schedule backtest to run a short moment before market close to capture the latest price movement.</p>
+</li>
+<li>
+<p>Trade regular hours (TRG)</p>
+<p>Use this type if you want trades to happen at earliest possible time. This is just a regular market order. If submitted during market hours, it's executed immediately. Otherwise, it's executed on next market open.</p>
+</li>
+</ol>
+<h4 id="backtest-run-time">Backtest run time</h4>
+<p>Specify when backtest should run. Backtests can be scheduled during a day using two formats: "HH:MM:SS" and "HH:MM:SS-HH:MM:SS/Interval." For instance, "10:00:00" represents 10 AM, while "9:30:01-16:00/30min" means the backtest will run every 30 minutes during market open. You can combine both formats to define complex schedules and confirm the exact timing through a preview.</p>
+<p>It's important to consider the complexity of the backtest, as the duration can vary from seconds to minutes or longer. To ensure smooth execution, it is recommended to leave sufficient spacing between backtests of the same strategy or different strategies. Only one backtest runs at any given time, while others are queued. If a backtest misses its intended schedule by more than 3 minutes, it will be skipped and not run at all. Additionally, keep in mind that the exact timing of backtests at market open or market close may not be well-defined, as there can be slight clock deviations.</p>
+<p>Minitrade ensures that backtests are executed on every open trading day for the intended market. If you prefer to run backtests less frequently, such as rebalancing at the beginning of each month, you can handle this within the strategy itself. Utilize <code>self.broker.now</code> to retrieve the current date and skip processing if necessary.</p>
+<h4 id="cash-amount">Cash amount</h4>
+<p>Specify the amount of cash you wish to invest in the strategy as an initial investment.</p>
+<h4 id="preexisting-asset-positions">Preexisting asset positions</h4>
+<p>Specify any existing positions that you have and want to be taken into account by the strategy. For example, if you currently hold 100 shares of SPY and 100 shares of QQQ, and you want to run a strategy that rebalances between these assets on a monthly basis, you should enter "SPY:100, QQQ:100" in this field.</p>
+<h4 id="backtest-mode">Backtest mode</h4>
+<p>Minitrade offers two distinct backtest modes with differing assumptions. The first is "Strict mode," which assumes that a backtest's outcome is replicable. In other words, if a backtest is run for a trade plan today, the results up until yesterday will be identical to a backtest run yesterday. Similarly, running the backtest tomorrow will yield the same output up until today's date. Under this mode, the backtest always uses the parameters specified in the trade plan. It assumes successful execution of orders at simulated prices, without considering if that actually happens. The accuracy of the backtest's reflection of reality relies on a number of assumptions, notably:</p>
+<ol>
+<li>Price quotes from the data source remain unchanged. This can break in cases of dividends or stock splits. Minitrade halts a backtest if it detects price changes.</li>
+<li>The strategy can only issue "TOC" or "TOO" orders, as their prices are deterministic and known during the backtest.</li>
+<li>Orders must be executed successfully.</li>
+</ol>
+<p>Over time, these assumptions will break, causing the backtest to fall out of sync with reality. When this occurs, it may be necessary to remove the trade plan and create a new one to restore synchronization. Therefore this approach requires regular maintenance. But it offers the advantage of closely aligning the actual trade performance with that of the strategy.</p>
+<p>Alternatively, if some deviation from the strategy is acceptable during execution, Minitrade also supports an "incremental" backtest mode. In this mode, the backtest follows these steps:</p>
+<ol>
+<li>Download the latest order and trade status from the broker.</li>
+<li>Calculate the actual positions associated with the strategy based on initial positions and executed trades.</li>
+<li>Cancel any unsubmitted orders tied to the strategy and any submitted orders that remain unfilled at the broker.</li>
+<li>Perform the backtest, replacing the cash and initial positions specified in the trade plan with the current cash and positions, and setting the trade_start_date as today.</li>
+<li>Submit new orders generated by the backtest.</li>
+</ol>
+<p>In the "incremental" mode, we assume that the strategy can consistently make correct decisions using the most recent cash and position information, irrespective of previous backtest runs. While this assumption is also strong, it is less restrictive if the strategy is properly designed to accommodate external changes. The benefit of this mode is increased robustness and reduced maintenance compared to the "strict" mode.</p>
+<p>It is important to determine which mode is appropriate for running your strategy.</p>
+<h2 id="ib-gateway">IB gateway</h2>
+<p>Minitrade utilizes <a href="https://www.interactivebrokers.com/en/trading/ib-api.php#client-portal-api">IB's client portal API</a> for order submission. The gateway client is downloaded and configured during the execution of <code>minitrade init</code>. Automated login is facilitated using Chrome and Selenium webdriver.</p>
+<p>IB terminates a session after approximately 24 hours. Minitrade verifies the connection status when interacting with IB, such as when submitting an order or retrieving account information via the web UI. If Minitrade initiates a connection automatically, a silent 2FA push notification is randomly sent to the user's mobile phone. This notification may be easily missed, resulting in a login failure. Multiple consecutive failed attempts may lead to an account lockout, necessitating contact with customer service to unlock the account.</p>
+<p>To prevent such issues, Minitrade only submits orders when a working connection to a broker is already established. If a connection does not exist, Minitrade sends notifications through a Telegram bot, informing the user of pending orders to be submitted. The user must manually issue the <code>/ib login</code> command to the bot, triggering a login to the IB account. Within a few seconds, the user should receive the 2FA push notification on their mobile phone and complete the login process. Once the login is successful, Minitrade can proceed with order submission.</p>
+
+
+  
+
+
+  
+
+
+
+                
+              </article>
+            </div>
+          
+          
+        </div>
+        
+          <a href="#" class="md-top md-icon" data-md-component="top" hidden>
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8v12Z"/></svg>
+            Back to top
+          </a>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+    
+      
+    
+    <nav class="md-footer__inner md-grid" aria-label="Footer" >
+      
+        
+        <a href="../strategy/" class="md-footer__link md-footer__link--prev" aria-label="Previous: Writing strategy" rel="prev">
+          <div class="md-footer__button md-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11h12Z"/></svg>
+          </div>
+          <div class="md-footer__title">
+            <div class="md-ellipsis">
+              <span class="md-footer__direction">
+                Previous
+              </span>
+              Writing strategy
+            </div>
+          </div>
+        </a>
+      
+      
+        
+        <a href="../cli/" class="md-footer__link md-footer__link--next" aria-label="Next: Command Line" rel="next">
+          <div class="md-footer__title">
+            <div class="md-ellipsis">
+              <span class="md-footer__direction">
+                Next
+              </span>
+              Command Line
+            </div>
+          </div>
+          <div class="md-footer__button md-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M4 11v2h12l-5.5 5.5 1.42 1.42L19.84 12l-7.92-7.92L10.5 5.5 16 11H4Z"/></svg>
+          </div>
+        </a>
+      
+    </nav>
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    <script id="__config" type="application/json">{"base": "..", "features": ["navigation.instant", "navigation.tracking", "navigation.tabs", "navigation.sections", "navigation.indexes", "toc.follow", "navigation.top"], "search": "../assets/javascripts/workers/search.16e2a7d4.min.js", "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.config.lang": "en", "search.config.pipeline": "trimmer, stopWordFilter", "search.config.separator": "[\\s\\-]+", "search.placeholder": "Search", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version.title": "Select version"}}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.5a2dcb6a.min.js"></script>
+      
+    
+    
+  </body>
+</html>
