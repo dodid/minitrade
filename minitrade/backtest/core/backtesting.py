@@ -45,6 +45,95 @@ __pdoc__ = {
 
 
 class Allocation:
+    '''The `Allocation` class manages the allocation of values among different assets in a portfolio. It provides 
+    methods for creating and managing asset buckets, assigning weights to assets, and merging the weights into the 
+    parent allocation object.
+
+    `Allocation` is not meant to be instantiated directly. Instead, it is created automatically when a new
+    `Strategy` object is created. The `Allocation` object is accessed through the `Strategy.alloc` property.
+
+    The `Allocation` object is used as an input to the `Strategy.rebalance()` method to rebalance the portfolio according
+    to the current weight allocation.
+
+    `Allocation` has the following notable properties:
+
+    - `tickers`: A list of tickers representing the asset space in the allocation.
+    - `weights`: The weight allocation to be used in the current rebalance cycle.
+    - `previous_weights`: The weight allocation used in the previous rebalance cycle.
+    - `unallocated`: Unallocated equity weight, i.e. 1 minus the sum of weights already allocated to assets.
+    - `bucket`: Bucket accessor for weight allocation.
+
+    `Allocation` provides two ways to assign weights to assets:
+
+    1. Explicitly assign weights to assets using `Allocation.weights` property. 
+
+        It's possible to assign weights to individual asset or to all assets in the asset space as a whole. Not all weights 
+        need to be specified. If an asset is not assigned a weight, it will have a weight of 0.
+
+        Example:
+        ```python
+        # Assign weight to individual asset
+        strategy.alloc.weights['A'] = 0.5
+
+        # Assign weight to all assets
+        strategy.alloc.weights = pd.Series([0.1, 0.2, 0.3], index=['A', 'B', 'C'])
+        ```
+
+    2. Use `Bucket` to assign weights to logical groups of assets, then merge the weights into the parent allocation object.
+
+        A `Bucket` is a container that groups assets together and provieds methods for weight allocation. Assets can be added
+        to the bucket by appending lists or filtering conditions. Weights can be assigned to the assets in the bucket using
+        different allocation methods. Multiple buckets can be created for different groups of assets. Once the weight 
+        allocation is done at bucket level , the weights of the buckets can be merged into those of the parent allocation object.
+
+        Example:
+        ```python
+        # Create a bucket and add assets to it
+        bucket = strategy.alloc.bucket['bucket1']
+        bucket.append(['A', 'B', 'C'])
+
+        # Assign weights to the assets in the bucket
+        bucket.weight_explicitly([0.1, 0.2, 0.3])
+
+        # Merge the bucket into the parent allocation object
+        bucket.apply('update')
+        ```
+
+    The state of the `Allocation` object is managed by the `Strategy` object across rebalance cycles. A rebalancing
+    cycle involves:
+
+    1. Initializing the weight allocation at the beginning of the cycle by calling either `Allocation.assume_zero()` 
+    to reset all weights to zero or `Allocation.assume_previous()` to inherit the weights from the previous cycle. This
+    must be done before any weight allocation attempts.
+    2. Adjusting the weight allocation using either explicitly assignment or `Bucket` method.
+    3. Calling `Strategy.rebalance()` to rebalance the portfolio according to the current allocation plan.
+
+    After each rebalance cycle, the weight allocation is reset, and the process starts over. At any point, the weight
+    allocation from the previous cycle can be accessed using the `previous_weights` property. 
+
+    A rebalance cycle is not necessarily equal to the simulation time step. For example, simulation can be done at 
+    daily frequency, while the portfolio is rebalanced every month. In this case, the weight allocation is maintained 
+    across multiple time steps until the next time `Strategy.rebalance()` is called.
+
+    Example:
+    ```python
+    class MyStrategy(Strategy):
+        def init(self):
+            pass
+
+        def next(self):
+            # Initialize the weight allocation
+            self.alloc.assume_zero()
+
+            # Adjust the weight allocation
+            self.alloc.bucket['equity'].append(['A', 'B', 'C']).weight_equally(sum_=0.4).apply('update')
+            self.alloc.bucket['bond'].append(['D', 'E']).weight_equally(sum=_0.4).apply('update')
+            self.alloc.weights['gold'] = self.alloc.unallocated
+
+            # Rebalance the portfolio
+            self.rebalance()
+    ```
+    '''
 
     class Bucket:
         '''`Bucket` is a container that groups assets together and applies weight allocation among them.
@@ -59,7 +148,7 @@ class Allocation:
         1. Assets are added to the bucket by appending lists or filtering conditions. The rank of the assets 
         in the bucket is preserved and can be used to assign weights. 
         2. Weights are assigned to the assets using different allocation methods. 
-        3. Once the weight allocation at bucket level is done, the weights of the bucket can be applied 
+        3. Once the weight allocation at bucket level is done, the weights of the bucket can be merged into 
         those of the parent allocation object.
         '''
 
@@ -70,25 +159,26 @@ class Allocation:
 
         @property
         def tickers(self) -> list:
-            '''Assets in the bucket.'''
+            '''Assets in the bucket. This is a read-only property.'''
             return self._tickers.copy()
 
         @property
         def weights(self) -> pd.Series:
-            '''Weights of the assets in the bucket.'''
+            '''Weights of the assets in the bucket. This is only available after weight allocation is done
+            by calling `Bucket.weight_*()` methods. This is a read-only property.'''
             assert (self._weights >= 0).all(), 'Weight should be non-negative.'
             assert self._weights.sum(
             ) <= 1, f'Total weight should be less than or equal to 1. Got {self._weights.sum()}'
             return self._weights.copy()
 
-        def append(self, ranked_list, *conditions) -> 'Allocation.Bucket':
+        def append(self, ranked_list: list | pd.Series, *conditions: list | pd.Series) -> 'Allocation.Bucket':
             '''Add assets that are in the ranked list to the end of the bucket.
 
             `ranked_list` can be specified in three ways:
 
-            1. A list of assets or anything list-like should be added.
+            1. A list of assets or anything list-like, all items will be added.
             2. A boolean Series with assets as the index and a True value to indicate the asset should be added.
-            3. A non-boolean Series with assets as the index and all assets in the index should be added.
+            3. A non-boolean Series with assets as the index and all assets in the index will be added.
 
             The rank of the assets is determined by its order in the list or in the index. The rank of the assets 
             in the bucket is preserved. If an asset is already in the bucket, its rank in bucket will not be affected
@@ -110,6 +200,11 @@ class Allocation:
 
             # Append 'C' to the bucket
             bucket.append(pd.Series([1, 2, 3], index=['A', 'B', 'C']).nlargest(2), pd.Series([1, 2, 3], index=['A', 'B', 'C']) > 2)
+            ```
+
+            Args:
+                ranked_list: A list of assets or a Series of assets to be added to the bucket.
+                conditions: A list of assets or a Series of assets to be used as conditions to filter the assets.
             '''
             list_and_conditions = [ranked_list] + list(conditions)
             candidates = {}
@@ -122,14 +217,14 @@ class Allocation:
             self._tickers.extend([x for x in candidates if x not in self._tickers])
             return self
 
-        def remove(self, *conditions) -> 'Allocation.Bucket':
+        def remove(self, *conditions: list | pd.Series) -> 'Allocation.Bucket':
             '''Remove assets that satisify all the given conditions from the bucket.
 
             `conditions` can be specified in three ways:
 
-            1. A list of assets or anything list-like that should be removed.
+            1. A list of assets or anything list-like, all assets will be removed.
             2. A boolean Series with assets as the index and a True value to indicate the asset should be removed.
-            3. A non-boolean Series with assets as the index and all assets in the index should be removed.
+            3. A non-boolean Series with assets as the index and all assets in the index will be removed.
 
             Example:
             ```python
@@ -144,6 +239,9 @@ class Allocation:
 
             # Remove 'B' from the bucket
             bucket.remove(pd.Series([1, 2, 3], index=['A', 'B', 'C']) > 1, pd.Series([1, 2, 3], index=['A', 'B', 'C']) < 3)
+            ```
+            Args:
+                conditions: A list of assets or a Series of assets to be used as conditions to filter the assets.
             '''
             if len(conditions) == 0:
                 return
@@ -176,9 +274,9 @@ class Allocation:
 
             Example:
             ```python
-            bucket.weight_explicitly(0.5)
-            bucket.weight_explicitly([0.1, 0.2, 0.3])
-            bucket.weight_explicitly(pd.Series([0.1, 0.2, 0.3], index=['A', 'B', 'C']))
+            bucket.append(['A', 'B', 'C']).weight_explicitly(0.2)
+            bucket.append(['A', 'B', 'C']).weight_explicitly([0.1, 0.2, 0.3])
+            bucket.append(['A', 'B', 'C']).weight_explicitly(pd.Series([0.1, 0.2, 0.3], index=['A', 'B', 'C']))
             ```
             Args:
                 weight: A single value, a list of values or a Series of weights.
@@ -211,7 +309,7 @@ class Allocation:
 
             Example:
             ```python
-            bucket.weight_equally(0.5)
+            bucket.append(['A', 'B', 'C']).weight_equally(0.5)
             ```
 
             Args:
@@ -233,11 +331,11 @@ class Allocation:
 
             Example:
             ```python
-            bucket.weight_proportionally([1, 2, 3], 0.5)
+            bucket.append(['A', 'B', 'C']).weight_proportionally([1, 2, 3], 0.5)
             ```
 
             Args:
-                relative_weight: A list of relative weights. The length of the list should be the same as the number of assets in the bucket.
+                relative_weights: A list of relative weights. The length of the list should be the same as the number of assets in the bucket.
                 sum_: Total weight that should be allocated. 
             '''
             assert len(relative_weights) == len(
@@ -252,19 +350,20 @@ class Allocation:
                 self._weights = pd.Series(relative_weights, index=self._tickers) / sum(relative_weights) * sum_
             return self
 
-        def apply(self, method: str) -> 'Allocation.Bucket':
+        def apply(self, method: str = 'update') -> 'Allocation.Bucket':
             '''Apply the weight allocation to the parent allocation object.
 
             `method` controls how the bucket weight allocation should be merged into the parent allocation object.
 
-            When `method` is 'patch', the weights of assets in the bucket will replace the weights of the same assets
+            When `method` is `update`, the weights of assets in the bucket will update the weights of the same assets
             in the parent allocation object. If an asset is not in the bucket, its weight in the parent allocation object 
-            will not be changed.
+            will not be changed. This is the default method.
 
-            When `method` is 'replace', the weights of the parent allocation object will be replaced by the weights of the 
+            When `method` is `overwrite`, the weights of the parent allocation object will be replaced by the weights of the 
             assets in the bucket or set to 0 if the asset is not in the bucket.
 
-            When `method` is 'sum', the weights of the assets in the bucket will be added to the weights of the same assets.
+            When `method` is `accumulate`, the weights of the assets in the bucket will be added to the weights of the same 
+            assets, while the weights of the assets not in the bucket will remain unchanged.
 
             If the bucket is empty, no change will be made to the parent allocation object.
 
@@ -272,21 +371,20 @@ class Allocation:
             is merged. It is the responsibility of the user to ensure the final weights are valid before use.
 
             Args:
-                name: Name of the bucket
-                method: Method to merge the bucket into the current weight allocation. 
-                    Available methods are 'patch', 'replace', 'sum'.
+                method: Method to merge the bucket into the parent allocation object. 
+                    Available methods are 'update', 'overwrite', 'accumulate'.
             '''
             if self._weights is None:
                 raise RuntimeError('Bucket.weight_*() should be called before apply()')
             if self.weights.empty:
                 return self
             index = self.weights.index
-            if method == 'patch':
+            if method == 'update':
                 self._alloc.weights.loc[index] = self.weights
-            elif method == 'replace':
+            elif method == 'overwrite':
                 self._alloc.weights.loc[:] = 0.
                 self._alloc.weights.loc[index] = self.weights
-            elif method == 'sum':
+            elif method == 'accumulate':
                 self._alloc.weights.loc[index] = self._alloc.weights.loc[index] + self.weights
             else:
                 raise ValueError(f'Invalid method {method}')
@@ -341,21 +439,47 @@ class Allocation:
                 raise RuntimeError('"Allocation.assume_*()" must be called first.')
             return func(self, *args, **kwargs)
         return inner
-    
+
     @property
     def tickers(self) -> list:
-        '''Assets in the allocation.'''
+        '''Assets representing the asset space. This is a read-only property'''
         return self._tickers.copy()
 
     @property
     @_after_assume
     def bucket(self) -> BucketGroup:
+        '''`bucket` provides access to a dictionary of buckets.
+
+        A bucket can be accessed with a string key. If the bucket does not exist, one will be created automatically.
+
+        Buckets are cleared after each rebalance cycle.
+
+        Example:
+        ```python
+        # Access the bucket named 'equity'
+        bucket = strategy.alloc.bucket['equity']
+        ```
+        '''
         return self._bucket_group
 
     @property
     @_after_assume
     def weights(self) -> pd.Series:
-        '''Current weight allocation.'''
+        '''Current weight allocation. Weight should be non-negative and the total weight should be less than or equal to 1.
+
+        It's possible to assign weights to individual asset or to all assets in the asset space as a whole. When assigning
+        weights as a whole, only non-zero weights need to be specified, and other weights are assigned zero automatically.
+
+        Example:
+        ```python
+        # Assign weight to individual asset
+        strategy.alloc.weights['A'] = 0.5
+
+        # Assign weight to all assets
+        strategy.alloc.weights = pd.Series([0.1, 0.2, 0.3], index=['A', 'B', 'C'])
+        ```
+        '''
+        assert self._weights.index.to_list() == self._tickers, 'Weight index should be the same as the asset space.'
         assert (self._weights >= 0).all(), 'Weight should be non-negative.'
         assert self._weights.sum() <= 1, f'Total weight should be less than or equal to 1. Got {self._weights.sum()}'
         return self._weights
@@ -363,14 +487,6 @@ class Allocation:
     @weights.setter
     @_after_assume
     def weights(self, value: pd.Series) -> None:
-        '''Assign weights to the assets in the allocation.
-
-        `value` can be specified as a Series with assets as the index and the weight as the value. 
-        Not all assets need to be included in the Series. If an asset is not included, its weight will be set to 0.
-
-        Args:
-            value: A Series of weights. The index of the Series should be the tickers of the assets.
-        '''
         assert (value >= 0).all(), 'Weight should be non-negative.'
         assert value.sum() <= 1, f'Total weight should be less than or equal to 1. Got {value.sum()}'
         self._weights.loc[:] = 0.
@@ -378,13 +494,13 @@ class Allocation:
 
     @property
     def previous_weights(self) -> pd.Series:
-        '''Previous weight allocation.'''
+        '''Previous weight allocation. This is a read-only property.'''
         return self._previous_weights.copy()
 
     def assume_zero(self):
         '''Assume all assets have zero weight to begin with in a new rebalance cycle. 
         '''
-        self._weights = pd.Series(0., index=self._tickers)
+        self._weights = pd.Series(0., index=self.tickers)
 
     def assume_previous(self):
         '''Assume all assets inherit the same weight as used in the previous rebalance cycle.
@@ -394,10 +510,10 @@ class Allocation:
     @property
     @_after_assume
     def unallocated(self) -> float:
-        '''Unallocated equity weight.'''
+        '''Unallocated equity weight. It's the remaining weight that can be allocated to assets. This is a read-only property.'''
         allocated = self._weights.abs().sum()
         assert allocated <= 1, f'Total weight should be less than or equal to 1. Got {allocated}'
-        return 1 - allocated
+        return 1. - allocated
 
     @_after_assume
     def normalize(self):
@@ -409,7 +525,7 @@ class Allocation:
     @_after_assume
     def modified(self):
         '''True if weight allocation is changed from previous values.'''
-        return (self.weights - self.previous_weights).any()
+        return self.weights.equals(self.previous_weights)
 
     def _next(self):
         '''Prepare for the next rebalance cycle. This is called after each call to `Strategy.rebalance()`.
@@ -419,7 +535,7 @@ class Allocation:
         self._bucket_group.clear()
 
     def _clear(self):
-        '''Clear the weight allocation and bucket group.
+        '''Clear the weight allocation and buckets.
         '''
         self._previous_weights = pd.Series(0., index=self._tickers)
         self._weights = None
@@ -442,7 +558,7 @@ class Strategy(ABC):
         self._params = self._check_params(params)
         self._alloc = Allocation(data.tickers)
         self._data_index = data.index.copy()
-        self._registers = {}
+        self._records = {}
         self._start_on_day = 0
 
     def __repr__(self):
@@ -631,11 +747,27 @@ class Strategy(ABC):
 
     def rebalance(self, force: bool = False, rtol: float = 0.01, atol: int = 0, cash_reserve: float = 0.1):
         """
-        Rebalance the portfolio according to the current allocation plan.
+        Rebalance the portfolio according to the current weight allocation.
+
+        If the weight allocation is not changed from the previous cycle, the rebalance is skipped. This behavior can be
+        overridden by setting `force` to `True`, which will force rebalance even if the weight allocation is unchanged.
+        This is useful when the actual portfolio value deviates from the target value due to price changes and should 
+        be corrected.
+
+        When a rebalance should be performed, the difference between the target and actual portfolio, defined as the sum 
+        of absolute difference of individual assets, is calculated. If the difference is too small compared to the
+        relative tolerance `rtol` or the absolute tolerance `atol`, the rebalance is again skipped. This can be used
+        to avoid unnecessary transaction cost. An exception is when the target weight of an asset is zero, in which case 
+        the position of the asset, if exists, is always closed.
+
+        `cash_reserve` is the ratio of total equity reserved as cash to account for order quantity rounding and sudden
+        price changes between order placement and execution. It is recommended to set this value to a small positive
+        number to avoid order rejection due to insufficient cash. The minimum value may depend on the volatility of the 
+        assets.
 
         Args:
-            force: If True, rebalance will be performed even if the current allocation
-                is the same as that of last cycle.
+            force: If True, rebalance will be performed even if the current weight allocation
+                is not changed from the previous.
             rtol: Relative tolerance of the total absolute value difference between current 
                 and previous allocation vs. total portfolio value. If the difference is smaller 
                 than `rtol`, rebalance will not be performed.
@@ -648,24 +780,47 @@ class Strategy(ABC):
         """
         self._broker.rebalance(alloc=self._alloc, force=force, rtol=rtol, atol=atol, cash_reserve=cash_reserve)
 
-    def record(self, name=None, plot=True, overlay=None, color=None, scatter=False, **kwargs):
+    def record(self, name: str = None, plot: bool = True, overlay: bool = None, color: str = None, scatter: bool = False, **kwargs):
         """
-        Record arbitrary key-value pairs as time series, which can be plotted later.
-        Value can be a scalar or a dict or a pd.Series.
+        Record arbitrary key-value pairs as time series. This can be used for diagnostic
+        data collection or for plotting custom data. 
+
+        Values to be recorded should be passed as keyword arguments. The value can be a scalar, a dictionary, or a
+        pandas Series. If a dictionary or a Series is passed, its keys will be used as names for time series.
+
+        Example:
+        ```python
+        # Record a scalar value
+        self.record(my_key=42)
+
+        # Record a dictionary
+        self.record(my_dict={'a': 1, 'b': 2})
+
+        # Record a pandas Series
+        self.record(my_series=pd.Series({'a': 1, 'b': 2}))
+        ```
+
+        Args:
+            name: Name of the time series. If not provided, the name will be the same as the keyword argument.
+            plot: If True, the time series will be plotted on the resulting `minitrade.backtest.core.backtesting.Backtest.plot`.
+            overlay: If True, the time series will be plotted overlaying the price candlestick chart. If False, the time series
+                will be plotted standalone below the candlestick chart.
+            color: Color of the time series. If not provided, the next available color will be assigned.
+            scatter: If True, the plotted time series marker will be a circle instead of a connected line segment.
         """
         for k, v in kwargs.items():
             if isinstance(v, dict) or isinstance(v, pd.Series):
                 v = dict(v)
-                if k not in self._registers:
-                    self._registers[k] = pd.DataFrame(index=self._data_index, columns=v.keys())
-                self._registers[k].loc[self._broker.now, list(v.keys())] = list(v.values())
+                if k not in self._records:
+                    self._records[k] = pd.DataFrame(index=self._data_index, columns=v.keys())
+                self._records[k].loc[self._broker.now, list(v.keys())] = list(v.values())
             else:
-                if k not in self._registers:
-                    self._registers[k] = pd.Series(index=self._data_index)
-                self._registers[k].iloc[len(self._data)-1] = v
-            self._registers[k].name = name or k
-            self._registers[k].attrs.update({'name': name or k, 'plot': plot, 'overlay': overlay,
-                                             'color': color, 'scatter': scatter})
+                if k not in self._records:
+                    self._records[k] = pd.Series(index=self._data_index)
+                self._records[k].iloc[len(self._data)-1] = v
+            self._records[k].name = name or k
+            self._records[k].attrs.update({'name': name or k, 'plot': plot, 'overlay': overlay,
+                                           'color': color, 'scatter': scatter})
 
     @property
     def equity(self) -> float:
@@ -741,19 +896,18 @@ class Strategy(ABC):
 
     @property
     def alloc(self) -> Allocation:
-        """An object that manages the value allocation among a multi-asset portfolio
-
-        `alloc` let's you build up an allocation plan incrementally, and keeps track of 
-        the past and expected future allocation of value among different assets. It's used 
-        as an input to `Stategy.rebalance()`.
-        """
+        """`Allocation` instance that manages the weight allocation among assets."""
         return self._alloc
 
     def start_on_day(self, n: int):
-        """Start the backtest on a specific day, skipping all data before that day.
+        """Hint to start the backtest on a specific day.
 
-        `next()` will be called after the data of the specified day is revealed.
-        This can be useful for warm-up period to ensure a certain amount of data is available.
+        This can be used to define a warm-up period, ensuring at least `n` days of data 
+        are available when `next()` is called for the first time. 
+
+        When the backtest starts depends both on `n` and on the availability of indicators. 
+        If indicators are defined, the backtest will start when all indicators have 
+        valid data or on the `n`-th day, whichever comes later.
 
         This method should be called in `init()`.
 
@@ -765,12 +919,11 @@ class Strategy(ABC):
 
     @classmethod
     def prepare_data(cls, tickers: 'List[str]', start: str) -> pd.DataFrame | None:
-        """Prepare data for backtest.
+        """Prepare data for trading.
 
         This class method can be overridden in a `Strategy` implementation to provide
-        data for backtest. The can be useful when the data is not provided externally
-        and must be prepared in a way specific to the strategy, such as fetching data 
-        from a database or an API.
+        data for trading. The can be useful when the data is not provided externally
+        and the strategy wants to bring its own data, e.g. from a database.
 
         Args:
             tickers: List of tickers to fetch data for.
@@ -2289,7 +2442,6 @@ class Backtest:
         improve plot's interactive performance and avoid browser's
         `Javascript Error: Maximum call stack size exceeded` or similar.
         Equity & dropdown curves and individual trades data is,
-        likewise, [reasonably _aggregated_][TRADES_AGG].
         `resample` can also be a [Pandas offset string],
         such as `'5T'` or `'5min'`, in which case this frequency will be
         used to resample, overriding above numeric limitation.
@@ -2300,8 +2452,6 @@ class Backtest:
 
         [Pandas offset string]: \
             https://pandas.pydata.org/pandas-docs/stable/user_guide/timeseries.html#dateoffset-objects
-
-        [TRADES_AGG]: lib.html#backtesting.lib.TRADES_AGG
 
         If `show_legend` is `True`, the resulting plot graphs will contain
         labeled legends.

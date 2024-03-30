@@ -41,6 +41,12 @@ class TestAllocation:
         b.weights['B'] = 0.3
         assert_series_equal(b.weights, pd.Series([0.5, 0.3, 0.0, 0.0], index=['A', 'B', 'C', 'D']))
         assert pytest.approx(b.unallocated) == 0.2
+        with pytest.raises(AssertionError):
+            b.weights['C'] = 0.3
+            b.weights
+        with pytest.raises(AssertionError):
+            b.weights['X'] = 0.1
+            b.weights
 
     def test_entire_weight_assignment(self, b):
         b.weights = pd.Series([0.4, 0.6], index=['A', 'B'])
@@ -101,7 +107,7 @@ class TestAllocation:
     def test_weight_empty_bucket(self, b):
         b.weights = pd.Series([0.25] * 4, index=['A', 'B', 'C', 'D'])
         bucket = b.bucket['test']
-        bucket.weight_explicitly(0.5).apply('replace')
+        bucket.weight_explicitly(0.5).apply('overwrite')
         assert bucket.weights.empty
         assert_series_equal(b.weights, pd.Series([0.25] * 4, index=['A', 'B', 'C', 'D']))
         bucket.weight_equally()
@@ -200,40 +206,40 @@ class TestAllocation:
         bucket = b.bucket['test']
         bucket.append(['A', 'B', 'C'])
         with pytest.raises(RuntimeError):
-            bucket.apply('sum')
+            bucket.apply('accumulate')
 
     def test_apply_patch_method(self, b):
         bucket = b.bucket['test']
         bucket.append(['A', 'B', 'C', 'D'])
-        bucket.weight_equally().apply('patch')
+        bucket.weight_equally().apply()
         assert_series_equal(b.weights, pd.Series([1/4] * 4, index=['A', 'B', 'C', 'D']))
         bucket2 = b.bucket['test2']
         bucket2.append(['A', 'B'])
-        bucket2.weight_explicitly(0.2).apply('patch')
+        bucket2.weight_explicitly(0.2).apply('update')
         assert_series_equal(b.weights, pd.Series([0.2, 0.2, 0.25, 0.25], index=['A', 'B', 'C', 'D']))
 
     def test_apply_replace_method(self, b):
         bucket = b.bucket['test']
         bucket.append(['A', 'B', 'C', 'D'])
-        bucket.weight_equally().apply('replace')
+        bucket.weight_equally().apply('overwrite')
         assert_series_equal(b.weights, pd.Series([0.25] * 4, index=['A', 'B', 'C', 'D']))
         bucket2 = b.bucket['test2']
         bucket2.append(['A', 'B'])
-        bucket2.weight_explicitly(0.2).apply('replace')
+        bucket2.weight_explicitly(0.2).apply('overwrite')
         assert_series_equal(b.weights, pd.Series([0.2, 0.2, 0., 0.], index=['A', 'B', 'C', 'D']))
 
     def test_apply_sum_method(self, b):
         bucket = b.bucket['test']
         bucket.append(['A', 'B', 'C', 'D'])
-        bucket.weight_equally(0.8).apply('sum')
+        bucket.weight_equally(0.8).apply('accumulate')
         assert_series_equal(b.weights, pd.Series([0.2] * 4, index=['A', 'B', 'C', 'D']))
         bucket2 = b.bucket['test2']
         bucket2.append(['A', 'B'])
-        bucket2.weight_equally().apply('sum')
+        bucket2.weight_equally().apply('accumulate')
         assert_series_equal(b.weights, pd.Series([0.3, 0.3, 0.2, 0.2], index=['A', 'B', 'C', 'D']))
         bucket3 = b.bucket['test3']
         bucket3.append(b.weights)
-        bucket3.weight_explicitly(b.weights).apply('sum')
+        bucket3.weight_explicitly(b.weights).apply('accumulate')
         with pytest.raises(AssertionError):
             assert_series_equal(b.weights, pd.Series([0.6, 0.6, 0.4, 0.4], index=['A', 'B', 'C', 'D']))
         b.normalize()
@@ -245,7 +251,7 @@ class TestAllocation:
         alloc.assume_zero()
         bucket = alloc.bucket['test']
         bucket.append(['A', 'B', 'C', 'D'])
-        bucket.weight_equally(0.5).apply('replace')
+        bucket.weight_equally(0.5).apply('overwrite')
         alloc._next()
         alloc.assume_previous()
         return alloc

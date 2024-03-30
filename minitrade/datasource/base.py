@@ -248,7 +248,7 @@ class QuoteSource(ABC):
         '''Read minute OHLCV data for a `ticker` starting from `start` date and ending on `end` date (both inclusive).
 
         Args:
-            ticker: Ticker as a string
+            tickers: Tickers as a list or comma-separated string
             start: Start date in string format 'YYYY-MM-DD'
             end: End date in string format 'YYYY-MM-DD'
             interval: Interval in minutes

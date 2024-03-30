@@ -1,5 +1,38 @@
 site_name: Minitrade
+site_description: Official Documentation for Minitrade - Simplifying Personal Trading
 repo_url: https://github.com/dodid/minitrade
+repo_name: "dodid/minitrade"
+watch: [mkdocs.yml, docs, minitrade]
+copyright: Copyright &copy; 2024 Wei Wu
+
+validation:
+  omitted_files: warn
+  absolute_links: warn
+  unrecognized_links: warn
+
+nav:
+  - Home:
+      - index.md
+      - install.md
+      - backtesting.md
+      - strategy.md
+      - trading.md
+      - cli.md
+      - Compatibility: compatibility.md
+      - Contributing: contributing.md
+  - "API Reference":
+      - backtest.md
+      - datasource.md
+      - broker.md
+  - "Examples":
+      - "Original from Backtesting.py":
+          - examples/README.md
+          - examples/Quick Start User Guide.ipynb
+          - examples/Strategies Library.ipynb
+          - examples/Multiple Time Frames.ipynb
+          - examples/Parameter Heatmap & Optimization.ipynb
+          - examples/Trading with Machine Learning.ipynb
+
 
 theme:
   name: material
@@ -23,16 +56,66 @@ theme:
         icon: material/brightness-4
         name: Switch to light mode
 
-plugins:
-  - search
-  - mkdocstrings
-  - mkdocs-jupyter
-
 markdown_extensions:
   - mkdocs-click
+  - attr_list
+  - admonition
+  - footnotes
+  - pymdownx.details
+  - pymdownx.emoji:
+      emoji_index: !!python/name:pymdownx.emoji.twemoji
+      emoji_generator: !!python/name:pymdownx.emoji.to_svg
   - pymdownx.highlight:
+      pygments_lang_class: true
       anchor_linenums: true
+  - pymdownx.inlinehilite:
+      style_plain_text: python
+  - pymdownx.magiclink
+  - pymdownx.snippets:
+      base_path: [!relative $config_dir]
+      check_paths: true
   - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
+      slugify: !!python/object/apply:pymdownx.slugs.slugify
+        kwds:
+          case: lower
+  - pymdownx.tasklist:
+      custom_checkbox: true
+  - pymdownx.tilde
+  - toc:
+      permalink: "¤"
+    
+  
+plugins:
+  - search
+  - mkdocstrings:
+      handlers:
+        python:
+          paths: [minitrade]
+          options:
+            docstring_options:
+              ignore_init_summary: true
+            docstring_section_style: table
+            heading_level: 2
+            inherited_members: false
+            merge_init_into_class: true
+            separate_signature: true
+            show_root_heading: true
+            show_root_full_path: true
+            show_signature_annotations: true
+            show_symbol_type_heading: true
+            show_symbol_type_toc: true
+            signature_crossrefs: true
+            line_length: 60
+            summary: true
+            show_source: false
+            show_submodules: true
+  - mkdocs-jupyter
+  # - gen-files:
+  #     scripts:
+  #     - scripts/gen_ref_nav.py
+
 
 dev_addr: "127.0.0.1:7000"
 
@@ -40,27 +123,3 @@ extra:
   analytics:
     provider: google
     property: G-HK9C9K1N4Q
-
-nav:
-  - Home:
-      - index.md
-      - install.md
-      - backtesting.md
-      - strategy.md
-      - trading.md
-      - cli.md
-      - Compatibility: compatibility.md
-      - Contributing: contributing.md
-  - "API Reference":
-      - backtest.md
-      - datasource.md
-      - broker.md
-      - trader.md
-  - "Examples":
-      - "Original from Backtesting.py":
-          - examples/README.md
-          - examples/Quick Start User Guide.ipynb
-          - examples/Strategies Library.ipynb
-          - examples/Multiple Time Frames.ipynb
-          - examples/Parameter Heatmap & Optimization.ipynb
-          - examples/Trading with Machine Learning.ipynb

@@ -1,5 +1,11 @@
 # Minitrade Changelog
 
+## Upcoming
+- [New] Redesign weight allocation API to be more expressive in defining strategies.
+
+## 0.1.37
+- [Fix] Fix notification formatting.
+
 ## 0.1.36
 - [New] Add `Strategy.prepare_data()` to suppport strategy specific data provider.
 - [New] Add `Strategy.start_on_day()` to control how many data bars should be initially available in `next()`.

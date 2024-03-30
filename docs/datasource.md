@@ -1,6 +1,4 @@
 
 # minitrade.datasource
 
-::: minitrade.datasource.base
-    options:
-        heading_level: 3
+::: minitrade.datasource

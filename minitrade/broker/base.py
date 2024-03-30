@@ -268,9 +268,6 @@ class Broker(ABC):
         Args:
             plan: A trade plan
             order: A `RawOrder` to be cancelled
-
-        Raises:
-            RuntimeError if error occurs during cancellation
         '''
         raise NotImplementedError()
 
