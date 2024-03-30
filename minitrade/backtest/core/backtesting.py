@@ -2473,7 +2473,7 @@ class Backtest:
                 raise RuntimeError('First issue `backtest.run()` to obtain results.')
             results = self._results
 
-        indicators = results._strategy._indicators + list(results._strategy._registers.values())
+        indicators = results._strategy._indicators + list(results._strategy._records.values())
 
         return plot(
             results=results,
