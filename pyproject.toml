@@ -63,6 +63,7 @@ mkdocs-jupyter = "^0.22.0"
 pytest-cov = "^4.1.0"
 jupyterlab = "^4"
 black = "^24.3.0"
+lxml-html-clean = "^0.1.0"
 
 
 [tool.poetry.scripts]

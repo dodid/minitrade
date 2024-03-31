@@ -89,7 +89,7 @@ Limitations:
         df = df[df['duration_type'] == 'M'].copy().rename(columns={'Trade Date': 'date', 'Total Volume': 'Volume'})
         return df
 
-    def _continuous_front_month_futures(self, df, cf_method, roll_day=-1):
+    def _continuous_front_month_futures(self, df, cf_method, roll_day=-5):
         """
         Calculates the continuous near-month futures prices based on the provided dataframe.
 
