@@ -525,7 +525,7 @@ class Allocation:
     @_after_assume
     def modified(self):
         '''True if weight allocation is changed from previous values.'''
-        return self.weights.equals(self.previous_weights)
+        return not self.weights.equals(self.previous_weights)
 
     def _next(self):
         '''Prepare for the next rebalance cycle. This is called after each call to `Strategy.rebalance()`.

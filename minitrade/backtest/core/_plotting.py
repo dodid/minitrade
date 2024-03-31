@@ -404,7 +404,7 @@ return this.labels[index] || "";
         equity_source.add(data.index, 'datetime')
 
         yaxis_label = 'Allocation'
-        fig = new_indicator_figure(y_axis_label=yaxis_label, height=60 + len(names))
+        fig = new_indicator_figure(y_axis_label=yaxis_label, height=max(60 + len(names), 80))
 
         if relative:
             tooltip_format = [f'@{ticker}{{+0,0.[000]%}}' for ticker in names]

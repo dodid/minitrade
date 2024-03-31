@@ -1,38 +1,117 @@
----
-hide:
-  - toc
----
+
 
 # Backtesting
 
 `Minitrade` uses [Backtesting.py](https://github.com/kernc/backtesting.py) as the core library for backtesting and adds the capability to implement multi-asset strategies. 
 
-## Single asset strategy
+
+## Strategy Basics
+
+A strategy is defined by subclassing `Strategy` and implementing the `init()` and `next()` methods. 
+
+```python
+from minitrade.backtest import Strategy
+
+class MyStrategy(Strategy):
+
+    def init(self):
+        pass
+
+    def next(self):
+        pass
+```
+
+The `init()` method is called once at the beginning of the backtest to initialize the strategy. The `next()` method is called for each bar in the data to generate trading signals.
+
+### Historical Data
+
+The historical data is accessed through the `self.data` object. It's an instance of `_Data`, which is a wrapper around a DataFrame with a 2-level column index, where the first level is the ticker and the second level is the OHLCV data. The raw DataFrame can be
+accessed with the `.df` accessor.
+
+For instance,
+
+```python
+# self.data
+<Data i=4 (2018-01-08) 
+    ('AAPL', 'Open')=41.38, 
+    ('AAPL', 'High')=41.68, 
+    ('AAPL', 'Low')=41.28, 
+    ('AAPL', 'Close')=41.38, 
+    ('AAPL', 'Volume')=82271200.0>
+
+# self.data.df
+            AAPL                                
+            Open   High    Low  Close     Volume
+Date
+2018-01-02  40.39  40.90  40.18  40.89  102223600
+2018-01-03  40.95  41.43  40.82  40.88  118071600
+2018-01-04  40.95  41.18  40.85  41.07   89738400
+2018-01-05  41.17  41.63  41.08  41.54   94640000
+2018-01-08  41.38  41.68  41.28  41.38   82271200
+```
+
+
+### Indicators
+
+Indicators can be calculated using the `I()` method. The method takes a DataFrame or Series and an optional name argument. The indicator is calculated once in the `init()` method and can be accessed in the `next()` method.
+
+```python
+class MyStrategy(Strategy):
+
+    def init(self):
+        self.sma = self.I(self.data.Close.df.rolling(10).mean(), name='SMA')
+
+    def next(self):
+        if self.data.Close[-1] > self.sma[-1]:
+            print('Buy signal')
+        else:
+            print('Sell signal')
+```
+
+### Orders
+
+The `buy()` and `sell()` methods are used to place orders. The `position()` method returns the current position, which can be used to close the position using the `close()` method.
+
+```python
+class MyStrategy(Strategy):
+
+    def init(self):
+        self.sma = self.I(self.data.Close.df.rolling(10).mean(), name='SMA')
+
+    def next(self):
+        if self.data.Close[-1] > self.sma[-1]:
+            if self.position().size == 0:
+                self.buy()
+        else:
+            if self.position().size > 0:
+                self.position().close()
+```
+
+
+## Single Asset Strategy
 
 For single asset strategies, those written for Backtesting.py can be easily adapted to work with Minitrade. The following illustrates what changes are necessary:
 
 ```python
-from minitrade.backtest import Strategy
-from minitrade.backtest.core.lib import crossover
-
-from minitrade.backtest.core.test import SMA
-
+from minitrade.backtest import Strategy                                 #1
+from minitrade.backtest.core.lib import crossover                       #1
+from minitrade.backtest.core.test import SMA                            #1
 
 class SmaCross(Strategy):
     fast = 10
     slow = 20
 
     def init(self):
-        price = self.data.Close.df
-        self.ma1 = self.I(SMA, price, self.fast, overlay=True)
-        self.ma2 = self.I(SMA, price, self.slow, overlay=True)
+        price = self.data.Close
+        self.ma1 = self.I(SMA, price, self.fast, overlay=True)          #2
+        self.ma2 = self.I(SMA, price, self.slow, overlay=True)          #2
 
     def next(self):
         if crossover(self.ma1, self.ma2):
-            self.position().close()
+            self.position().close()                                     #3
             self.buy()
         elif crossover(self.ma2, self.ma1):
-            self.position().close()
+            self.position().close()                                     #3
             self.sell()
 
 
@@ -42,253 +121,519 @@ bt.plot()
 ```
 
 1. Change to import from minitrade modules. Generally `backtesting` becomes `minitrade.backtest.core`.
-2. Minitrade expects `Volume` data to be always avaiable. `Strategy.data` should be consisted of OHLCV.
-3. Minitrade doesn't try to guess where to plot the indicators. So if you want to overlay the indicators on the main chart, set `overlay=True` explicitly.
-4. `Strategy.position` is no longer a property but a function. Any occurrence of `self.position` should be changed to `self.position()`. 
+2. Minitrade doesn't try to guess where to plot the indicators. So if you want to overlay the indicators on the main chart, set `overlay=True` explicitly.
+3. `Strategy.position` is no longer a property but a function. Any occurrence of `self.position` should be changed to `self.position()`. 
 
-That's it. Check out [compatibility](compatibility.md) for more details.
-
+The plot generated by the above code will look like this:
 ![plot of single-asset strategy](https://imgur.com/N3E2d6m.jpg)
+
+Beyond this simple example, there are other caveats you should be aware of. Check out [compatibility](compatibility.md) for more details.
 
 Also note that some original utility functions and strategy classes only make sense for single asset strategy. Don't use those in multi-asset strategies.
 
-## Multi-asset strategy
+## Multi-Asset Strategy
 
 `Minitrade` extends `Backtesting.py` to support backtesting of multi-asset strategies. 
 
-Multi-asset strategies take a 2-level column DataFrame as data input. For example, for a strategy that intends to invest in AAPL and GOOG as a portfolio, the `data` input to `Backtest()` should resemble the following format:
+### Data Input
+
+A multi-asset strategy requires a DataFrame with a 2-level column index as its data input. For instance, suppose you have a strategy aiming to invest in AAPL and GOOG as a portfolio. In this case, the `data` input to `Backtest()` should follow this format:
 
 ```python
 # bt = Backtest(data, AaplGoogStrategy)
 # print(data)
 
-                          AAPL                              GOOG 
-                          Open  High  Low   Close Volume    Open  High  Low   Close Volume
+          AAPL                              GOOG 
+          Open  High  Low   Close Volume    Open  High  Low   Close Volume
 Date          
-2018-01-02 00:00:00-05:00 40.39 40.90 40.18 40.89 102223600 52.42 53.35 52.26 53.25 24752000
-2018-01-03 00:00:00-05:00 40.95 41.43 40.82 40.88 118071600 53.22 54.31 53.16 54.12 28604000
-2018-01-04 00:00:00-05:00 40.95 41.18 40.85 41.07 89738400 54.40 54.68 54.20 54.32 20092000
-2018-01-05 00:00:00-05:00 41.17 41.63 41.08 41.54 94640000 54.70 55.21 54.60 55.11 25582000
-2018-01-08 00:00:00-05:00 41.38 41.68 41.28 41.38 82271200 55.11 55.56 55.08 55.35 20952000
+2018-01-02 40.39 40.90 40.18 40.89 102223600 52.42 53.35 52.26 53.25 24752000
+2018-01-03 40.95 41.43 40.82 40.88 118071600 53.22 54.31 53.16 54.12 28604000
+2018-01-04 40.95 41.18 40.85 41.07 89738400 54.40 54.68 54.20 54.32 20092000
+2018-01-05 41.17 41.63 41.08 41.54 94640000 54.70 55.21 54.60 55.11 25582000
+2018-01-08 41.38 41.68 41.28 41.38 82271200 55.11 55.56 55.08 55.35 20952000
 ```
 
-Like in `Backtesting.py`, `self.data`, when accessed from within `Strategy.init()`, is `_Data` type that supports progressively revealing of data, and the raw DataFrame can be accessed by `self.data.df`. 
+Similar to `Backtesting.py`, within `Strategy.init()`, `self.data` is of type `_Data`, allowing progressive data access, and the raw DataFrame can be retrieved using `self.data.df`.
 
 ```python
 # When called from within Strategy.init()
 
 # self.data
-<Data i=4 (2018-01-08 00:00:00-05:00) ('AAPL', 'Open')=41.38, ('AAPL', 'High')=41.68, ('AAPL', 'Low')=41.28, ('AAPL', 'Close')=41.38, ('AAPL', 'Volume')=82271200.0, ('GOOG', 'Open')=55.11, ('GOOG', 'High')=55.56, ('GOOG', 'Low')=55.08, ('GOOG', 'Close')=55.35, ('GOOG', 'Volume')=20952000.0>
+<Data i=4 (2018-01-08) ('AAPL', 'Open')=41.38, ('AAPL', 'High')=41.68, ('AAPL', 'Low')=41.28, ('AAPL', 'Close')=41.38, ('AAPL', 'Volume')=82271200.0, ('GOOG', 'Open')=55.11, ('GOOG', 'High')=55.56, ('GOOG', 'Low')=55.08, ('GOOG', 'Close')=55.35, ('GOOG', 'Volume')=20952000.0>
 
 # self.data.df
-                          AAPL                              GOOG 
-                          Open  High  Low   Close Volume    Open  High  Low   Close Volume
-dt          
-2018-01-02 00:00:00-05:00 40.39 40.90 40.18 40.89 102223600 52.42 53.35 52.26 53.25 24752000
-2018-01-03 00:00:00-05:00 40.95 41.43 40.82 40.88 118071600 53.22 54.31 53.16 54.12 28604000
-2018-01-04 00:00:00-05:00 40.95 41.18 40.85 41.07 89738400 54.40 54.68 54.20 54.32 20092000
-2018-01-05 00:00:00-05:00 41.17 41.63 41.08 41.54 94640000 54.70 55.21 54.60 55.11 25582000
-2018-01-08 00:00:00-05:00 41.38 41.68 41.28 41.38 82271200 55.11 55.56 55.08 55.35 20952000
+          AAPL                              GOOG 
+          Open  High  Low   Close Volume    Open  High  Low   Close Volume
+Date          
+2018-01-02 40.39 40.90 40.18 40.89 102223600 52.42 53.35 52.26 53.25 24752000
+2018-01-03 40.95 41.43 40.82 40.88 118071600 53.22 54.31 53.16 54.12 28604000
+2018-01-04 40.95 41.18 40.85 41.07 89738400 54.40 54.68 54.20 54.32 20092000
+2018-01-05 41.17 41.63 41.08 41.54 94640000 54.70 55.21 54.60 55.11 25582000
+2018-01-08 41.38 41.68 41.28 41.38 82271200 55.11 55.56 55.08 55.35 20952000
 ```
 
-To facilitate indicator calculation, Minitrade has built-in integration with [pandas_ta](https://github.com/twopirllc/pandas-ta) as TA library. `pandas_ta` is accessible using `.ta` property of any DataFrame. Check out [here](https://github.com/twopirllc/pandas-ta#pandas-ta-dataframe-extension) for usage. `.ta` is also enhanced to support 2-level DataFrames. 
+### `Pandas TA` Integration
+
+For streamlined indicator calculation, Minitrade has built-in integration with [pandas_ta](https://github.com/twopirllc/pandas-ta). Accessing `pandas_ta` is made easy through the `.ta` property of any DataFrame. Refer to the [documentation](https://github.com/twopirllc/pandas-ta#pandas-ta-dataframe-extension) for usage instructions. Moreover, `.ta` has been augmented to fully support 2-level DataFrames.
 
 For example,
 
 ```python
 # print(self.data.df.ta.sma(3))
 
-                                 AAPL       GOOG
+                 AAPL       GOOG
 Date                                            
-2018-01-02 00:00:00-05:00         NaN        NaN
-2018-01-03 00:00:00-05:00         NaN        NaN
-2018-01-04 00:00:00-05:00   40.946616  53.898000
-2018-01-05 00:00:00-05:00   41.163408  54.518500
-2018-01-08 00:00:00-05:00   41.331144  54.926167
+2018-01-02         NaN        NaN
+2018-01-03         NaN        NaN
+2018-01-04   40.946616  53.898000
+2018-01-05   41.163408  54.518500
+2018-01-08   41.331144  54.926167
 ```
 
-Even simpler, `self.data.ta.sma(3)` works the same on `self.data`.
+As a shortcut, `self.data.ta.sma(3)` works the same on `self.data`.
 
+### Indicators
 
-`self.I()` can take both DataFrame/Series and functions as arguments to define an indicator. If DataFrame/Series is given as input, it's expected to have exactly the same index as `self.data`. For example,
+`self.I()` accepts both DataFrame/Series and functions as arguments to define an indicator. When a DataFrame/Series is provided, it's assumed to have the same index as `self.data`. For instance,
 
 ```
 self.sma = self.I(self.data.df.ta.sma(3), name='SMA_3')
 ```
 
-Within `Strategy.next()`, indicators are returned as type `_Array`, essentially `numpy.ndarray`, same as in `Backtesting.py`. The `.df` accessor returns either `DataFrame` or `Series` of the corresponding value. It's the caller's responsibility to know which exact type should be returned. `.s` accessor is also available but only as a syntax suger to return a `Series`. If the actual data is a DataFrame, `.s` throws a `ValueError`. 
+Within `Strategy.next()`, indicators are returned as type `_Array`, essentially `numpy.ndarray`, similar to `Backtesting.py`. The `.df` accessor returns either a `DataFrame` or `Series` of the corresponding value. It's the caller's responsibility to know which exact type should be returned. The `.s` accessor is also available but serves only as syntactic sugar to return a `Series`. If the actual data is a DataFrame, `.s` throws a `ValueError`.
 
-A key addition to support multi-asset strategy is a `Strategy.alloc` attribute, which combined with `Strategy.rebalance()`, allows to specify how cash value should be allocate among the different assets. 
+### Weight Allocation
 
-Here is an example:
+A key addition to support multi-asset strategy is a `Strategy.alloc` attribute, which, combined with `Strategy.rebalance()`, allows specifying how portfolio value should be allocated among the different assets.
+
+`Strategy.alloc` is an instance of `Allocation`. The [Allocation](api_backtest.md#minitrade.backtest.core.backtesting.Allocation) class manages the allocation of values among different assets in a portfolio. It provides methods for creating and managing asset buckets, assigning weights to assets, and merging the weights into the parent allocation object, which is then used to rebalance the portfolio. 
+
+### Example
 
 ```python
-# This strategy evenly allocates cash into the assets
-# that have the top 2 highest rate-of-change every day, 
-# on condition that the ROC is possitive.
+from minitrade.backtest import Strategy
 
-class TopPositiveRoc(Strategy):
+class MyStrategy(Strategy):
 
-    n = 10
+    lookback = 10
 
     def init(self):
-        roc = self.data.ta.roc(self.n)
-        self.roc = self.I(roc, name='ROC')
+        self.roc = self.I(self.data.ta.roc(self.lookback), name='ROC')     #1
 
     def next(self):
-        roc = self.roc.df.iloc[-1]
-        self.alloc.add(roc.nlargest(2).index, roc > 0).equal_weight()
-        self.rebalance()
+        self.alloc.assume_zero()                                #2
+        roc = self.roc.df.iloc[-1]                              #3
+        (self.alloc.bucket['equity']                            #4
+            .append(roc.sort_values(ascending=False), roc > 0)  #5
+            .trim(3)                                            #6
+            .weight_explicitly(1/3)                             #7
+            .apply())                                           #8
+        self.rebalance(cash_reserve=0.01)                       #9
 ```
 
-`self.alloc` keeps track of what assets to be bought and how much weight in term of portfolio value is allocated to each. 
+The above illustrates the general workflow of defining a multi-asset strategy:
 
-At the beginning of each `Strategy.next()` call, `self.alloc` starts empty. 
-
-Use `alloc.add()` to add assets to a candidate pool. `alloc.add()` takes either a list-like structure or a boolean Series as input. If it's a list-like structure, all assets in the list are added to the pool. If it's a boolean Series, index items having a `True` value are added to the pool. When multiple conditions are specified in the same call, the conditions are joined by logical `AND` and the resulted assets are added the the pool. `alloc.add()` can be called multiple times which means a logical `OR` relation and add all assets involved to the pool. 
-
-Once candidate assets are determined, Call `alloc.equal_weight()` to assign equal weight in term of value to each selected asset.
-
-And finally, call `Strategy.rebalance()`, which will look at the current equity value, calculate the target value for each asset, calculate how many shares to buy or sell based on the current long/short positions, and generate orders that will bring the portfolio to the target allocation.
-
-Run the above strategy on some DJIA components: 
-
-![plot of multi-asset strategy](https://imgur.com/ecy6yTm.jpg)
+1. Calculate the indicator. It uses `.ta` accessor to calculate the rate of change of the close prices over a 10-day period, wraps the result in `I()` to create an indicator named `ROC`, and assigns it to `self.roc`.
+2. `self.alloc.assume_zero()` resets the weight allocation to zero at the beginning of each `next()` call.
+3. Get the latest ROC value from the `self.roc` indicator and assign it to `roc`.
+4. Create a new bucket named `equity` in the allocation object.
+5. Add stocks with positive ROC ranking in descending order to the `equity` bucket.
+6. Trim the `equity` bucket to contain a maximum of top 3 stocks.
+7. Allocate 1/3 of the portfolio value to each stock in the `equity` bucket.
+8. Apply the weight allocation to the portfolio.
+9. Rebalance the portfolio based on the current allocation.
 
 
-## Running backtest
+## Data Source
 
-Once a strategy is defined, you can test it as follows:
+`Minitrade` provides built-in data sources to fetch historical quotes from Yahoo Finance and others. The data source can be instantiated by name:
 
 ```python
 from minitrade.datasource import QuoteSource
-from minitrade.backtest import Backtest
 
 yahoo = QuoteSource.get_source('Yahoo')
 data = yahoo.daily_bar('AAPL', start='2018-01-01', end='2019-01-01')
-bt = Backtest(data, SmaCross)
-stats = bt.run()
 ```
 
-First instantiate a built-in data source that gets quotes from Yahoo Finance. Then acquire daily bars for the specific stock symbol and date range. This returns a Dataframe in expected 2-level column format. Note currently daily bar is the only supported data frequency. 
+The `daily_bar()` method returns a DataFrame with the following format:
 
 ```python
-
-                            AAPL                                
-                            Open   High    Low  Close     Volume
-dt                                                              
-2018-01-02 00:00:00-05:00  40.28  40.79  40.07  40.78  102223600
-2018-01-03 00:00:00-05:00  40.84  41.32  40.71  40.77  118071600
-2018-01-04 00:00:00-05:00  40.84  41.06  40.73  40.96   89738400
-2018-01-05 00:00:00-05:00  41.06  41.51  40.96  41.43   94640000
-2018-01-08 00:00:00-05:00  41.27  41.57  41.17  41.27   82271200
+            AAPL                                
+            Open   High    Low  Close     Volume
+Date
+2018-01-02  40.28  40.79  40.07  40.78  102223600
+2018-01-03  40.84  41.32  40.71  40.77  118071600
+2018-01-04  40.84  41.06  40.73  40.96   89738400
+2018-01-05  41.06  41.51  40.96  41.43   94640000
+2018-01-08  41.27  41.57  41.17  41.27   82271200
 ...                          ...    ...    ...    ...        ...
-2018-12-24 00:00:00-05:00  35.60  36.41  35.22  35.28  148676800
-2018-12-26 00:00:00-05:00  35.63  37.78  35.25  37.76  234330000
-2018-12-27 00:00:00-05:00  37.44  37.67  36.06  37.52  212468400
-2018-12-28 00:00:00-05:00  37.84  38.09  37.13  37.54  169165600
-2018-12-31 00:00:00-05:00  38.09  38.29  37.60  37.90  140014000
 ```
 
-Next, create a backtest instance by supplying the data and strategy at a minimum. You don't need to specify the date range for backtesting, which is inferred from the data. `Backtest()` allows you to specify some other interesting parameters, such as `cash` for initial cash investment, `commission` for commission rate, `trade_on_close` for if trade should happen on market open or market close, etc. See [API Reference](backtest.md) for usage. 
-
-Finally, call `bt.run()` to run the backtest.
-
-You can examine the strategy performance as stored in `stats`:
+The data source can also fetch historical quotes for multiple stocks at once. 
 
 ```python
-# print(stats)
-Start                                             2018-01-02 00:00:00-05:00
-End                                               2018-12-31 00:00:00-05:00
-Duration                                                  363 days 00:00:00
-Exposure Time [%]                                                 85.657371
-Equity Final [$]                                                9785.368222
-Equity Peak [$]                                                10463.023909
-Return [%]                                                        -2.146318
-Buy & Hold Return [%]                                             -7.054367
-Return (Ann.) [%]                                                 -2.154776
-Volatility (Ann.) [%]                                             23.856348
-Sharpe Ratio                                                      -0.090323
-Sortino Ratio                                                     -0.132079
-Calmar Ratio                                                      -0.071304
-Max. Drawdown [%]                                                -30.219472
-Avg. Drawdown [%]                                                -16.217719
-Max. Drawdown Duration                                    295 days 00:00:00
-Avg. Drawdown Duration                                    153 days 00:00:00
-# Trades                                                                 10
-Win Rate [%]                                                           30.0
-Best Trade [%]                                                    27.343079
-Worst Trade [%]                                                  -13.749999
-Avg. Trade [%]                                                    -0.223291
-Max. Trade Duration                                        75 days 00:00:00
-Avg. Trade Duration                                        32 days 00:00:00
-Profit Factor                                                      1.094006
-Expectancy [%]                                                     0.370883
-SQN                                                               -0.071592
-Kelly Criterion                                                   -0.019763
-_strategy                                                          SmaCross
-_equity_curve                                              Equity       ...
-_trades                      EntryBar  ExitBar Ticker  Size  EntryPrice ...
-_orders                                             Ticker  Side  Size
-S...
-_positions                                   {'AAPL': -147, 'Margin': 4214}
+data = yahoo.daily_bar(['AAPL', 'GOOG'], start='2018-01-01', end='2019-01-01')
+```
+
+It returns a DataFrame with a 2-level column index as required for multi-asset strategies:
+
+```python
+          AAPL                              GOOG 
+          Open  High  Low   Close Volume    Open  High  Low   Close Volume
+Date
+2018-01-02 40.39 40.90 40.18 40.89 102223600 52.42 53.35 52.26 53.25 24752000
+2018-01-03 40.95 41.43 40.82 40.88 118071600 53.22 54.31 53.16 54.12 28604000
+2018-01-04 40.95 41.18 40.85 41.07 89738400 54.40 54.68 54.20 54.32 20092000
+2018-01-05 41.17 41.63 41.08 41.54 94640000 54.70 55.21 54.60 55.11 25582000
+2018-01-08 41.38 41.68 41.28 41.38 82271200 55.11 55.56 55.08 55.35 20952000
+...                          ...    ...    ...    ...        ...
+```
+
+## Revisit `self.data`
+
+Much of writing a strategy involves manipulating the historical data. `self.data` is a key object that provides access to the historical data. It's an instance of `_Data`, which is a wrapper around the DataFrame that supports revealing data progressively
+to prevent look-ahead bias.
+
+### Multiple Assets
+
+Suppose the following data is used to backtest a multi-asset strategy. 
+
+```python
+          AAPL                              GOOG 
+          Open  High  Low   Close Volume    Open  High  Low   Close Volume
+Date
+2018-01-02 40.39 40.90 40.18 40.89 102223600 52.42 53.35 52.26 53.25 24752000
+2018-01-03 40.95 41.43 40.82 40.88 118071600 53.22 54.31 53.16 54.12 28604000
+2018-01-04 40.95 41.18 40.85 41.07 89738400 54.40 54.68 54.20 54.32 20092000
+2018-01-05 41.17 41.63 41.08 41.54 94640000 54.70 55.21 54.60 55.11 25582000
+2018-01-08 41.38 41.68 41.28 41.38 82271200 55.11 55.56 55.08 55.35 20952000
+```
+
+Let's see how `self.data` can be used within the strategy:
+
+#### `Strategy.init()`
+
+In the `init()` method, the full length of historical data is available. The following illustrates how to slice the data in different, sometimes equivalent, ways:
+
+```python
+# self.data
+<Data i=4 (2018-01-08) ('AAPL', 'Open')=41.38, ('AAPL', 'High')=41.68, ('AAPL', 'Low')=41.28, ('AAPL', 'Close')=41.38, ('AAPL', 'Volume')=82271200.0, ('GOOG', 'Open')=55.11, ('GOOG', 'High')=55.56, ('GOOG', 'Low')=55.08, ('GOOG', 'Close')=55.35, ('GOOG', 'Volume')=20952000.0>
+
+# self.data.df
+          AAPL                              GOOG 
+          Open  High  Low   Close Volume    Open  High  Low   Close Volume
+Date          
+2018-01-02 40.39 40.90 40.18 40.89 102223600 52.42 53.35 52.26 53.25 24752000
+2018-01-03 40.95 41.43 40.82 40.88 118071600 53.22 54.31 53.16 54.12 28604000
+2018-01-04 40.95 41.18 40.85 41.07 89738400 54.40 54.68 54.20 54.32 20092000
+2018-01-05 41.17 41.63 41.08 41.54 94640000 54.70 55.21 54.60 55.11 25582000
+2018-01-08 41.38 41.68 41.28 41.38 82271200 55.11 55.56 55.08 55.35 20952000
+
+# self.data.Close
+[[40.89 53.25]
+ [40.88 54.12]
+ [41.07 54.32]
+ [41.54 55.11]
+ [41.38 55.35]]
+
+# self.data.Close.df
+            AAPL   GOOG
+Date                                     
+2018-01-02  40.89  53.25
+2018-01-03  40.88  54.12
+2018-01-04  41.07  54.32
+2018-01-05  41.54  55.11
+2018-01-08  41.38  55.35
+
+# self.data.df.xs("Close", axis=1, level=1)
+            AAPL   GOOG
+Date                                     
+2018-01-02  40.89  53.25
+2018-01-03  40.88  54.12
+2018-01-04  41.07  54.32
+2018-01-05  41.54  55.11
+2018-01-08  41.38  55.35
+
+# self.data.Close[-1]
+[41.38 55.35]
+
+# self.data.Close.df.iloc[-1]
+AAPL    41.38
+GOOG    55.35
+Name: 2018-01-08, dtype: float64
+
+# self.data["AAPL"]
+[[4.039000e+01 4.090000e+01 4.018000e+01 4.089000e+01 1.022236e+08]
+ [4.095000e+01 4.143000e+01 4.082000e+01 4.088000e+01 1.180716e+08]
+ [4.095000e+01 4.118000e+01 4.085000e+01 4.107000e+01 8.973840e+07]
+ [4.117000e+01 4.163000e+01 4.108000e+01 4.154000e+01 9.464000e+07]
+ [4.138000e+01 4.168000e+01 4.128000e+01 4.138000e+01 8.227120e+07]]
+
+# self.data["AAPL"].df
+            Open   High    Low  Close     Volume
+Date                                                              
+2018-01-02  40.39  40.90  40.18  40.89  102223600
+2018-01-03  40.95  41.43  40.82  40.88  118071600
+2018-01-04  40.95  41.18  40.85  41.07   89738400
+2018-01-05  41.17  41.63  41.08  41.54   94640000
+2018-01-08  41.38  41.68  41.28  41.38   82271200
+
+# self.data.df["AAPL"]
+            Open   High    Low  Close     Volume
+Date                                                              
+2018-01-02  40.39  40.90  40.18  40.89  102223600
+2018-01-03  40.95  41.43  40.82  40.88  118071600
+2018-01-04  40.95  41.18  40.85  41.07   89738400
+2018-01-05  41.17  41.63  41.08  41.54   94640000
+2018-01-08  41.38  41.68  41.28  41.38   82271200
+
+# self.data["AAPL", "Close"]
+[40.89 40.88 41.07 41.54 41.38]
+
+# self.data["AAPL", "Close"].df
+Date
+2018-01-02    40.89
+2018-01-03    40.88
+2018-01-04    41.07
+2018-01-05    41.54
+2018-01-08    41.38
+Name: (AAPL, Close), dtype: float64
+
+# self.data.df[("AAPL","Close")]
+Date
+2018-01-02    40.89
+2018-01-03    40.88
+2018-01-04    41.07
+2018-01-05    41.54
+2018-01-08    41.38
+Name: (AAPL, Close), dtype: float64
+
+# self.data["AAPL", "Close"][-1]
+41.38
+
+# self.data["AAPL", "Close"].df[-1]
+41.38
+
+# self.data.df[("AAPL","Close")][-1]
+41.38
+```
+
+Since `Strategy.init()` is only called once, performance is generally not an issue. It's recommended to use `.df` accessors that return DataFrame to simplify further processing.
+
+Here are some other notable properties of `self.data`:
+
+```python
+# self.data.tickers
+['AAPL', 'GOOG']
+
+# self.data.index
+DatetimeIndex(['2018-01-02', '2018-01-03',
+               '2018-01-04', '2018-01-05',
+               '2018-01-08'],
+              dtype='datetime64[ns]', name='Date', freq=None)
+```
+
+#### Strategy.next()
+
+In `Strategy.next()`, both `self.data` and registered indicators are revealed progressively to prevent look-ahead bias. 
+
+Since `Strategy.next()` is called for every bar in a backtest and optimizing a strategy may take many backtest runs, data indexing performance can be a concern in `Strategy.next()`. Therefore, indicators are returned as Numpy array by default, for example:
+
+```python
+# self.sma at time step 4
+[[        nan         nan]
+ [        nan         nan]
+ [40.94666667 53.89666667]
+ [41.16333333 54.51666667]]
+```
+
+To access the DataFrame version of indicators, use `.df` property:
+
+```python
+# self.sma.df at time step 4
+                                AAPL       GOOG
+Date                                             
+2018-01-02        NaN        NaN
+2018-01-03        NaN        NaN
+2018-01-04  40.946667  53.896667
+2018-01-05  41.163333  54.516667
+```
+
+To get the current time step, use `len(self.data)`. 
+
+To get the current simulation time, use `self.data.now`.
+
+### Single Asset
+
+Suppose the following data is used to backtest a single asset strategy. 
+
+```python
+          AAPL                              
+          Open  High  Low   Close Volume
+Date
+2018-01-02 40.39 40.90 40.18 40.89 102223600
+2018-01-03 40.95 41.43 40.82 40.88 118071600
+2018-01-04 40.95 41.18 40.85 41.07 89738400
+2018-01-05 41.17 41.63 41.08 41.54 94640000
+2018-01-08 41.38 41.68 41.28 41.38 82271200
+```
+
+Since there is only one asset, specifying the asset name is not necessary. `self.data` can be accessed as follows:
+
+```python
+# self.data.the_ticker
+AAPL
+
+# self.data
+<Data i=4 (2018-01-08) ('AAPL', 'Open')=41.38, ('AAPL', 'High')=41.68, ('AAPL', 'Low')=41.28, ('AAPL', 'Close')=41.38, ('AAPL', 'Volume')=82271200.0>
+
+# self.data.df
+            Open   High    Low  Close     Volume
+Date                                                              
+2018-01-02  40.39  40.90  40.18  40.89  102223600
+2018-01-03  40.95  41.43  40.82  40.88  118071600
+2018-01-04  40.95  41.18  40.85  41.07   89738400
+2018-01-05  41.17  41.63  41.08  41.54   94640000
+2018-01-08  41.38  41.68  41.28  41.38   82271200
+
+# self.data.Close
+[40.89 40.88 41.07 41.54 41.38]
+
+# self.data["Close"]
+[40.89 40.88 41.07 41.54 41.38]
+
+# self.data.Close.df
+Date
+2018-01-02    40.89
+2018-01-03    40.88
+2018-01-04    41.07
+2018-01-05    41.54
+2018-01-08    41.38
+Name: AAPL, dtype: float64
+
+# self.data["Close"].df
+Date
+2018-01-02    40.89
+2018-01-03    40.88
+2018-01-04    41.07
+2018-01-05    41.54
+2018-01-08    41.38
+Name: AAPL, dtype: float64
+
+# self.data.df["Close"]
+Date
+2018-01-02    40.89
+2018-01-03    40.88
+2018-01-04    41.07
+2018-01-05    41.54
+2018-01-08    41.38
+Name: Close, dtype: float64
+
+# self.data.Close[-1]
+41.38
+
+# self.data.Close.df.iloc[-1]
+41.38
+
+# self.data["Close"][-1]
+41.38
+
+# self.data["Close"].df[-1]
+41.38
+
+# self.data.df["Close"][-1]
+41.38
+```
+
+## Backtest
+
+Once the data and strategy are defined, the backtest can be run as follows:
+
+```python
+from minitrade.backtest import Backtest
+
+bt = Backtest(data, MyStrategy)
+result = bt.run()
+```
+
+The date range for backtesting is inferred from the data. 
+
+The `run()` method returns a `pandas.Series` with the backtest statistics:
+
+```python
+# print(result)
+Start                                                   2023-01-03 00:00:00
+End                                                     2024-03-28 00:00:00
+Duration                                                  450 days 00:00:00
+Exposure Time [%]                                                 88.745981
+Equity Final [$]                                                 11860.6813
+Equity Peak [$]                                                11879.591159
+Return [%]                                                        18.606813
+Buy & Hold Return [%]                                             12.122283
+Return (Ann.) [%]                                                 15.357352
+Volatility (Ann.) [%]                                             15.370613
+Sharpe Ratio                                                       0.999137
+Sortino Ratio                                                      1.717817
+Calmar Ratio                                                       0.945122
+Max. Drawdown [%]                                                -16.249076
+Avg. Drawdown [%]                                                 -3.229986
+Max. Drawdown Duration                                    181 days 00:00:00
+Avg. Drawdown Duration                                     35 days 00:00:00
+# Trades                                                                111
+Win Rate [%]                                                      64.864865
+Best Trade [%]                                                    28.119439
+Worst Trade [%]                                                   -6.810767
+Avg. Trade [%]                                                     2.376234
+Max. Trade Duration                                        66 days 00:00:00
+Avg. Trade Duration                                        16 days 00:00:00
+Profit Factor                                                       3.35965
+Expectancy [%]                                                     2.577326
+SQN                                                                1.246637
+Kelly Criterion                                                    0.242071
+_strategy                                                        MyStrategy
+_equity_curve                               Equity          MMM         ...
+_trades                        EntryBar  ExitBar Ticker  Size  EntryPric...
+_orders                              Ticker  Side  Size
+SignalTime      ...
+_positions                {'MMM': 37, 'AXP': 17, 'AAPL': 0, 'BA': 0, 'CV...
+_trade_start_bar                                                         10
 dtype: object
 ```
 
-You can also visually inspect the backtest progress by
+The backtest result can be visually inspected using the `plot()` method:
 
 ```python
-bt.plot()
+bt.plot(plot_allocation=True)
 ```
 
-![plot of minitrade backtest](https://imgur.com/rBnfSLu.png)
+![plot of multi-asset strategy](<https://imgur.com/a/3ZGJGnu.png>)
 
-## Parameter optimization
+## Optimization
 
-To search for the optimial parameters for a strategy, you can run the following:
+`Minitrade` provides a simple interface to optimize strategy parameters. The `optimize()` method takes a list of parameters to optimize, a constraint function, and a metric to maximize.
 
 ```python
 stats, heatmap = bt.optimize(
-    fast=range(10, 60, 10),
-    slow=range(20, 120, 20),
-    constraint=lambda p: p.fast < p.slow,
+    lookback=range(10, 60, 10),
+    constraint=None,
     maximize='Equity Final [$]',
     random_state=0,
     return_heatmap=True)
 ```
 
+It returns the backtest statistics for the optimal parameter and the results for each parameter combination.
+
 ```python
 # print(heatmap)
-fast  slow
-10    20       9785.385258
-      40      12563.217058
-      60      11407.502889
-      80      13688.424394
-      100     11766.968888
-20    40      11951.293618
-      60      11701.255333
-      80      13123.190833
-      100     11715.922927
-30    40      10410.359668
-      60      10309.179288
-      80      11793.435469
-      100     11220.492771
-40    60      14623.910118
-      80      11154.921753
-      100     11072.236436
-50    60      12682.605254
-      80      10979.434926
-      100     11444.498170
+lookback
+10          11839.802638
+20          10751.761075
+30          11462.385435
+40          10283.880003
+50          10458.447683
 Name: Equity Final [$], dtype: float64
 ```
 
-Plot the result as a heatmap:
+## Further Reading
 
-```python
-import seaborn as sns
-
-sns.heatmap(heatmap.groupby(['slow', 'fast']).mean().unstack(), cmap='viridis')
-```
-
-![Minitrade optimize heatmap](https://imgur.com/fetS4MU.png)
-
+The [API Reference](api_backtest.md) provides detailed information on the classes and methods available in `Minitrade`.

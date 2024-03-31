@@ -31,7 +31,7 @@ Minitrade requires `python >= 3.10`. `"minitrade init"` is only necessary if you
 
 ### Backtesting
 
-| ![Minitrade backtesting](https://imgur.com/YkLPeTv.jpg) |
+| ![Minitrade backtesting](<https://imgur.com/plaomF0.png>) |
 | ------------------------------------------------------- |
 
 ### Trading
@@ -47,7 +47,7 @@ See more in [Documentation](https://dodid.github.io/minitrade/).
 Please be aware of the following limitations:
 
 - Multi-asset strategies currently support long positions and market orders only.
-- Minitrade has been tested on Linux platforms.
+- Linux and Mac platforms are currently supported.
 - Daily bar data is currently supported.
 - Interactive Brokers is the supported broker.
 

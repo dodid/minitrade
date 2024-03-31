@@ -6,36 +6,38 @@ hide:
 
 While Minitrade is largely compatible with [Backtesting.py](https://github.com/kernc/backtesting.py) for single asset strategy, some breaking changes still exist to support multi-asset strategies and to simplify usage.
 
+## Differences
+
 Here are a list of things that are incompatible:
 
 1. The `data` input for `Backtest` should be a dataframe with 2-level column index. For example, 
     ```
     $ print(self.data)
 
-                            AAPL                              GOOG 
-                            Open  High  Low   Close Volume    Open  High  Low   Close Volume
+               AAPL                              GOOG 
+               Open  High  Low   Close Volume    Open  High  Low   Close Volume
     Date          
-    2018-01-02 00:00:00-05:00 40.39 40.90 40.18 40.89 102223600 52.42 53.35 52.26 53.25 24752000
-    2018-01-03 00:00:00-05:00 40.95 41.43 40.82 40.88 118071600 53.22 54.31 53.16 54.12 28604000
-    2018-01-04 00:00:00-05:00 40.95 41.18 40.85 41.07 89738400 54.40 54.68 54.20 54.32 20092000
-    2018-01-05 00:00:00-05:00 41.17 41.63 41.08 41.54 94640000 54.70 55.21 54.60 55.11 25582000
-    2018-01-08 00:00:00-05:00 41.38 41.68 41.28 41.38 82271200 55.11 55.56 55.08 55.35 20952000
+    2018-01-02 40.39 40.90 40.18 40.89 102223600 52.42 53.35 52.26 53.25 24752000
+    2018-01-03 40.95 41.43 40.82 40.88 118071600 53.22 54.31 53.16 54.12 28604000
+    2018-01-04 40.95 41.18 40.85 41.07 89738400 54.40 54.68 54.20 54.32 20092000
+    2018-01-05 41.17 41.63 41.08 41.54 94640000 54.70 55.21 54.60 55.11 25582000
+    2018-01-08 41.38 41.68 41.28 41.38 82271200 55.11 55.56 55.08 55.35 20952000
     ```
     For single asset, `data`, as a single level column DataFrame, still works. Since asset name is not specified, it's default to "Asset".
     ``` 
     $ print(self.data)
 
-                            Open  High  Low   Close Volume 
+               Open  High  Low   Close Volume 
     Date          
-    2018-01-02 00:00:00-05:00 40.39 40.90 40.18 40.89 102223600 
-    2018-01-03 00:00:00-05:00 40.95 41.43 40.82 40.88 118071600 
-    2018-01-04 00:00:00-05:00 40.95 41.18 40.85 41.07 89738400 
-    2018-01-05 00:00:00-05:00 41.17 41.63 41.08 41.54 94640000 
-    2018-01-08 00:00:00-05:00 41.38 41.68 41.28 41.38 82271200 
+    2018-01-02 40.39 40.90 40.18 40.89 102223600 
+    2018-01-03 40.95 41.43 40.82 40.88 118071600 
+    2018-01-04 40.95 41.18 40.85 41.07 89738400 
+    2018-01-05 41.17 41.63 41.08 41.54 94640000 
+    2018-01-08 41.38 41.68 41.28 41.38 82271200 
     ```
     Minitrade expects `Volume` data to be always avaiable. `data` should be consisted of OHLCV.
 
-2. Calling `Strategy.next()` starts on the first bar when all data and indicators become available, in contrast to on the 2nd bar as implemented in the orignial library. This may change backtest result.
+2. Calling `Strategy.next()` starts on the first bar when all data and indicators become available, in contrast to on the 2nd bar as implemented in the original library. **This will likely change backtest result.**
 
 3. `Strategy.position` is no longer a property, but a function of signature
    ```python
@@ -85,10 +87,20 @@ Here are a list of things that are incompatible:
     ```
     Similarly, use indicators directly in a boolean context is not longer supported. 
     ```python
-    if self.doji:                           # no longer work
+    if self.doji:                              # no longer work
     if bool(self.doji[-1]):                 # use indexing and conversion explicitly
     ```
 
 9.  `Backtest` now has an extra argument `fail_fast` default to `True`, which means backtest will abort whenever an error occurs, e.g. cash is not enough to cover intended orders. This is to detect issues early in a live trading environment. If it's not desired in backtesting, set it to `False`.
 
 10. There are some changes to the default values for plotting. `plot_volume` and `superimpose` are `False` by default. Minitrade doesn't try to guess where to plot the indicators. So to overlay the indicators on the main chart, set `overlay=True` explicitly.
+
+## Examples
+
+The following notebooks from [Backtesting.py](https://github.com/kernc/backtesting.py) are adapted to show how to make them work with Minitrade. Only the code part is changed, the text content may or may not apply to Minitrade. 
+
+- [Quick Start User Guide](examples/Quick%20Start%20User%20Guide.ipynb)
+- [Strategies Librry](examples/Strategies%20Library.ipynb)
+- [Multiple Time Frames](examples/Multiple%20Time%20Frames.ipynb)
+- [Parameter Heatmap & Optimization](examples/Parameter%20Heatmap%20&%20Optimization.ipynb)
+- [Trading with Machine Learning](examples/Trading%20with%20Machine%20Learning.ipynb)

@@ -18,6 +18,19 @@ class QuoteSource(ABC):
     '''
     QuoteSource is a base class that returns quote data for instruments. Extend this class
     to add a concrete implementation to get data from particular data source.
+
+    At a minimum, the following methods should be implemented:
+    ```python
+    class MyQuoteSource(QuoteSource):
+        def _ticker_timezone(self, ticker: str) -> str:
+            pass
+            
+        def _ticker_calendar(self, ticker: str) -> str:
+            pass
+            
+        def _daily_bar(self, ticker: str, start: str, end: str) -> pd.DataFrame:
+            pass
+    ```
     '''
 
     SYSTEM_SOURCES = sorted(['Yahoo', 'EODHistoricalData', 'TwelveData', 'Alpaca',
@@ -80,6 +93,7 @@ class QuoteSource(ABC):
 
     @abstractmethod
     def _ticker_timezone(self, ticker: str) -> str:
+        '''Get the timezone of a ticker.'''
         raise NotImplementedError()
 
     def ticker_timezone(self, ticker: str) -> str:
@@ -91,6 +105,7 @@ class QuoteSource(ABC):
 
     @abstractmethod
     def _ticker_calendar(self, ticker: str) -> str:
+        '''Get the calendar name of a ticker as recognized by `pandas_market_calendars`.'''
         raise NotImplementedError()
 
     def ticker_calendar(self, ticker: str) -> str:
@@ -116,6 +131,7 @@ class QuoteSource(ABC):
 
     @abstractmethod
     def _spot(self, tickers: list[str]) -> pd.Series:
+        '''Return spot prices for a list of tickers.'''
         raise NotImplementedError()
 
     def spot(self, tickers: list[str] | str) -> pd.Series:

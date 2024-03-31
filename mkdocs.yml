@@ -11,27 +11,18 @@ validation:
   unrecognized_links: warn
 
 nav:
-  - Home:
+  - "User Guide":
       - index.md
       - install.md
       - backtesting.md
-      - strategy.md
       - trading.md
       - cli.md
       - Compatibility: compatibility.md
       - Contributing: contributing.md
   - "API Reference":
-      - backtest.md
-      - datasource.md
-      - broker.md
-  - "Examples":
-      - "Original from Backtesting.py":
-          - examples/README.md
-          - examples/Quick Start User Guide.ipynb
-          - examples/Strategies Library.ipynb
-          - examples/Multiple Time Frames.ipynb
-          - examples/Parameter Heatmap & Optimization.ipynb
-          - examples/Trading with Machine Learning.ipynb
+      - api_backtest.md
+      - api_datasource.md
+      - api_broker.md 
 
 
 theme:
@@ -39,11 +30,12 @@ theme:
   features:
     - navigation.instant
     - navigation.tracking
-    - navigation.tabs
     - navigation.sections
     - navigation.indexes
     - toc.follow
     - navigation.top
+    # - navigation.tabs
+    # - navigation.expand
   palette:
     - media: "(prefers-color-scheme: light)"
       scheme: default
@@ -110,7 +102,7 @@ plugins:
             line_length: 60
             summary: true
             show_source: false
-            show_submodules: true
+            show_submodules: false
   - mkdocs-jupyter
   # - gen-files:
   #     scripts:

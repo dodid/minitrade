@@ -270,3 +270,32 @@ class TestAllocation:
         c.normalize()
         assert_series_equal(c.weights, pd.Series([1/4] * 4, index=c.tickers))
         assert c.unallocated == 0.0
+
+
+class RotateBuying(Strategy):
+    def init(self):
+        pass
+
+    def next(self):
+        self.alloc.assume_zero()
+        index = len(self.data) % len(self.alloc.tickers)
+        self.alloc.weights.iloc[index] = 1
+        self.rebalance(cash_reserve=0.5)
+
+
+class TestBacktest:
+    @pytest.fixture
+    def data(self):
+        df = pd.DataFrame({
+            'Open': [1, 2, 3, 4, 5],
+            'High': [2, 3, 4, 5, 6],
+            'Low': [3, 4, 5, 6, 7],
+            'Close': [4, 5, 6, 7, 8]
+        }, index=pd.date_range('2020-01-01', periods=5))
+        df = pd.concat([df]*3, axis=1, keys=['A', 'B', 'C'])
+        return df
+
+    def test_rotate_buying(self, data):
+        bt = Backtest(data, RotateBuying)
+        result = bt.run()
+        assert result['# Trades'] == 4

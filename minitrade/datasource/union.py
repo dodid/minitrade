@@ -112,10 +112,10 @@ class UnionQuoteSourceConfig:
 
     @staticmethod
     def get_config(name: str) -> UnionQuoteSourceConfig:
-        '''Look up a union source config by ID or name
+        '''Look up a union source config by name
 
         Args:
-            union_id_or_name: Union ID or name
+            name: Union name
 
         Returns:
             Union source config if found or None

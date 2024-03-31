@@ -1,4 +1,0 @@
-
-# minitrade.datasource
-
-::: minitrade.datasource

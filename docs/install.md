@@ -2,91 +2,101 @@
 
 ## Hardware requirements
 
-Minitrade intends to run on very low cost machines such as AWS Lightsail instances with 1 GB RAM, 1 vCPU, 40 GB SSD, that cost $5 per month. It's recommended to add 1GB swap space following this [guidence](https://www.digitalocean.com/community/tutorials/how-to-add-swap-space-on-ubuntu-20-04) or similar. 
+Minitrade is designed to operate efficiently on resource-constrained environments, such as AWS Lightsail instances with modest specifications: 1 GB RAM, 1 vCPU, and 40 GB SSD, which typically cost $5 per month. To optimize performance on such machines, it is advisable to allocate an additional 1 GB of swap space. Detailed instructions for adding swap space on Ubuntu 20.04, or similar operating systems, can be found in this [guide](https://www.digitalocean.com/community/tutorials/how-to-add-swap-space-on-ubuntu-20-04).
 
 ## Security recommendations
 
-Securing server access is crucial due to locally saved broker credentials. Here are some security recommendations:
+Ensuring server access security is paramount, especially considering the sensitive broker credentials stored locally. Here are key security recommendations:
 
-- Use a dedicated server solely for Minitrade, avoiding mixed-purpose instances.
-- Install OpenVPN for remote server access.
-- Set up firewall rules to allow only SSH and OpenVPN connections.
-- Use firewall rules to restrict access to the Minitrade web UI and IB gateway by blocking all ports except SSH and OpenVPN. Access the web UI via a private IP after connecting with OpenVPN.
-- [Create a dedicated IB user](https://www.interactivebrokers.com/en/software/singlefunds/topics/fundsaddusers.htm) for Minitrade, granting only necessary trading access and disallowing other privileges to avoid conflicts and minimize account permissions.
+- **Dedicated Server**: Employ a dedicated server exclusively for Minitrade operations to mitigate risks associated with mixed-purpose instances.
+- **Secure Remote Access**: Use OpenVPN or similar technology for secure remote server access, safeguarding against unauthorized entry.
+- **Firewall Configuration**: Configure firewall rules to permit only SSH and OpenVPN connections. Utilize firewall rules to block remote access to the Minitrade web UI and IB gateway, only allow local access to the web UI via a private IP address over OpenVPN connection.
+- **Dedicated IB User**: Establish a [dedicated IB user](https://www.interactivebrokers.com/en/software/singlefunds/topics/fundsaddusers.htm) for Minitrade. This user should be granted only essential trading access while disallowing other privileges to prevent conflicts and minimize account permissions.
 
 ## Try in docker
 
-Although running Minitrade in a Docker container is not recommended due to resource consumption and management complexity, it is possible for experimentation purposes. If you choose to do so, follow these steps:
+While running Minitrade within a Docker container is generally discouraged due to resource utilization and management complexities, it can serve as a viable option for experimentation. If you opt to proceed with this approach, adhere to the following steps:
 
-1. Build a Docker image from the provided [Dockerfile](https://github.com/dodid/minitrade/blob/main/Dockerfile).
-2. Expose port 8501 to access the web UI.
-3. Note that the image is only tested on Linux hosts and may not work on Mac with M1/M2 chips due to compatibility issues with Chrome.
-4. Restart the container if you modify the telegram or email settings to make them effective.
+1. **Build Docker Image**: Begin by constructing a Docker image using the provided [Dockerfile](https://github.com/dodid/minitrade/blob/main/Dockerfile).
+2. **Port Exposure**: Ensure port 8501 is exposed to facilitate access to the web UI.
+3. **Platform Compatibility**: Note that the Docker image has been primarily tested on Linux hosts. It may encounter compatibility issues on Mac systems equipped with M1/M2 chips, particularly due to Chrome compatibility concerns.
+4. **Configuration Modifications**: Should modifications be made to the telegram or email settings, it's imperative to restart the container to enact these changes effectively.
+
 
 ## Install on Ubuntu 20.04 
 
-1. Install OpenVPN, following the instructions [here](https://www.cyberciti.biz/faq/ubuntu-20-04-lts-set-up-openvpn-server-in-5-minutes/). Make sure firewall is open for the port that OpenVPN listens on.
+1. **Install OpenVPN**: Follow the instructions provided [here](https://www.cyberciti.biz/faq/ubuntu-20-04-lts-set-up-openvpn-server-in-5-minutes/) to set up OpenVPN. Ensure that the firewall allows traffic on the port OpenVPN listens on.
 
-2. Install pyenv, following the instructions [here](https://brain2life.hashnode.dev/how-to-install-pyenv-python-version-manager-on-ubuntu-2004). Then install python 3.10:
-   
-        pyenv install 3.10.10
-        pyenv global 3.10.10
+2. **Install pyenv**: Refer to the instructions outlined [here](https://brain2life.hashnode.dev/how-to-install-pyenv-python-version-manager-on-ubuntu-2004) to install pyenv. Once installed, proceed to install Python 3.10:
 
-3. Install dependencies
+    ```bash
+    pyenv install 3.11.8
+    pyenv global 3.11.8
+    ```
 
-        sudo apt install -y default-jre
-        
-        wget -q -O - https://dl-ssl.google.com/linux/linux_signing_key.pub | sudo apt-key add - 
-        sudo sh -c 'echo "deb https://dl.google.com/linux/chrome/deb/ stable main" >> /etc/apt/sources.list.d/google.list'
-        sudo apt update
-        sudo apt install -y google-chrome-stable
+3. **Install Dependencies**:
 
-4. Install Minitrade
+    ```bash
+    sudo apt install -y default-jre
+    wget -q -O - https://dl-ssl.google.com/linux/linux_signing_key.pub | sudo apt-key add - 
+    sudo sh -c 'echo "deb https://dl.google.com/linux/chrome/deb/ stable main" >> /etc/apt/sources.list.d/google.list'
+    sudo apt update
+    sudo apt install -y google-chrome-stable
+    ```
 
-        pip install minitrade
-        minitrade init
+4. **Install Minitrade**:
+
+    ```bash
+    pip install minitrade
+    minitrade init
+    ```
 
 
 ## Install on Ubuntu 22.04
 
-1. Install OpenVPN, following the instructions [here](https://www.cyberciti.biz/faq/ubuntu-22-04-lts-set-up-openvpn-server-in-5-minutes/). Make sure firewall is open for the port that OpenVPN listens on.
+1. **Install OpenVPN**: Follow the instructions provided [here](https://www.cyberciti.biz/faq/ubuntu-22-04-lts-set-up-openvpn-server-in-5-minutes/) to set up OpenVPN. Ensure that the firewall allows traffic on the port OpenVPN listens on.
 
-2. Install python 3.10
+2. **Install Python 3.10**:
 
-        sudo apt update
-        sudo apt install -y python3.10 wget gnupg
-        sudo ln -s /usr/bin/python3.10 /usr/bin/python
-        wget https://bootstrap.pypa.io/get-pip.py
-        sudo python get-pip.py
+    ```bash
+    sudo apt update
+    sudo apt install -y python3.10 wget gnupg
+    sudo ln -s /usr/bin/python3.10 /usr/bin/python
+    wget https://bootstrap.pypa.io/get-pip.py
+    sudo python get-pip.py
+    ```
 
-3. Install dependencies
+3. **Install Dependencies**:
 
-        sudo apt install -y default-jre
-        
-        wget -q -O - https://dl-ssl.google.com/linux/linux_signing_key.pub | sudo apt-key add - 
-        sudo sh -c 'echo "deb https://dl.google.com/linux/chrome/deb/ stable main" >> /etc/apt/sources.list.d/google.list'
-        sudo apt update
-        sudo apt install -y google-chrome-stable
+    ```bash
+    sudo apt install -y default-jre
+    wget -q -O - https://dl-ssl.google.com/linux/linux_signing_key.pub | sudo apt-key add - 
+    sudo sh -c 'echo "deb https://dl.google.com/linux/chrome/deb/ stable main" >> /etc/apt/sources.list.d/google.list'
+    sudo apt update
+    sudo apt install -y google-chrome-stable
+    ```
 
-4. Install Minitrade
+4. **Install Minitrade**:
 
-        pip install minitrade
-        minitrade init
-
+    ```bash
+    pip install minitrade
+    minitrade init
+    ```
 
 ## Launch Minitrade
 
-Launching Minitrade involves launching all three processes:
+Launching Minitrade involves starting all three processes:
 
-```
-# start scheduler
+```bash
+# Start the scheduler
 minitrade scheduler start
 
-# start ibgateway
+# Start IB Gateway
 minitrade ib start 
 
-# start web UI
+# Start the web UI
 minitrade web start
 ```
 
-You can use a process monitor like Supervisor for long-term process management. Alternatively, you can use [this script](https://github.com/dodid/minitrade/blob/main/mtctl.sh) for a quick and simple launch.
+For long-term process management, consider using a process monitor like Supervisor. Alternatively, you can use [this script](https://github.com/dodid/minitrade/blob/main/mtctl.sh) for a quick and simple launch.
+
