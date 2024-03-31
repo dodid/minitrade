@@ -8,7 +8,7 @@
 
 **Minitrade** is a personal trading system that combines strategy backtesting and automated order execution. Leveraging the power of [Backtesting.py](https://github.com/kernc/backtesting.py), Minitrade offers an array of enhanced features:
 
-- **Multi-asset rebalancing strategy backtest**: Explore and optimize your trading strategies across various assets.
+- **Multi-asset rebalance strategy backtest**: Explore and optimize your trading strategies across various assets.
 - Automated strategy execution and order submission: Seamlessly execute your trading strategies and submit orders automatically.
 - Web-based management UI: Access a user-friendly web interface to manage and monitor your trading activities.
 - Streamlined mobile notifications and control: Stay informed and in control with mobile notifications for important trading events.

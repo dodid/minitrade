@@ -99,7 +99,7 @@ class Allocation:
         bucket.apply('update')
         ```
 
-    The state of the `Allocation` object is managed by the `Strategy` object across rebalance cycles. A rebalancing
+    The state of the `Allocation` object is managed by the `Strategy` object across rebalance cycles. A rebalance
     cycle involves:
 
     1. Initializing the weight allocation at the beginning of the cycle by calling either `Allocation.assume_zero()` 
@@ -1853,7 +1853,7 @@ class Backtest:
         surpressed and ignored in backtesting.
 
         `lot_size` is the minimum increment of shares you buy in one order. Order 
-        size will be rounded to integer multiples during account rebalancing.
+        size will be rounded to integer multiples during rebalance.
 
         `fail_fast`, when True, instructs the backtester to bail out when
         cash is not enough to cover an order. This can be used in live trading

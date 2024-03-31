@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "minitrade"
-version = "0.1.37"
+version = "0.1.38"
 description = "A personal automated trading system"
 authors = ["Wei Wu <dodid@outlook.com>"]
 readme = "README.md"
@@ -48,6 +48,7 @@ fredapi = "^0.5.1"
 quantstats = "^0.0.62"
 ipython = "^8.19.0"
 ipywidgets = "^8.1.1"
+setuptools = "^69.2.0"
 
 
 [tool.poetry.group.dev.dependencies]
@@ -55,14 +56,14 @@ autopep8 = "^2.0.4"
 pytest = "^7.4.2"
 notebook = "^7"
 vprof = "^0.38"
-mkdocs = "^1.5.3"
-mkdocstrings = {extras = ["python"], version = "^0.20.0"}
-mkdocs-material = "^8.5.11"
-mkdocs-click = "^0.8.1"
-mkdocs-jupyter = "^0.22.0"
 pytest-cov = "^4.1.0"
 jupyterlab = "^4"
 black = "^24.3.0"
+mkdocs = "^1.5.3"
+mkdocstrings = {extras = ["python"], version = "^0.24.1"}
+mkdocs-material = "^9.5.16"
+mkdocs-click = "^0.8.1"
+mkdocs-jupyter = "^0.24.6"
 lxml-html-clean = "^0.1.0"
 
 

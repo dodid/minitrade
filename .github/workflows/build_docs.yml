@@ -18,9 +18,11 @@ jobs:
         with:
           key: ${{ github.ref }}
           path: .cache
-      - run: pip install mkdocs-material==8.5.11
+      - run: pip install mkdocs
+      - run: pip install mkdocs-material
       - run: pip install "mkdocstrings[python]"
       - run: pip install mkdocs-click
-      - run: pip install mkdocs-jupyter==0.22.0
+      - run: pip install mkdocs-jupyter
+      - run: pip install lxml-html-clean
       - run: pip install -e .
       - run: mkdocs gh-deploy --force
