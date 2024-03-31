@@ -1,6 +1,6 @@
 # Minitrade Changelog
 
-## Upcoming
+## 0.1.38
 - [New] Redesign weight allocation API to be more expressive in defining strategies.
 
 ## 0.1.37
