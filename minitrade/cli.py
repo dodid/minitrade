@@ -368,8 +368,10 @@ def build_db_schema(minitrade_root):
             version = tuple(int(_) for _ in version.split('.'))
     except Exception:
         with closing(sqlite3.connect(db_loc)) as conn:
-            conn.execute('CREATE TABLE IF NOT EXISTS "schema_version" ("version" TEXT);')
-            conn.execute('INSERT INTO "schema_version" VALUES ("0.0.0");')
+            conn.executescript('BEGIN TRANSACTION;'
+                         'CREATE TABLE IF NOT EXISTS "schema_version" ("version" TEXT);'
+                         'INSERT INTO "schema_version" VALUES ("0.0.0");'
+                         'COMMIT;')
         version = (0, 0, 0)
     # apply schema patches
     for sqlversion in sorted(sqlversions):
@@ -383,25 +385,25 @@ def build_db_schema(minitrade_root):
 
 
 def install_ibgateway(minitrade_root):
-    click.secho(f'Installing Interactive Brokers gateway...')
-    ib_loc = os.path.join(minitrade_root, 'ibgateway')
-    url = 'https://download2.interactivebrokers.com/portal/clientportal.gw.zip'
-    response = requests.get(url, stream=True)
-    total_kb = int(int(response.headers["Content-Length"]) / 1000)
-    with open(f'{ib_loc}/clientportal.gw.zip', "wb") as f:
-        file_hash = hashlib.md5()
-        t = tqdm(response.iter_content(chunk_size=1000), total=total_kb,
-                 unit="KB", desc='Downloading IB gateway', leave=False)
-        for data in t:
-            file_hash.update(data)
-            f.write(data)
-            t.format_sizeof(len(data))
-        t.close()
-        with open(f'{ib_loc}/clientportal.gw.zip.md5', "w") as h:
-            h.write(file_hash.hexdigest())
-    ZipFile(f'{ib_loc}/clientportal.gw.zip').extractall(ib_loc)
-    # tighten API access to localhost only
     try:
+        click.secho(f'Installing Interactive Brokers gateway...')
+        ib_loc = os.path.join(minitrade_root, 'ibgateway')
+        url = 'https://download2.interactivebrokers.com/portal/clientportal.gw.zip'
+        response = requests.get(url, stream=True)
+        total_kb = int(int(response.headers["Content-Length"]) / 1000)
+        with open(f'{ib_loc}/clientportal.gw.zip', "wb") as f:
+            file_hash = hashlib.md5()
+            t = tqdm(response.iter_content(chunk_size=1000), total=total_kb,
+                    unit="KB", desc='Downloading IB gateway', leave=False)
+            for data in t:
+                file_hash.update(data)
+                f.write(data)
+                t.format_sizeof(len(data))
+            t.close()
+            with open(f'{ib_loc}/clientportal.gw.zip.md5', "w") as h:
+                h.write(file_hash.hexdigest())
+        ZipFile(f'{ib_loc}/clientportal.gw.zip').extractall(ib_loc)
+        # tighten API access to localhost only
         conf_loc = os.path.join(ib_loc, 'root/conf.yaml')
         with open(conf_loc, 'r') as f:
             conf = yaml.safe_load(f)
@@ -410,7 +412,7 @@ def install_ibgateway(minitrade_root):
         with open(conf_loc, 'w') as f:
             yaml.safe_dump(conf, f)
     except Exception as e:
-        raise RuntimeError(f'Writing gateway config file failed: {conf_loc}') from e
+        click.secho('We have some issue with installing IB gateway. If you use Minitrade solely for backtesting, you can safely ignore this.', fg='red')
 
 
 def check_prerequisites():
