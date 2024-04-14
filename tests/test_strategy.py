@@ -14,5 +14,5 @@ def test_strategy_manager(clean_strategy):
         assert issubclass(strategy, Strategy)
     for file in StrategyManager.list():
         StrategyManager.delete(file)
-        st_loc = os.path.join(expanduser(f'~/.minitrade/strategy'), file)
+        st_loc = os.path.join(os.path.expanduser(f'~/.minitrade/strategy'), file)
         assert os.path.exists(st_loc) == False

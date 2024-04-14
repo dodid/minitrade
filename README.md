@@ -48,7 +48,10 @@ Please be aware of the following limitations:
 
 ## Contributing
 
-Check out the guidelines on [how to contribute](CONTRIBUTING.md) to the project.
+Check out the guidelines on [how to contribute](CONTRIBUTING.md) to the project. Or **star** the project so others can find it!
+
+[![Stargazers over time](https://starchart.cc/dodid/minitrade.svg?variant=adaptive)](https://starchart.cc/dodid/minitrade)
+
 
 ## License
 

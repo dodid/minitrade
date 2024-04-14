@@ -6,12 +6,11 @@ be generated on installation.
 
 import os
 import sys
-from posixpath import expanduser
 
 import yaml
 from pydantic import BaseModel
 
-minitrade_root = expanduser('~/.minitrade')
+minitrade_root = os.path.expanduser('~/.minitrade')
 
 
 class SourceConfigYahoo(BaseModel):
@@ -97,7 +96,7 @@ class GlobalConfig(BaseModel):
     def load(config_yaml: str = '~/.minitrade/config.yaml'):
         ''' Load minitrade configuration '''
         try:
-            with open(expanduser(config_yaml), 'r') as f:
+            with open(os.path.expanduser(config_yaml), 'r') as f:
                 yml = f.read()
             obj = yaml.safe_load(yml)
             config = GlobalConfig.model_validate(obj)
@@ -107,7 +106,7 @@ class GlobalConfig(BaseModel):
 
     def save(self, config_yaml: str = '~/.minitrade/config.yaml'):
         ''' Save minitrade configuration '''
-        with open(expanduser(config_yaml), 'w') as f:
+        with open(os.path.expanduser(config_yaml), 'w') as f:
             f.write(yaml.safe_dump(self.model_dump()))
 
     @staticmethod
@@ -126,5 +125,5 @@ if 'pytest' not in sys.modules:
     except Exception:
         pass
 else:
-    assert os.path.exists(expanduser('~/.minitrade/config.pytest.yaml'))
+    assert os.path.exists(os.path.expanduser('~/.minitrade/config.pytest.yaml'))
     config = GlobalConfig.load('~/.minitrade/config.pytest.yaml')

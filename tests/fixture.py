@@ -4,7 +4,6 @@ import sqlite3
 import time
 from multiprocessing import Process
 from pathlib import Path
-from posixpath import expanduser
 
 import pytest
 
@@ -17,7 +16,7 @@ from minitrade.trader import *
 @pytest.fixture
 def clean_db():
     '''Recreate all tables in minitrade.pytest.db'''
-    db_loc = expanduser('~/.minitrade/database/minitrade.pytest.db')
+    db_loc = os.path.expanduser('~/.minitrade/database/minitrade.pytest.db')
     sql = pkgutil.get_data('minitrade.cli', 'trader/schema/consolidated.sql').decode('utf-8')
     with sqlite3.connect(db_loc) as conn:
         conn.executescript(sql)
@@ -27,7 +26,7 @@ def clean_db():
 @pytest.fixture
 def clean_strategy():
     '''Delete all files in stategy directory'''
-    st_dir = expanduser('~/.minitrade/strategy')
+    st_dir = os.path.expanduser('~/.minitrade/strategy')
     for file in os.listdir(st_dir):
         st_loc = os.path.join(st_dir, file)
         if st_loc.endswith('.py'):

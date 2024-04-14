@@ -7,7 +7,6 @@ import subprocess
 import time
 from collections import namedtuple
 from datetime import datetime
-from os.path import expanduser
 from typing import Any
 
 import psutil
@@ -24,7 +23,7 @@ from minitrade.utils.telegram import send_telegram_message
 logging.getLogger("urllib3").setLevel(logging.ERROR)
 logger = logging.getLogger('uvicorn.error')
 
-__ib_loc = expanduser('~/.minitrade/ibgateway')
+__ib_loc = os.path.expanduser('~/.minitrade/ibgateway')
 
 
 class GatewayStatus(BaseModel):

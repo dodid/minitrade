@@ -12,7 +12,6 @@ import traceback
 from copy import deepcopy
 from dataclasses import dataclass
 from datetime import datetime, timedelta
-from posixpath import expanduser
 from typing import Any
 from zoneinfo import ZoneInfo
 
@@ -67,7 +66,7 @@ class TradePlan:
     - how much initial cash should be invested
     '''
 
-    __storage_root = expanduser('~/.minitrade/storage')
+    __storage_root = os.path.expanduser('~/.minitrade/storage')
 
     id: str
     '''TradePlan ID'''
@@ -288,7 +287,7 @@ def entry_strategy(strategy):
 class StrategyManager:
     '''StrategyManager provides methods to organizes strategy files.'''
 
-    __strategy_root = expanduser('~/.minitrade/strategy')
+    __strategy_root = os.path.expanduser('~/.minitrade/strategy')
 
     @staticmethod
     def _path(filename: str) -> str:
@@ -1067,7 +1066,7 @@ class TaskPlan:
 class TaskManager:
     '''TaskManager provides methods to organizes task files and their execution.'''
 
-    __task_root = expanduser('~/.minitrade/task')
+    __task_root = os.path.expanduser('~/.minitrade/task')
 
     @staticmethod
     def locate(filename: str) -> str:

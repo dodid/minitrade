@@ -1,12 +1,12 @@
 import datetime
 import json
 import logging
+import os
 import sqlite3
 import sys
 import threading
 from dataclasses import asdict
 from io import StringIO
-from posixpath import expanduser
 from typing import Any
 
 import pandas as pd
@@ -93,11 +93,11 @@ class MTDB:
         except Exception:
             if 'pytest' not in sys.modules:
                 MTDB.thread_local.db = sqlite3.connect(
-                    expanduser('~/.minitrade/database/minitrade.db'),
+                    os.path.expanduser('~/.minitrade/database/minitrade.db'),
                     detect_types=sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES)
             else:
                 MTDB.thread_local.db = sqlite3.connect(
-                    expanduser('~/.minitrade/database/minitrade.pytest.db'),
+                    os.path.expanduser('~/.minitrade/database/minitrade.pytest.db'),
                     detect_types=sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES)
             MTDB.thread_local.db.row_factory = sqlite3.Row
             return MTDB.thread_local.db
