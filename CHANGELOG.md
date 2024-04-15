@@ -1,5 +1,8 @@
 # Minitrade Changelog
 
+## 0.1.39
+- [Fix] Resolve issue with backtesting on Windows. Run `minitrade init` to complete setup before use.
+
 ## 0.1.38
 - [New] Redesign weight allocation API to be more expressive in defining strategies.
 

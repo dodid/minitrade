@@ -168,7 +168,7 @@ class Allocation:
             by calling `Bucket.weight_*()` methods. This is a read-only property.'''
             assert (self._weights >= 0).all(), 'Weight should be non-negative.'
             assert self._weights.sum(
-            ) <= 1, f'Total weight should be less than or equal to 1. Got {self._weights.sum()}'
+            ) < 1.000000000000001, f'Total weight should be less than or equal to 1. Got {self._weights.sum()}'
             return self._weights.copy()
 
         def append(self, ranked_list: list | pd.Series, *conditions: list | pd.Series) -> 'Allocation.Bucket':
@@ -284,17 +284,17 @@ class Allocation:
             if len(self._tickers) == 0:
                 self._weights = pd.Series()
             elif isinstance(weight, Number):
-                assert 0 <= weight * len(self._tickers) <= 1, 'Total weight should be within [0, 1].'
+                assert 0 <= weight * len(self._tickers) < 1.000000000000001, 'Total weight should be within [0, 1].'
                 self._weights = pd.Series(weight, index=self._tickers)
             elif isinstance(weight, list):
-                assert all(0 <= x <= 1 for x in weight), 'Weight should be non-negative.'
-                assert sum(weight) <= 1, 'Total weight should be less than or equal to 1.'
+                assert all(0 <= x < 1.000000000000001 for x in weight), 'Weight should be non-negative.'
+                assert sum(weight) < 1.000000000000001, 'Total weight should be less than or equal to 1.'
                 weight = weight[:len(self._tickers)]
                 weight.extend([0.] * (len(self._tickers) - len(weight)))
                 self._weights = pd.Series(weight, index=self._tickers)
             elif isinstance(weight, pd.Series):
                 assert (weight >= 0).all(), 'Weight should be non-negative.'
-                assert weight.sum() <= 1, 'Total weight should be less than or equal to 1.'
+                assert weight.sum() < 1.000000000000001, 'Total weight should be less than or equal to 1.'
                 weight = weight[weight.index.isin(self._tickers)]
                 self._weights = pd.Series(0., index=self._tickers)
                 self._weights.loc[weight.index] = weight
@@ -315,7 +315,7 @@ class Allocation:
             Args:
                 sum_: Total weight that should be allocated. 
             '''
-            assert sum_ is None or 0 <= sum_ <= 1, 'Total weight should be within [0, 1].'
+            assert sum_ is None or 0 <= sum_ < 1.000000000000001, 'Total weight should be within [0, 1].'
             if sum_ is None:
                 sum_ = self._alloc.unallocated
             if len(self._tickers) == 0:
@@ -341,7 +341,7 @@ class Allocation:
             assert len(relative_weights) == len(
                 self._tickers), f'Length of relative_weight {len(relative_weights)} does not match number of assets {len(self._tickers)}'
             assert all(x >= 0 for x in relative_weights), 'Relative weights should be non-negative.'
-            assert sum_ is None or 0 <= sum_ <= 1, 'Total weight should be within [0, 1].'
+            assert sum_ is None or 0 <= sum_ < 1.000000000000001, 'Total weight should be within [0, 1].'
             if sum_ is None:
                 sum_ = self._alloc.unallocated
             if len(self._tickers) == 0:
@@ -481,14 +481,14 @@ class Allocation:
         '''
         assert self._weights.index.to_list() == self._tickers, 'Weight index should be the same as the asset space.'
         assert (self._weights >= 0).all(), 'Weight should be non-negative.'
-        assert self._weights.sum() <= 1, f'Total weight should be less than or equal to 1. Got {self._weights.sum()}'
+        assert self._weights.sum() < 1.000000000000001, f'Total weight should be less than or equal to 1. Got {self._weights.sum()}'
         return self._weights
 
     @weights.setter
     @_after_assume
     def weights(self, value: pd.Series) -> None:
         assert (value >= 0).all(), 'Weight should be non-negative.'
-        assert value.sum() <= 1, f'Total weight should be less than or equal to 1. Got {value.sum()}'
+        assert value.sum() < 1.000000000000001, f'Total weight should be less than or equal to 1. Got {value.sum()}'
         self._weights.loc[:] = 0.
         self._weights.loc[value.index] = value
 
@@ -512,7 +512,7 @@ class Allocation:
     def unallocated(self) -> float:
         '''Unallocated equity weight. It's the remaining weight that can be allocated to assets. This is a read-only property.'''
         allocated = self._weights.abs().sum()
-        assert allocated <= 1, f'Total weight should be less than or equal to 1. Got {allocated}'
+        assert allocated < 1.000000000000001, f'Total weight should be less than or equal to 1. Got {allocated}'
         return 1. - allocated
 
     @_after_assume
@@ -1203,7 +1203,7 @@ class Trade:
 
     def close(self, portion: float = 1., finalize=False):
         """Place new `Order` to close `portion` of the trade at next market price."""
-        assert 0 < portion <= 1, "portion must be a fraction between 0 and 1"
+        assert 0 < portion < 1.000000000000001, "portion must be a fraction between 0 and 1"
         size = copysign(max(1, round(abs(self.__size) * portion)), -self.__size)
         order = Order(self.__broker, self.__ticker, size, parent_trade=self,
                       entry_time=self.__broker.now, tag=self.__tag)

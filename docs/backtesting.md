@@ -618,7 +618,7 @@ The backtest result can be visually inspected using the `plot()` method:
 bt.plot(plot_allocation=True)
 ```
 
-![plot of multi-asset strategy](<https://imgur.com/a/3ZGJGnu.png>)
+![plot of multi-asset strategy](https://imgur.com/a/3ZGJGnu.png)
 
 ## Optimization
 
