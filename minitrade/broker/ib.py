@@ -246,7 +246,7 @@ class InteractiveBrokers(Broker):
         result = self.__call_ibgateway('GET', '/trsrv/stocks', {'symbols': ticker_css})
         for k, v in result.items():
             # sort ticker and put that of US market first
-            options = sorted(v, key=lambda v: not v['contracts'][0]['isUS'])
+            options = sorted(v, key=lambda v: not v['contracts'][0].get('isUS'))
             # return ticker to broker options mapping in the format like
             # {TK1: [{'id': id1, 'label': label1}, {'id': id2, 'label': label2}], TK2: [{'id': id1, 'label': label1}]}
             result[k] = [{
@@ -255,7 +255,7 @@ class InteractiveBrokers(Broker):
             } for _ in options]
         return result
 
-    def find_trades(self, order: RawOrder) -> list(dict) | None:
+    def find_trades(self, order: RawOrder) -> list[dict] | None:
         return MTDB.get_all('IbTrade', 'order_ref', order.id, cls=dict)
 
     def find_order(self, order: RawOrder) -> dict | None:

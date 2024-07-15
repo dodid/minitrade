@@ -232,7 +232,7 @@ class QuoteSource(ABC):
             start = pd.offsets.MonthBegin().rollback(pd.to_datetime(start)).strftime('%Y-%m-%d')
             end = (pd.to_datetime(end) + pd.offsets.MonthEnd(1)).strftime('%Y-%m-%d') if end else None
             daily = self.daily_bar(tickers, start, end, align, normalize, num_workers=num_workers)
-            monthly = daily.ta.apply(lambda x: x.resample('M').agg({
+            monthly = daily.ta.apply(lambda x: x.resample('ME').agg({
                 'Open': 'first',
                 'High': 'max',
                 'Low': 'min',

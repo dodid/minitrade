@@ -73,6 +73,9 @@ Spot price:
             'SHZ': 'SSE',    # Shenzhen stock exchange
             'HKG': 'HKEX',   # Hong Kong stock exchange
             'BTS': 'NYSE',   # BATS Global Markets
+            'SNP': 'NYSE',   # S&P index
+            'FGI': 'NYSE',   # FTSE index
+            'CBT': 'NYSE',   # Chicago Board of Trade
         }
         exch = yf.Ticker(self._format_ticker(ticker)).fast_info['exchange']
         if exch in mapping:
