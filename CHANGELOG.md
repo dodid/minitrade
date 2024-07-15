@@ -1,5 +1,8 @@
 # Minitrade Changelog
 
+## 0.1.40
+- [Fix] Handle missing field in IB API response.
+
 ## 0.1.39
 - [Fix] Resolve issue with backtesting on Windows. Run `minitrade init` to complete setup before use.
 
