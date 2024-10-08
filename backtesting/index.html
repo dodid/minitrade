@@ -1,0 +1,1667 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Official Documentation for Minitrade - Simplifying Personal Trading">
+      
+      
+      
+      
+        <link rel="prev" href="../install/">
+      
+      
+        <link rel="next" href="../trading/">
+      
+      
+      <link rel="icon" href="../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.5.39">
+    
+    
+      
+        <title>Backtesting - Minitrade</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.8c3ca2c6.min.css">
+      
+        
+        <link rel="stylesheet" href="../assets/stylesheets/palette.06af60db.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/_mkdocstrings.css">
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+  
+
+
+  
+  
+
+<script id="__analytics">function __md_analytics(){function e(){dataLayer.push(arguments)}window.dataLayer=window.dataLayer||[],e("js",new Date),e("config","G-HK9C9K1N4Q"),document.addEventListener("DOMContentLoaded",(function(){document.forms.search&&document.forms.search.query.addEventListener("blur",(function(){this.value&&e("event","search",{search_term:this.value})}));document$.subscribe((function(){var t=document.forms.feedback;if(void 0!==t)for(var a of t.querySelectorAll("[type=submit]"))a.addEventListener("click",(function(a){a.preventDefault();var n=document.location.pathname,d=this.getAttribute("data-md-value");e("event","feedback",{page:n,data:d}),t.firstElementChild.disabled=!0;var r=t.querySelector(".md-feedback__note [data-md-value='"+d+"']");r&&(r.hidden=!1)})),t.hidden=!1})),location$.subscribe((function(t){e("config","G-HK9C9K1N4Q",{page_path:t.pathname})}))}));var t=document.createElement("script");t.async=!0,t.src="https://www.googletagmanager.com/gtag/js?id=G-HK9C9K1N4Q",document.getElementById("__analytics").insertAdjacentElement("afterEnd",t)}</script>
+  
+    <script>"undefined"!=typeof __md_analytics&&__md_analytics()</script>
+  
+
+    
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#backtesting" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href=".." title="Minitrade" class="md-header__button md-logo" aria-label="Minitrade" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Minitrade
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Backtesting
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      <label class="md-header__button md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+      </label>
+      <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/dodid/minitrade" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 6.6.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2024 Fonticons, Inc.--><path d="M439.55 236.05 244 40.45a28.87 28.87 0 0 0-40.81 0l-40.66 40.63 51.52 51.52c27.06-9.14 52.68 16.77 43.39 43.68l49.66 49.66c34.23-11.8 61.18 31 35.47 56.69-26.49 26.49-70.21-2.87-56-37.34L240.22 199v121.85c25.3 12.54 22.26 41.85 9.08 55a34.34 34.34 0 0 1-48.55 0c-17.57-17.6-11.07-46.91 11.25-56v-123c-20.8-8.51-24.6-30.74-18.64-45L142.57 101 8.45 235.14a28.86 28.86 0 0 0 0 40.81l195.61 195.6a28.86 28.86 0 0 0 40.8 0l194.69-194.69a28.86 28.86 0 0 0 0-40.81"/></svg>
+  </div>
+  <div class="md-source__repository">
+    dodid/minitrade
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href=".." title="Minitrade" class="md-nav__button md-logo" aria-label="Minitrade" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    Minitrade
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/dodid/minitrade" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 6.6.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2024 Fonticons, Inc.--><path d="M439.55 236.05 244 40.45a28.87 28.87 0 0 0-40.81 0l-40.66 40.63 51.52 51.52c27.06-9.14 52.68 16.77 43.39 43.68l49.66 49.66c34.23-11.8 61.18 31 35.47 56.69-26.49 26.49-70.21-2.87-56-37.34L240.22 199v121.85c25.3 12.54 22.26 41.85 9.08 55a34.34 34.34 0 0 1-48.55 0c-17.57-17.6-11.07-46.91 11.25-56v-123c-20.8-8.51-24.6-30.74-18.64-45L142.57 101 8.45 235.14a28.86 28.86 0 0 0 0 40.81l195.61 195.6a28.86 28.86 0 0 0 40.8 0l194.69-194.69a28.86 28.86 0 0 0 0-40.81"/></svg>
+  </div>
+  <div class="md-source__repository">
+    dodid/minitrade
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_1" checked>
+        
+          
+          
+          <div class="md-nav__link md-nav__container">
+            <a href=".." class="md-nav__link ">
+              
+  
+  <span class="md-ellipsis">
+    User Guide
+  </span>
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_1" id="__nav_1_label" tabindex="">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_1_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_1">
+            <span class="md-nav__icon md-icon"></span>
+            User Guide
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../install/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Installation
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  <span class="md-ellipsis">
+    Backtesting
+  </span>
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  <span class="md-ellipsis">
+    Backtesting
+  </span>
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#strategy-basics" class="md-nav__link">
+    <span class="md-ellipsis">
+      Strategy Basics
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Strategy Basics">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#historical-data" class="md-nav__link">
+    <span class="md-ellipsis">
+      Historical Data
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#indicators" class="md-nav__link">
+    <span class="md-ellipsis">
+      Indicators
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#orders" class="md-nav__link">
+    <span class="md-ellipsis">
+      Orders
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#single-asset-strategy" class="md-nav__link">
+    <span class="md-ellipsis">
+      Single Asset Strategy
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#multi-asset-strategy" class="md-nav__link">
+    <span class="md-ellipsis">
+      Multi-Asset Strategy
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Multi-Asset Strategy">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#data-input" class="md-nav__link">
+    <span class="md-ellipsis">
+      Data Input
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#pandas-ta-integration" class="md-nav__link">
+    <span class="md-ellipsis">
+      Pandas TA Integration
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#indicators_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      Indicators
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#weight-allocation" class="md-nav__link">
+    <span class="md-ellipsis">
+      Weight Allocation
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#example" class="md-nav__link">
+    <span class="md-ellipsis">
+      Example
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#data-source" class="md-nav__link">
+    <span class="md-ellipsis">
+      Data Source
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#revisit-selfdata" class="md-nav__link">
+    <span class="md-ellipsis">
+      Revisit self.data
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Revisit self.data">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#multiple-assets" class="md-nav__link">
+    <span class="md-ellipsis">
+      Multiple Assets
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Multiple Assets">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#strategyinit" class="md-nav__link">
+    <span class="md-ellipsis">
+      Strategy.init()
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#strategynext" class="md-nav__link">
+    <span class="md-ellipsis">
+      Strategy.next()
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#single-asset" class="md-nav__link">
+    <span class="md-ellipsis">
+      Single Asset
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#backtest" class="md-nav__link">
+    <span class="md-ellipsis">
+      Backtest
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#optimization" class="md-nav__link">
+    <span class="md-ellipsis">
+      Optimization
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#further-reading" class="md-nav__link">
+    <span class="md-ellipsis">
+      Further Reading
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../trading/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Trading
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../cli/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Command Line
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../compatibility/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Compatibility
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../contributing/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Contributing
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="">
+            
+  
+  <span class="md-ellipsis">
+    API Reference
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            API Reference
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api_backtest/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    minitrade.backtest
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api_datasource/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    minitrade.datasource
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api_broker/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    minitrade.broker
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#strategy-basics" class="md-nav__link">
+    <span class="md-ellipsis">
+      Strategy Basics
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Strategy Basics">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#historical-data" class="md-nav__link">
+    <span class="md-ellipsis">
+      Historical Data
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#indicators" class="md-nav__link">
+    <span class="md-ellipsis">
+      Indicators
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#orders" class="md-nav__link">
+    <span class="md-ellipsis">
+      Orders
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#single-asset-strategy" class="md-nav__link">
+    <span class="md-ellipsis">
+      Single Asset Strategy
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#multi-asset-strategy" class="md-nav__link">
+    <span class="md-ellipsis">
+      Multi-Asset Strategy
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Multi-Asset Strategy">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#data-input" class="md-nav__link">
+    <span class="md-ellipsis">
+      Data Input
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#pandas-ta-integration" class="md-nav__link">
+    <span class="md-ellipsis">
+      Pandas TA Integration
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#indicators_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      Indicators
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#weight-allocation" class="md-nav__link">
+    <span class="md-ellipsis">
+      Weight Allocation
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#example" class="md-nav__link">
+    <span class="md-ellipsis">
+      Example
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#data-source" class="md-nav__link">
+    <span class="md-ellipsis">
+      Data Source
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#revisit-selfdata" class="md-nav__link">
+    <span class="md-ellipsis">
+      Revisit self.data
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Revisit self.data">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#multiple-assets" class="md-nav__link">
+    <span class="md-ellipsis">
+      Multiple Assets
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Multiple Assets">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#strategyinit" class="md-nav__link">
+    <span class="md-ellipsis">
+      Strategy.init()
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#strategynext" class="md-nav__link">
+    <span class="md-ellipsis">
+      Strategy.next()
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#single-asset" class="md-nav__link">
+    <span class="md-ellipsis">
+      Single Asset
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#backtest" class="md-nav__link">
+    <span class="md-ellipsis">
+      Backtest
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#optimization" class="md-nav__link">
+    <span class="md-ellipsis">
+      Optimization
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#further-reading" class="md-nav__link">
+    <span class="md-ellipsis">
+      Further Reading
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+  
+  
+
+
+<h1 id="backtesting">Backtesting<a class="headerlink" href="#backtesting" title="Permanent link">¤</a></h1>
+<p><code class="language-python highlight"><span class="n">Minitrade</span></code> uses <a href="https://github.com/kernc/backtesting.py">Backtesting.py</a> as the core library for backtesting and adds the capability to implement multi-asset strategies. </p>
+<h2 id="strategy-basics">Strategy Basics<a class="headerlink" href="#strategy-basics" title="Permanent link">¤</a></h2>
+<p>A strategy is defined by subclassing <code class="language-python highlight"><span class="n">Strategy</span></code> and implementing the <code class="language-python highlight"><span class="n">init</span><span class="p">()</span></code> and <code class="language-python highlight"><span class="nb">next</span><span class="p">()</span></code> methods. </p>
+<div class="language-python highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="kn">from</span> <span class="nn">minitrade.backtest</span> <span class="kn">import</span> <span class="n">Strategy</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="k">class</span> <span class="nc">MyStrategy</span><span class="p">(</span><span class="n">Strategy</span><span class="p">):</span>
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>    <span class="k">def</span> <span class="nf">init</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>        <span class="k">pass</span>
+<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>
+<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>    <span class="k">def</span> <span class="nf">next</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>        <span class="k">pass</span>
+</code></pre></div>
+<p>The <code class="language-python highlight"><span class="n">init</span><span class="p">()</span></code> method is called once at the beginning of the backtest to initialize the strategy. The <code class="language-python highlight"><span class="nb">next</span><span class="p">()</span></code> method is called for each bar in the data to generate trading signals.</p>
+<h3 id="historical-data">Historical Data<a class="headerlink" href="#historical-data" title="Permanent link">¤</a></h3>
+<p>The historical data is accessed through the <code class="language-python highlight"><span class="bp">self</span><span class="o">.</span><span class="n">data</span></code> object. It's an instance of <code class="language-python highlight"><span class="n">_Data</span></code>, which is a wrapper around a DataFrame with a 2-level column index, where the first level is the ticker and the second level is the OHLCV data. The raw DataFrame can be
+accessed with the <code class="language-python highlight"><span class="o">.</span><span class="n">df</span></code> accessor.</p>
+<p>For instance,</p>
+<div class="language-python highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="c1"># self.data</span>
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="o">&lt;</span><span class="n">Data</span> <span class="n">i</span><span class="o">=</span><span class="mi">4</span> <span class="p">(</span><span class="mi">2018</span><span class="o">-</span><span class="mi">01</span><span class="o">-</span><span class="mi">08</span><span class="p">)</span> 
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>    <span class="p">(</span><span class="s1">&#39;AAPL&#39;</span><span class="p">,</span> <span class="s1">&#39;Open&#39;</span><span class="p">)</span><span class="o">=</span><span class="mf">41.38</span><span class="p">,</span> 
+<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>    <span class="p">(</span><span class="s1">&#39;AAPL&#39;</span><span class="p">,</span> <span class="s1">&#39;High&#39;</span><span class="p">)</span><span class="o">=</span><span class="mf">41.68</span><span class="p">,</span> 
+<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>    <span class="p">(</span><span class="s1">&#39;AAPL&#39;</span><span class="p">,</span> <span class="s1">&#39;Low&#39;</span><span class="p">)</span><span class="o">=</span><span class="mf">41.28</span><span class="p">,</span> 
+<a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>    <span class="p">(</span><span class="s1">&#39;AAPL&#39;</span><span class="p">,</span> <span class="s1">&#39;Close&#39;</span><span class="p">)</span><span class="o">=</span><span class="mf">41.38</span><span class="p">,</span> 
+<a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a>    <span class="p">(</span><span class="s1">&#39;AAPL&#39;</span><span class="p">,</span> <span class="s1">&#39;Volume&#39;</span><span class="p">)</span><span class="o">=</span><span class="mf">82271200.0</span><span class="o">&gt;</span>
+<a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a>
+<a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a><span class="c1"># self.data.df</span>
+<a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a>            <span class="n">AAPL</span>                                
+<a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a>            <span class="n">Open</span>   <span class="n">High</span>    <span class="n">Low</span>  <span class="n">Close</span>     <span class="n">Volume</span>
+<a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a><span class="n">Date</span>
+<a id="__codelineno-1-13" name="__codelineno-1-13" href="#__codelineno-1-13"></a><span class="mi">2018</span><span class="o">-</span><span class="mi">01</span><span class="o">-</span><span class="mi">02</span>  <span class="mf">40.39</span>  <span class="mf">40.90</span>  <span class="mf">40.18</span>  <span class="mf">40.89</span>  <span class="mi">102223600</span>
+<a id="__codelineno-1-14" name="__codelineno-1-14" href="#__codelineno-1-14"></a><span class="mi">2018</span><span class="o">-</span><span class="mi">01</span><span class="o">-</span><span class="mi">03</span>  <span class="mf">40.95</span>  <span class="mf">41.43</span>  <span class="mf">40.82</span>  <span class="mf">40.88</span>  <span class="mi">118071600</span>
+<a id="__codelineno-1-15" name="__codelineno-1-15" href="#__codelineno-1-15"></a><span class="mi">2018</span><span class="o">-</span><span class="mi">01</span><span class="o">-</span><span class="mi">04</span>  <span class="mf">40.95</span>  <span class="mf">41.18</span>  <span class="mf">40.85</span>  <span class="mf">41.07</span>   <span class="mi">89738400</span>
+<a id="__codelineno-1-16" name="__codelineno-1-16" href="#__codelineno-1-16"></a><span class="mi">2018</span><span class="o">-</span><span class="mi">01</span><span class="o">-</span><span class="mi">05</span>  <span class="mf">41.17</span>  <span class="mf">41.63</span>  <span class="mf">41.08</span>  <span class="mf">41.54</span>   <span class="mi">94640000</span>
+<a id="__codelineno-1-17" name="__codelineno-1-17" href="#__codelineno-1-17"></a><span class="mi">2018</span><span class="o">-</span><span class="mi">01</span><span class="o">-</span><span class="mi">08</span>  <span class="mf">41.38</span>  <span class="mf">41.68</span>  <span class="mf">41.28</span>  <span class="mf">41.38</span>   <span class="mi">82271200</span>
+</code></pre></div>
+<h3 id="indicators">Indicators<a class="headerlink" href="#indicators" title="Permanent link">¤</a></h3>
+<p>Indicators can be created using the <code class="language-python highlight"><span class="n">I</span><span class="p">()</span></code> method. The method takes a DataFrame or Series and an optional name argument. The indicator is calculated once in the <code class="language-python highlight"><span class="n">init</span><span class="p">()</span></code> method and can be accessed in the <code class="language-python highlight"><span class="nb">next</span><span class="p">()</span></code> method.</p>
+<div class="language-python highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="k">class</span> <span class="nc">MyStrategy</span><span class="p">(</span><span class="n">Strategy</span><span class="p">):</span>
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>
+<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>    <span class="k">def</span> <span class="nf">init</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a>        <span class="bp">self</span><span class="o">.</span><span class="n">sma</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">I</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">Close</span><span class="o">.</span><span class="n">df</span><span class="o">.</span><span class="n">rolling</span><span class="p">(</span><span class="mi">10</span><span class="p">)</span><span class="o">.</span><span class="n">mean</span><span class="p">(),</span> <span class="n">name</span><span class="o">=</span><span class="s1">&#39;SMA&#39;</span><span class="p">)</span>
+<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>
+<a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a>    <span class="k">def</span> <span class="nf">next</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a>        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">Close</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">&gt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">sma</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]:</span>
+<a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a>            <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;Buy signal&#39;</span><span class="p">)</span>
+<a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a>        <span class="k">else</span><span class="p">:</span>
+<a id="__codelineno-2-10" name="__codelineno-2-10" href="#__codelineno-2-10"></a>            <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;Sell signal&#39;</span><span class="p">)</span>
+</code></pre></div>
+<h3 id="orders">Orders<a class="headerlink" href="#orders" title="Permanent link">¤</a></h3>
+<p>The <code class="language-python highlight"><span class="n">buy</span><span class="p">()</span></code> and <code class="language-python highlight"><span class="n">sell</span><span class="p">()</span></code> methods are used to place orders. The <code class="language-python highlight"><span class="n">position</span><span class="p">()</span></code> method returns the current position, which can be used to close the position using the <code class="language-python highlight"><span class="n">close</span><span class="p">()</span></code> method.</p>
+<div class="language-python highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="k">class</span> <span class="nc">MyStrategy</span><span class="p">(</span><span class="n">Strategy</span><span class="p">):</span>
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>
+<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>    <span class="k">def</span> <span class="nf">init</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a>        <span class="bp">self</span><span class="o">.</span><span class="n">sma</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">I</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">Close</span><span class="o">.</span><span class="n">df</span><span class="o">.</span><span class="n">rolling</span><span class="p">(</span><span class="mi">10</span><span class="p">)</span><span class="o">.</span><span class="n">mean</span><span class="p">(),</span> <span class="n">name</span><span class="o">=</span><span class="s1">&#39;SMA&#39;</span><span class="p">)</span>
+<a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a>
+<a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a>    <span class="k">def</span> <span class="nf">next</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a>        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">Close</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">&gt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">sma</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]:</span>
+<a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a>            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">position</span><span class="p">()</span><span class="o">.</span><span class="n">size</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+<a id="__codelineno-3-9" name="__codelineno-3-9" href="#__codelineno-3-9"></a>                <span class="bp">self</span><span class="o">.</span><span class="n">buy</span><span class="p">()</span>
+<a id="__codelineno-3-10" name="__codelineno-3-10" href="#__codelineno-3-10"></a>        <span class="k">else</span><span class="p">:</span>
+<a id="__codelineno-3-11" name="__codelineno-3-11" href="#__codelineno-3-11"></a>            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">position</span><span class="p">()</span><span class="o">.</span><span class="n">size</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+<a id="__codelineno-3-12" name="__codelineno-3-12" href="#__codelineno-3-12"></a>                <span class="bp">self</span><span class="o">.</span><span class="n">position</span><span class="p">()</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+</code></pre></div>
+<h2 id="single-asset-strategy">Single Asset Strategy<a class="headerlink" href="#single-asset-strategy" title="Permanent link">¤</a></h2>
+<p>For single asset strategies, those written for <code class="language-python highlight"><span class="n">Backtesting</span><span class="o">.</span><span class="n">py</span></code> can be easily adapted to work with Minitrade. The following example from <code class="language-python highlight"><span class="n">Backtesting</span><span class="o">.</span><span class="n">py</span></code> illustrates what changes are necessary:</p>
+<div class="language-python highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="kn">from</span> <span class="nn">minitrade.backtest</span> <span class="kn">import</span> <span class="n">Strategy</span>                                 <span class="c1">#1</span>
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="kn">from</span> <span class="nn">minitrade.backtest.core.lib</span> <span class="kn">import</span> <span class="n">crossover</span>                       <span class="c1">#1</span>
+<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="kn">from</span> <span class="nn">minitrade.backtest.core.test</span> <span class="kn">import</span> <span class="n">SMA</span>                            <span class="c1">#1</span>
+<a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a>
+<a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a><span class="k">class</span> <span class="nc">SmaCross</span><span class="p">(</span><span class="n">Strategy</span><span class="p">):</span>
+<a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a>    <span class="n">fast</span> <span class="o">=</span> <span class="mi">10</span>
+<a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a>    <span class="n">slow</span> <span class="o">=</span> <span class="mi">20</span>
+<a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a>
+<a id="__codelineno-4-9" name="__codelineno-4-9" href="#__codelineno-4-9"></a>    <span class="k">def</span> <span class="nf">init</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<a id="__codelineno-4-10" name="__codelineno-4-10" href="#__codelineno-4-10"></a>        <span class="n">price</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">Close</span><span class="o">.</span><span class="n">df</span>                                      <span class="c1">#2</span>
+<a id="__codelineno-4-11" name="__codelineno-4-11" href="#__codelineno-4-11"></a>        <span class="bp">self</span><span class="o">.</span><span class="n">ma1</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">I</span><span class="p">(</span><span class="n">SMA</span><span class="p">,</span> <span class="n">price</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">fast</span><span class="p">,</span> <span class="n">overlay</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>          <span class="c1">#3</span>
+<a id="__codelineno-4-12" name="__codelineno-4-12" href="#__codelineno-4-12"></a>        <span class="bp">self</span><span class="o">.</span><span class="n">ma2</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">I</span><span class="p">(</span><span class="n">SMA</span><span class="p">,</span> <span class="n">price</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">slow</span><span class="p">,</span> <span class="n">overlay</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>          <span class="c1">#3</span>
+<a id="__codelineno-4-13" name="__codelineno-4-13" href="#__codelineno-4-13"></a>
+<a id="__codelineno-4-14" name="__codelineno-4-14" href="#__codelineno-4-14"></a>    <span class="k">def</span> <span class="nf">next</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<a id="__codelineno-4-15" name="__codelineno-4-15" href="#__codelineno-4-15"></a>        <span class="k">if</span> <span class="n">crossover</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ma1</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">ma2</span><span class="p">):</span>
+<a id="__codelineno-4-16" name="__codelineno-4-16" href="#__codelineno-4-16"></a>            <span class="bp">self</span><span class="o">.</span><span class="n">position</span><span class="p">()</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>                                     <span class="c1">#4</span>
+<a id="__codelineno-4-17" name="__codelineno-4-17" href="#__codelineno-4-17"></a>            <span class="bp">self</span><span class="o">.</span><span class="n">buy</span><span class="p">()</span>
+<a id="__codelineno-4-18" name="__codelineno-4-18" href="#__codelineno-4-18"></a>        <span class="k">elif</span> <span class="n">crossover</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ma2</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">ma1</span><span class="p">):</span>
+<a id="__codelineno-4-19" name="__codelineno-4-19" href="#__codelineno-4-19"></a>            <span class="bp">self</span><span class="o">.</span><span class="n">position</span><span class="p">()</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>                                     <span class="c1">#4</span>
+<a id="__codelineno-4-20" name="__codelineno-4-20" href="#__codelineno-4-20"></a>            <span class="bp">self</span><span class="o">.</span><span class="n">sell</span><span class="p">()</span>
+<a id="__codelineno-4-21" name="__codelineno-4-21" href="#__codelineno-4-21"></a>
+<a id="__codelineno-4-22" name="__codelineno-4-22" href="#__codelineno-4-22"></a>
+<a id="__codelineno-4-23" name="__codelineno-4-23" href="#__codelineno-4-23"></a><span class="n">bt</span> <span class="o">=</span> <span class="n">Backtest</span><span class="p">(</span><span class="n">GOOG</span><span class="p">,</span> <span class="n">SmaCross</span><span class="p">,</span> <span class="n">commission</span><span class="o">=</span><span class="mf">.001</span><span class="p">)</span>
+<a id="__codelineno-4-24" name="__codelineno-4-24" href="#__codelineno-4-24"></a><span class="n">stats</span> <span class="o">=</span> <span class="n">bt</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>
+<a id="__codelineno-4-25" name="__codelineno-4-25" href="#__codelineno-4-25"></a><span class="n">bt</span><span class="o">.</span><span class="n">plot</span><span class="p">()</span>
+</code></pre></div>
+<ol>
+<li>Change to import from minitrade modules. Generally <code class="language-python highlight"><span class="n">backtesting</span></code> becomes <code class="language-python highlight"><span class="n">minitrade</span><span class="o">.</span><span class="n">backtest</span><span class="o">.</span><span class="n">core</span></code>. Note that importing from <code class="language-python highlight"><span class="n">minitrade</span><span class="o">.</span><span class="n">backtest</span><span class="o">.</span><span class="n">core</span><span class="o">.</span><span class="n">test</span></code> is discouraged. <code class="language-python highlight"><span class="n">SMA</span></code> can be easily achieved using <code class="language-python highlight"><span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">Close</span><span class="o">.</span><span class="n">df</span><span class="o">.</span><span class="n">rolling</span><span class="p">(</span><span class="n">n</span><span class="p">)</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span></code> as shown in earlier example.</li>
+<li>To access the historical data as a Pandas Series or DataFrame, use <code class="language-python highlight"><span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">Close</span><span class="o">.</span><span class="n">df</span></code> instead of <code class="language-python highlight"><span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">Close</span></code>.</li>
+<li>Minitrade doesn't try to guess where to plot the indicators. So if you want to overlay the indicators on the main chart, set <code class="language-python highlight"><span class="n">overlay</span><span class="o">=</span><span class="kc">True</span></code> explicitly.</li>
+<li><code class="language-python highlight"><span class="n">Strategy</span><span class="o">.</span><span class="n">position</span></code> is no longer a property but a function. Any occurrence of <code class="language-python highlight"><span class="bp">self</span><span class="o">.</span><span class="n">position</span></code> should be changed to <code class="language-python highlight"><span class="bp">self</span><span class="o">.</span><span class="n">position</span><span class="p">()</span></code>. </li>
+</ol>
+<p>The plot generated by the above code will look like this:</p>
+<p><img alt="plot of single-asset strategy" src="https://imgur.com/N3E2d6m.jpg" /></p>
+<p>Beyond this simple example, there are other caveats you should be aware of. Check out <a href="../compatibility/">compatibility</a> for more details. Also some original utility functions and strategy classes only make sense for single asset strategy. Don't use those in multi-asset strategies.</p>
+<h2 id="multi-asset-strategy">Multi-Asset Strategy<a class="headerlink" href="#multi-asset-strategy" title="Permanent link">¤</a></h2>
+<p><code class="language-python highlight"><span class="n">Minitrade</span></code> extends <code class="language-python highlight"><span class="n">Backtesting</span><span class="o">.</span><span class="n">py</span></code> to support backtesting of multi-asset strategies. </p>
+<h3 id="data-input">Data Input<a class="headerlink" href="#data-input" title="Permanent link">¤</a></h3>
+<p>A multi-asset strategy requires a DataFrame with a 2-level column index as its data input. For instance, suppose you have a strategy aiming to invest in AAPL and GOOG as a portfolio. In this case, the <code class="language-python highlight"><span class="n">data</span></code> input to <code class="language-python highlight"><span class="n">Backtest</span><span class="p">()</span></code> should follow this format:</p>
+<div class="language-python highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="c1"># bt = Backtest(data, AaplGoogStrategy)</span>
+<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="c1"># print(data)</span>
+<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a>
+<a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a>          <span class="n">AAPL</span>                              <span class="n">GOOG</span> 
+<a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a>          <span class="n">Open</span>  <span class="n">High</span>  <span class="n">Low</span>   <span class="n">Close</span> <span class="n">Volume</span>    <span class="n">Open</span>  <span class="n">High</span>  <span class="n">Low</span>   <span class="n">Close</span> <span class="n">Volume</span>
+<a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a><span class="n">Date</span>          
+<a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a><span class="mi">2018</span><span class="o">-</span><span class="mi">01</span><span class="o">-</span><span class="mi">02</span> <span class="mf">40.39</span> <span class="mf">40.90</span> <span class="mf">40.18</span> <span class="mf">40.89</span> <span class="mi">102223600</span> <span class="mf">52.42</span> <span class="mf">53.35</span> <span class="mf">52.26</span> <span class="mf">53.25</span> <span class="mi">24752000</span>
+<a id="__codelineno-5-8" name="__codelineno-5-8" href="#__codelineno-5-8"></a><span class="mi">2018</span><span class="o">-</span><span class="mi">01</span><span class="o">-</span><span class="mi">03</span> <span class="mf">40.95</span> <span class="mf">41.43</span> <span class="mf">40.82</span> <span class="mf">40.88</span> <span class="mi">118071600</span> <span class="mf">53.22</span> <span class="mf">54.31</span> <span class="mf">53.16</span> <span class="mf">54.12</span> <span class="mi">28604000</span>
+<a id="__codelineno-5-9" name="__codelineno-5-9" href="#__codelineno-5-9"></a><span class="mi">2018</span><span class="o">-</span><span class="mi">01</span><span class="o">-</span><span class="mi">04</span> <span class="mf">40.95</span> <span class="mf">41.18</span> <span class="mf">40.85</span> <span class="mf">41.07</span> <span class="mi">89738400</span> <span class="mf">54.40</span> <span class="mf">54.68</span> <span class="mf">54.20</span> <span class="mf">54.32</span> <span class="mi">20092000</span>
+<a id="__codelineno-5-10" name="__codelineno-5-10" href="#__codelineno-5-10"></a><span class="mi">2018</span><span class="o">-</span><span class="mi">01</span><span class="o">-</span><span class="mi">05</span> <span class="mf">41.17</span> <span class="mf">41.63</span> <span class="mf">41.08</span> <span class="mf">41.54</span> <span class="mi">94640000</span> <span class="mf">54.70</span> <span class="mf">55.21</span> <span class="mf">54.60</span> <span class="mf">55.11</span> <span class="mi">25582000</span>
+<a id="__codelineno-5-11" name="__codelineno-5-11" href="#__codelineno-5-11"></a><span class="mi">2018</span><span class="o">-</span><span class="mi">01</span><span class="o">-</span><span class="mi">08</span> <span class="mf">41.38</span> <span class="mf">41.68</span> <span class="mf">41.28</span> <span class="mf">41.38</span> <span class="mi">82271200</span> <span class="mf">55.11</span> <span class="mf">55.56</span> <span class="mf">55.08</span> <span class="mf">55.35</span> <span class="mi">20952000</span>
+</code></pre></div>
+<p>As mentioned earlier, the historical data is accessed through the <code class="language-python highlight"><span class="bp">self</span><span class="o">.</span><span class="n">data</span></code> object.</p>
+<div class="language-python highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="c1"># When called from within Strategy.init()</span>
+<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>
+<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a><span class="c1"># self.data</span>
+<a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a><span class="o">&lt;</span><span class="n">Data</span> <span class="n">i</span><span class="o">=</span><span class="mi">4</span> <span class="p">(</span><span class="mi">2018</span><span class="o">-</span><span class="mi">01</span><span class="o">-</span><span class="mi">08</span><span class="p">)</span> <span class="p">(</span><span class="s1">&#39;AAPL&#39;</span><span class="p">,</span> <span class="s1">&#39;Open&#39;</span><span class="p">)</span><span class="o">=</span><span class="mf">41.38</span><span class="p">,</span> <span class="p">(</span><span class="s1">&#39;AAPL&#39;</span><span class="p">,</span> <span class="s1">&#39;High&#39;</span><span class="p">)</span><span class="o">=</span><span class="mf">41.68</span><span class="p">,</span> <span class="p">(</span><span class="s1">&#39;AAPL&#39;</span><span class="p">,</span> <span class="s1">&#39;Low&#39;</span><span class="p">)</span><span class="o">=</span><span class="mf">41.28</span><span class="p">,</span> <span class="p">(</span><span class="s1">&#39;AAPL&#39;</span><span class="p">,</span> <span class="s1">&#39;Close&#39;</span><span class="p">)</span><span class="o">=</span><span class="mf">41.38</span><span class="p">,</span> <span class="p">(</span><span class="s1">&#39;AAPL&#39;</span><span class="p">,</span> <span class="s1">&#39;Volume&#39;</span><span class="p">)</span><span class="o">=</span><span class="mf">82271200.0</span><span class="p">,</span> <span class="p">(</span><span class="s1">&#39;GOOG&#39;</span><span class="p">,</span> <span class="s1">&#39;Open&#39;</span><span class="p">)</span><span class="o">=</span><span class="mf">55.11</span><span class="p">,</span> <span class="p">(</span><span class="s1">&#39;GOOG&#39;</span><span class="p">,</span> <span class="s1">&#39;High&#39;</span><span class="p">)</span><span class="o">=</span><span class="mf">55.56</span><span class="p">,</span> <span class="p">(</span><span class="s1">&#39;GOOG&#39;</span><span class="p">,</span> <span class="s1">&#39;Low&#39;</span><span class="p">)</span><span class="o">=</span><span class="mf">55.08</span><span class="p">,</span> <span class="p">(</span><span class="s1">&#39;GOOG&#39;</span><span class="p">,</span> <span class="s1">&#39;Close&#39;</span><span class="p">)</span><span class="o">=</span><span class="mf">55.35</span><span class="p">,</span> <span class="p">(</span><span class="s1">&#39;GOOG&#39;</span><span class="p">,</span> <span class="s1">&#39;Volume&#39;</span><span class="p">)</span><span class="o">=</span><span class="mf">20952000.0</span><span class="o">&gt;</span>
+<a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a>
+<a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a><span class="c1"># self.data.df</span>
+<a id="__codelineno-6-7" name="__codelineno-6-7" href="#__codelineno-6-7"></a>          <span class="n">AAPL</span>                              <span class="n">GOOG</span> 
+<a id="__codelineno-6-8" name="__codelineno-6-8" href="#__codelineno-6-8"></a>          <span class="n">Open</span>  <span class="n">High</span>  <span class="n">Low</span>   <span class="n">Close</span> <span class="n">Volume</span>    <span class="n">Open</span>  <span class="n">High</span>  <span class="n">Low</span>   <span class="n">Close</span> <span class="n">Volume</span>
+<a id="__codelineno-6-9" name="__codelineno-6-9" href="#__codelineno-6-9"></a><span class="n">Date</span>          
+<a id="__codelineno-6-10" name="__codelineno-6-10" href="#__codelineno-6-10"></a><span class="mi">2018</span><span class="o">-</span><span class="mi">01</span><span class="o">-</span><span class="mi">02</span> <span class="mf">40.39</span> <span class="mf">40.90</span> <span class="mf">40.18</span> <span class="mf">40.89</span> <span class="mi">102223600</span> <span class="mf">52.42</span> <span class="mf">53.35</span> <span class="mf">52.26</span> <span class="mf">53.25</span> <span class="mi">24752000</span>
+<a id="__codelineno-6-11" name="__codelineno-6-11" href="#__codelineno-6-11"></a><span class="mi">2018</span><span class="o">-</span><span class="mi">01</span><span class="o">-</span><span class="mi">03</span> <span class="mf">40.95</span> <span class="mf">41.43</span> <span class="mf">40.82</span> <span class="mf">40.88</span> <span class="mi">118071600</span> <span class="mf">53.22</span> <span class="mf">54.31</span> <span class="mf">53.16</span> <span class="mf">54.12</span> <span class="mi">28604000</span>
+<a id="__codelineno-6-12" name="__codelineno-6-12" href="#__codelineno-6-12"></a><span class="mi">2018</span><span class="o">-</span><span class="mi">01</span><span class="o">-</span><span class="mi">04</span> <span class="mf">40.95</span> <span class="mf">41.18</span> <span class="mf">40.85</span> <span class="mf">41.07</span> <span class="mi">89738400</span> <span class="mf">54.40</span> <span class="mf">54.68</span> <span class="mf">54.20</span> <span class="mf">54.32</span> <span class="mi">20092000</span>
+<a id="__codelineno-6-13" name="__codelineno-6-13" href="#__codelineno-6-13"></a><span class="mi">2018</span><span class="o">-</span><span class="mi">01</span><span class="o">-</span><span class="mi">05</span> <span class="mf">41.17</span> <span class="mf">41.63</span> <span class="mf">41.08</span> <span class="mf">41.54</span> <span class="mi">94640000</span> <span class="mf">54.70</span> <span class="mf">55.21</span> <span class="mf">54.60</span> <span class="mf">55.11</span> <span class="mi">25582000</span>
+<a id="__codelineno-6-14" name="__codelineno-6-14" href="#__codelineno-6-14"></a><span class="mi">2018</span><span class="o">-</span><span class="mi">01</span><span class="o">-</span><span class="mi">08</span> <span class="mf">41.38</span> <span class="mf">41.68</span> <span class="mf">41.28</span> <span class="mf">41.38</span> <span class="mi">82271200</span> <span class="mf">55.11</span> <span class="mf">55.56</span> <span class="mf">55.08</span> <span class="mf">55.35</span> <span class="mi">20952000</span>
+</code></pre></div>
+<h3 id="pandas-ta-integration"><code class="language-python highlight"><span class="n">Pandas</span> <span class="n">TA</span></code> Integration<a class="headerlink" href="#pandas-ta-integration" title="Permanent link">¤</a></h3>
+<p>For streamlined indicator calculation, Minitrade has built-in integration with <a href="https://github.com/twopirllc/pandas-ta">pandas_ta</a>. Accessing <code class="language-python highlight"><span class="n">pandas_ta</span></code> is made easy through the <code class="language-python highlight"><span class="o">.</span><span class="n">ta</span></code> property of any DataFrame. Refer to the <a href="https://github.com/twopirllc/pandas-ta#pandas-ta-dataframe-extension">documentation</a> for usage instructions. Moreover, <code class="language-python highlight"><span class="o">.</span><span class="n">ta</span></code> has been augmented to fully support 2-level DataFrames.</p>
+<p>For example,</p>
+<div class="language-python highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="c1"># print(self.data.df.ta.sma(3))</span>
+<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>
+<a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a>                 <span class="n">AAPL</span>       <span class="n">GOOG</span>
+<a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a><span class="n">Date</span>                                            
+<a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a><span class="mi">2018</span><span class="o">-</span><span class="mi">01</span><span class="o">-</span><span class="mi">02</span>         <span class="n">NaN</span>        <span class="n">NaN</span>
+<a id="__codelineno-7-6" name="__codelineno-7-6" href="#__codelineno-7-6"></a><span class="mi">2018</span><span class="o">-</span><span class="mi">01</span><span class="o">-</span><span class="mi">03</span>         <span class="n">NaN</span>        <span class="n">NaN</span>
+<a id="__codelineno-7-7" name="__codelineno-7-7" href="#__codelineno-7-7"></a><span class="mi">2018</span><span class="o">-</span><span class="mi">01</span><span class="o">-</span><span class="mi">04</span>   <span class="mf">40.946616</span>  <span class="mf">53.898000</span>
+<a id="__codelineno-7-8" name="__codelineno-7-8" href="#__codelineno-7-8"></a><span class="mi">2018</span><span class="o">-</span><span class="mi">01</span><span class="o">-</span><span class="mi">05</span>   <span class="mf">41.163408</span>  <span class="mf">54.518500</span>
+<a id="__codelineno-7-9" name="__codelineno-7-9" href="#__codelineno-7-9"></a><span class="mi">2018</span><span class="o">-</span><span class="mi">01</span><span class="o">-</span><span class="mi">08</span>   <span class="mf">41.331144</span>  <span class="mf">54.926167</span>
+</code></pre></div>
+<p>As a shortcut, <code class="language-python highlight"><span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">ta</span><span class="o">.</span><span class="n">sma</span><span class="p">(</span><span class="mi">3</span><span class="p">)</span></code> works the same on <code class="language-python highlight"><span class="bp">self</span><span class="o">.</span><span class="n">data</span></code>.</p>
+<h3 id="indicators_1">Indicators<a class="headerlink" href="#indicators_1" title="Permanent link">¤</a></h3>
+<p><code class="language-python highlight"><span class="bp">self</span><span class="o">.</span><span class="n">I</span><span class="p">()</span></code> accepts both DataFrame/Series and functions as arguments to define an indicator. When a DataFrame/Series is provided, it's assumed to have the same index as <code class="language-python highlight"><span class="bp">self</span><span class="o">.</span><span class="n">data</span></code>. For instance,</p>
+<div class="language-text highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>self.sma = self.I(self.data.df.ta.sma(3), name=&#39;SMA_3&#39;)
+</code></pre></div>
+<p>Within <code class="language-python highlight"><span class="n">Strategy</span><span class="o">.</span><span class="n">next</span><span class="p">()</span></code>, indicators are returned as type <code class="language-python highlight"><span class="n">_Array</span></code>, essentially <code class="language-python highlight"><span class="n">numpy</span><span class="o">.</span><span class="n">ndarray</span></code>, similar to <code class="language-python highlight"><span class="n">Backtesting</span><span class="o">.</span><span class="n">py</span></code>. The <code class="language-python highlight"><span class="o">.</span><span class="n">df</span></code> accessor returns either a <code class="language-python highlight"><span class="n">DataFrame</span></code> or <code class="language-python highlight"><span class="n">Series</span></code> of the corresponding value. It's the caller's responsibility to know which exact type should be returned. The <code class="language-python highlight"><span class="o">.</span><span class="n">s</span></code> accessor is also available but serves only as syntactic sugar to return a <code class="language-python highlight"><span class="n">Series</span></code>. If the actual data is a DataFrame, <code class="language-python highlight"><span class="o">.</span><span class="n">s</span></code> throws a <code class="language-python highlight"><span class="ne">ValueError</span></code>.</p>
+<h3 id="weight-allocation">Weight Allocation<a class="headerlink" href="#weight-allocation" title="Permanent link">¤</a></h3>
+<p>A key addition to support multi-asset strategy is a <code class="language-python highlight"><span class="n">Strategy</span><span class="o">.</span><span class="n">alloc</span></code> attribute, which, combined with <code class="language-python highlight"><span class="n">Strategy</span><span class="o">.</span><span class="n">rebalance</span><span class="p">()</span></code>, allows specifying how portfolio value should be allocated among the different assets.</p>
+<p><code class="language-python highlight"><span class="n">Strategy</span><span class="o">.</span><span class="n">alloc</span></code> is an instance of <code class="language-python highlight"><span class="n">Allocation</span></code>. The <a href="../api_backtest/#minitrade.backtest.core.backtesting.Allocation">Allocation</a> class manages the allocation of values among different assets in a portfolio. It provides methods for creating and managing asset buckets, assigning weights to assets, and merging the weights into the parent allocation object, which is then used to rebalance the portfolio. </p>
+<h3 id="example">Example<a class="headerlink" href="#example" title="Permanent link">¤</a></h3>
+<div class="language-python highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="kn">from</span> <span class="nn">minitrade.backtest</span> <span class="kn">import</span> <span class="n">Strategy</span>
+<a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a>
+<a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a><span class="k">class</span> <span class="nc">MyStrategy</span><span class="p">(</span><span class="n">Strategy</span><span class="p">):</span>
+<a id="__codelineno-9-4" name="__codelineno-9-4" href="#__codelineno-9-4"></a>
+<a id="__codelineno-9-5" name="__codelineno-9-5" href="#__codelineno-9-5"></a>    <span class="n">lookback</span> <span class="o">=</span> <span class="mi">10</span>
+<a id="__codelineno-9-6" name="__codelineno-9-6" href="#__codelineno-9-6"></a>
+<a id="__codelineno-9-7" name="__codelineno-9-7" href="#__codelineno-9-7"></a>    <span class="k">def</span> <span class="nf">init</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<a id="__codelineno-9-8" name="__codelineno-9-8" href="#__codelineno-9-8"></a>        <span class="bp">self</span><span class="o">.</span><span class="n">roc</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">I</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">ta</span><span class="o">.</span><span class="n">roc</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">lookback</span><span class="p">),</span> <span class="n">name</span><span class="o">=</span><span class="s1">&#39;ROC&#39;</span><span class="p">)</span>     <span class="c1">#1</span>
+<a id="__codelineno-9-9" name="__codelineno-9-9" href="#__codelineno-9-9"></a>
+<a id="__codelineno-9-10" name="__codelineno-9-10" href="#__codelineno-9-10"></a>    <span class="k">def</span> <span class="nf">next</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<a id="__codelineno-9-11" name="__codelineno-9-11" href="#__codelineno-9-11"></a>        <span class="bp">self</span><span class="o">.</span><span class="n">alloc</span><span class="o">.</span><span class="n">assume_zero</span><span class="p">()</span>                                <span class="c1">#2</span>
+<a id="__codelineno-9-12" name="__codelineno-9-12" href="#__codelineno-9-12"></a>        <span class="n">roc</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">roc</span><span class="o">.</span><span class="n">df</span><span class="o">.</span><span class="n">iloc</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>                              <span class="c1">#3</span>
+<a id="__codelineno-9-13" name="__codelineno-9-13" href="#__codelineno-9-13"></a>        <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">alloc</span><span class="o">.</span><span class="n">bucket</span><span class="p">[</span><span class="s1">&#39;equity&#39;</span><span class="p">]</span>                            <span class="c1">#4</span>
+<a id="__codelineno-9-14" name="__codelineno-9-14" href="#__codelineno-9-14"></a>            <span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">roc</span><span class="o">.</span><span class="n">sort_values</span><span class="p">(</span><span class="n">ascending</span><span class="o">=</span><span class="kc">False</span><span class="p">),</span> <span class="n">roc</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">)</span>  <span class="c1">#5</span>
+<a id="__codelineno-9-15" name="__codelineno-9-15" href="#__codelineno-9-15"></a>            <span class="o">.</span><span class="n">trim</span><span class="p">(</span><span class="mi">3</span><span class="p">)</span>                                            <span class="c1">#6</span>
+<a id="__codelineno-9-16" name="__codelineno-9-16" href="#__codelineno-9-16"></a>            <span class="o">.</span><span class="n">weight_explicitly</span><span class="p">(</span><span class="mi">1</span><span class="o">/</span><span class="mi">3</span><span class="p">)</span>                             <span class="c1">#7</span>
+<a id="__codelineno-9-17" name="__codelineno-9-17" href="#__codelineno-9-17"></a>            <span class="o">.</span><span class="n">apply</span><span class="p">())</span>                                           <span class="c1">#8</span>
+<a id="__codelineno-9-18" name="__codelineno-9-18" href="#__codelineno-9-18"></a>        <span class="bp">self</span><span class="o">.</span><span class="n">rebalance</span><span class="p">(</span><span class="n">cash_reserve</span><span class="o">=</span><span class="mf">0.01</span><span class="p">)</span>                       <span class="c1">#9</span>
+</code></pre></div>
+<p>The above illustrates the general workflow of defining a multi-asset strategy:</p>
+<ol>
+<li>Calculate the indicator. It uses <code class="language-python highlight"><span class="o">.</span><span class="n">ta</span></code> accessor to calculate the rate of change of the close prices over a 10-day period, wraps the result in <code class="language-python highlight"><span class="n">I</span><span class="p">()</span></code> to create an indicator named <code class="language-python highlight"><span class="n">ROC</span></code>, and assigns it to <code class="language-python highlight"><span class="bp">self</span><span class="o">.</span><span class="n">roc</span></code>.</li>
+<li><code class="language-python highlight"><span class="bp">self</span><span class="o">.</span><span class="n">alloc</span><span class="o">.</span><span class="n">assume_zero</span><span class="p">()</span></code> resets the weight allocation to zero at the beginning of each <code class="language-python highlight"><span class="nb">next</span><span class="p">()</span></code> call.</li>
+<li>Get the latest ROC value from the <code class="language-python highlight"><span class="bp">self</span><span class="o">.</span><span class="n">roc</span></code> indicator and assign it to <code class="language-python highlight"><span class="n">roc</span></code>.</li>
+<li>Create a new bucket named <code class="language-python highlight"><span class="n">equity</span></code> in the allocation object.</li>
+<li>Add stocks with positive ROC, ranking in descending order, to the <code class="language-python highlight"><span class="n">equity</span></code> bucket.</li>
+<li>Trim the <code class="language-python highlight"><span class="n">equity</span></code> bucket to contain a maximum of top 3 stocks.</li>
+<li>Allocate 1/3 of the portfolio value to each stock in the <code class="language-python highlight"><span class="n">equity</span></code> bucket.</li>
+<li>Apply the weight allocation to the portfolio.</li>
+<li>Rebalance the portfolio based on the current allocation.</li>
+</ol>
+<h2 id="data-source">Data Source<a class="headerlink" href="#data-source" title="Permanent link">¤</a></h2>
+<p><code class="language-python highlight"><span class="n">Minitrade</span></code> provides built-in data sources to fetch historical quotes from Yahoo Finance and others. The data source can be instantiated by name:</p>
+<div class="language-python highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a><span class="kn">from</span> <span class="nn">minitrade.datasource</span> <span class="kn">import</span> <span class="n">QuoteSource</span>
+<a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a>
+<a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a><span class="n">yahoo</span> <span class="o">=</span> <span class="n">QuoteSource</span><span class="o">.</span><span class="n">get_source</span><span class="p">(</span><span class="s1">&#39;Yahoo&#39;</span><span class="p">)</span>
+<a id="__codelineno-10-4" name="__codelineno-10-4" href="#__codelineno-10-4"></a><span class="n">data</span> <span class="o">=</span> <span class="n">yahoo</span><span class="o">.</span><span class="n">daily_bar</span><span class="p">(</span><span class="s1">&#39;AAPL&#39;</span><span class="p">,</span> <span class="n">start</span><span class="o">=</span><span class="s1">&#39;2018-01-01&#39;</span><span class="p">,</span> <span class="n">end</span><span class="o">=</span><span class="s1">&#39;2019-01-01&#39;</span><span class="p">)</span>
+</code></pre></div>
+<p>The <code class="language-python highlight"><span class="n">daily_bar</span><span class="p">()</span></code> method returns a DataFrame with the following format:</p>
+<div class="language-python highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a>            <span class="n">AAPL</span>                                
+<a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a>            <span class="n">Open</span>   <span class="n">High</span>    <span class="n">Low</span>  <span class="n">Close</span>     <span class="n">Volume</span>
+<a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a><span class="n">Date</span>
+<a id="__codelineno-11-4" name="__codelineno-11-4" href="#__codelineno-11-4"></a><span class="mi">2018</span><span class="o">-</span><span class="mi">01</span><span class="o">-</span><span class="mi">02</span>  <span class="mf">40.28</span>  <span class="mf">40.79</span>  <span class="mf">40.07</span>  <span class="mf">40.78</span>  <span class="mi">102223600</span>
+<a id="__codelineno-11-5" name="__codelineno-11-5" href="#__codelineno-11-5"></a><span class="mi">2018</span><span class="o">-</span><span class="mi">01</span><span class="o">-</span><span class="mi">03</span>  <span class="mf">40.84</span>  <span class="mf">41.32</span>  <span class="mf">40.71</span>  <span class="mf">40.77</span>  <span class="mi">118071600</span>
+<a id="__codelineno-11-6" name="__codelineno-11-6" href="#__codelineno-11-6"></a><span class="mi">2018</span><span class="o">-</span><span class="mi">01</span><span class="o">-</span><span class="mi">04</span>  <span class="mf">40.84</span>  <span class="mf">41.06</span>  <span class="mf">40.73</span>  <span class="mf">40.96</span>   <span class="mi">89738400</span>
+<a id="__codelineno-11-7" name="__codelineno-11-7" href="#__codelineno-11-7"></a><span class="mi">2018</span><span class="o">-</span><span class="mi">01</span><span class="o">-</span><span class="mi">05</span>  <span class="mf">41.06</span>  <span class="mf">41.51</span>  <span class="mf">40.96</span>  <span class="mf">41.43</span>   <span class="mi">94640000</span>
+<a id="__codelineno-11-8" name="__codelineno-11-8" href="#__codelineno-11-8"></a><span class="mi">2018</span><span class="o">-</span><span class="mi">01</span><span class="o">-</span><span class="mi">08</span>  <span class="mf">41.27</span>  <span class="mf">41.57</span>  <span class="mf">41.17</span>  <span class="mf">41.27</span>   <span class="mi">82271200</span>
+<a id="__codelineno-11-9" name="__codelineno-11-9" href="#__codelineno-11-9"></a><span class="o">...</span>                          <span class="o">...</span>    <span class="o">...</span>    <span class="o">...</span>    <span class="o">...</span>        <span class="o">...</span>
+</code></pre></div>
+<p>The data source can also fetch historical quotes for multiple stocks at once. </p>
+<div class="language-python highlight"><pre><span></span><code><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a><span class="n">data</span> <span class="o">=</span> <span class="n">yahoo</span><span class="o">.</span><span class="n">daily_bar</span><span class="p">([</span><span class="s1">&#39;AAPL&#39;</span><span class="p">,</span> <span class="s1">&#39;GOOG&#39;</span><span class="p">],</span> <span class="n">start</span><span class="o">=</span><span class="s1">&#39;2018-01-01&#39;</span><span class="p">,</span> <span class="n">end</span><span class="o">=</span><span class="s1">&#39;2019-01-01&#39;</span><span class="p">)</span>
+</code></pre></div>
+<p>It returns a DataFrame with a 2-level column index as required for multi-asset strategies:</p>
+<div class="language-python highlight"><pre><span></span><code><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a>          <span class="n">AAPL</span>                              <span class="n">GOOG</span> 
+<a id="__codelineno-13-2" name="__codelineno-13-2" href="#__codelineno-13-2"></a>          <span class="n">Open</span>  <span class="n">High</span>  <span class="n">Low</span>   <span class="n">Close</span> <span class="n">Volume</span>    <span class="n">Open</span>  <span class="n">High</span>  <span class="n">Low</span>   <span class="n">Close</span> <span class="n">Volume</span>
+<a id="__codelineno-13-3" name="__codelineno-13-3" href="#__codelineno-13-3"></a><span class="n">Date</span>
+<a id="__codelineno-13-4" name="__codelineno-13-4" href="#__codelineno-13-4"></a><span class="mi">2018</span><span class="o">-</span><span class="mi">01</span><span class="o">-</span><span class="mi">02</span> <span class="mf">40.39</span> <span class="mf">40.90</span> <span class="mf">40.18</span> <span class="mf">40.89</span> <span class="mi">102223600</span> <span class="mf">52.42</span> <span class="mf">53.35</span> <span class="mf">52.26</span> <span class="mf">53.25</span> <span class="mi">24752000</span>
+<a id="__codelineno-13-5" name="__codelineno-13-5" href="#__codelineno-13-5"></a><span class="mi">2018</span><span class="o">-</span><span class="mi">01</span><span class="o">-</span><span class="mi">03</span> <span class="mf">40.95</span> <span class="mf">41.43</span> <span class="mf">40.82</span> <span class="mf">40.88</span> <span class="mi">118071600</span> <span class="mf">53.22</span> <span class="mf">54.31</span> <span class="mf">53.16</span> <span class="mf">54.12</span> <span class="mi">28604000</span>
+<a id="__codelineno-13-6" name="__codelineno-13-6" href="#__codelineno-13-6"></a><span class="mi">2018</span><span class="o">-</span><span class="mi">01</span><span class="o">-</span><span class="mi">04</span> <span class="mf">40.95</span> <span class="mf">41.18</span> <span class="mf">40.85</span> <span class="mf">41.07</span> <span class="mi">89738400</span> <span class="mf">54.40</span> <span class="mf">54.68</span> <span class="mf">54.20</span> <span class="mf">54.32</span> <span class="mi">20092000</span>
+<a id="__codelineno-13-7" name="__codelineno-13-7" href="#__codelineno-13-7"></a><span class="mi">2018</span><span class="o">-</span><span class="mi">01</span><span class="o">-</span><span class="mi">05</span> <span class="mf">41.17</span> <span class="mf">41.63</span> <span class="mf">41.08</span> <span class="mf">41.54</span> <span class="mi">94640000</span> <span class="mf">54.70</span> <span class="mf">55.21</span> <span class="mf">54.60</span> <span class="mf">55.11</span> <span class="mi">25582000</span>
+<a id="__codelineno-13-8" name="__codelineno-13-8" href="#__codelineno-13-8"></a><span class="mi">2018</span><span class="o">-</span><span class="mi">01</span><span class="o">-</span><span class="mi">08</span> <span class="mf">41.38</span> <span class="mf">41.68</span> <span class="mf">41.28</span> <span class="mf">41.38</span> <span class="mi">82271200</span> <span class="mf">55.11</span> <span class="mf">55.56</span> <span class="mf">55.08</span> <span class="mf">55.35</span> <span class="mi">20952000</span>
+<a id="__codelineno-13-9" name="__codelineno-13-9" href="#__codelineno-13-9"></a><span class="o">...</span>                          <span class="o">...</span>    <span class="o">...</span>    <span class="o">...</span>    <span class="o">...</span>        <span class="o">...</span>
+</code></pre></div>
+<h2 id="revisit-selfdata">Revisit <code class="language-python highlight"><span class="bp">self</span><span class="o">.</span><span class="n">data</span></code><a class="headerlink" href="#revisit-selfdata" title="Permanent link">¤</a></h2>
+<p>Much of writing a strategy involves manipulating the historical data. <code class="language-python highlight"><span class="bp">self</span><span class="o">.</span><span class="n">data</span></code> is a key object that provides access to the historical data. It's an instance of <code class="language-python highlight"><span class="n">_Data</span></code>, which is a wrapper around the DataFrame that supports revealing data progressively
+to prevent look-ahead bias.</p>
+<h3 id="multiple-assets">Multiple Assets<a class="headerlink" href="#multiple-assets" title="Permanent link">¤</a></h3>
+<p>Suppose the following data is used to backtest a multi-asset strategy. </p>
+<div class="language-python highlight"><pre><span></span><code><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a>          <span class="n">AAPL</span>                              <span class="n">GOOG</span> 
+<a id="__codelineno-14-2" name="__codelineno-14-2" href="#__codelineno-14-2"></a>          <span class="n">Open</span>  <span class="n">High</span>  <span class="n">Low</span>   <span class="n">Close</span> <span class="n">Volume</span>    <span class="n">Open</span>  <span class="n">High</span>  <span class="n">Low</span>   <span class="n">Close</span> <span class="n">Volume</span>
+<a id="__codelineno-14-3" name="__codelineno-14-3" href="#__codelineno-14-3"></a><span class="n">Date</span>
+<a id="__codelineno-14-4" name="__codelineno-14-4" href="#__codelineno-14-4"></a><span class="mi">2018</span><span class="o">-</span><span class="mi">01</span><span class="o">-</span><span class="mi">02</span> <span class="mf">40.39</span> <span class="mf">40.90</span> <span class="mf">40.18</span> <span class="mf">40.89</span> <span class="mi">102223600</span> <span class="mf">52.42</span> <span class="mf">53.35</span> <span class="mf">52.26</span> <span class="mf">53.25</span> <span class="mi">24752000</span>
+<a id="__codelineno-14-5" name="__codelineno-14-5" href="#__codelineno-14-5"></a><span class="mi">2018</span><span class="o">-</span><span class="mi">01</span><span class="o">-</span><span class="mi">03</span> <span class="mf">40.95</span> <span class="mf">41.43</span> <span class="mf">40.82</span> <span class="mf">40.88</span> <span class="mi">118071600</span> <span class="mf">53.22</span> <span class="mf">54.31</span> <span class="mf">53.16</span> <span class="mf">54.12</span> <span class="mi">28604000</span>
+<a id="__codelineno-14-6" name="__codelineno-14-6" href="#__codelineno-14-6"></a><span class="mi">2018</span><span class="o">-</span><span class="mi">01</span><span class="o">-</span><span class="mi">04</span> <span class="mf">40.95</span> <span class="mf">41.18</span> <span class="mf">40.85</span> <span class="mf">41.07</span> <span class="mi">89738400</span> <span class="mf">54.40</span> <span class="mf">54.68</span> <span class="mf">54.20</span> <span class="mf">54.32</span> <span class="mi">20092000</span>
+<a id="__codelineno-14-7" name="__codelineno-14-7" href="#__codelineno-14-7"></a><span class="mi">2018</span><span class="o">-</span><span class="mi">01</span><span class="o">-</span><span class="mi">05</span> <span class="mf">41.17</span> <span class="mf">41.63</span> <span class="mf">41.08</span> <span class="mf">41.54</span> <span class="mi">94640000</span> <span class="mf">54.70</span> <span class="mf">55.21</span> <span class="mf">54.60</span> <span class="mf">55.11</span> <span class="mi">25582000</span>
+<a id="__codelineno-14-8" name="__codelineno-14-8" href="#__codelineno-14-8"></a><span class="mi">2018</span><span class="o">-</span><span class="mi">01</span><span class="o">-</span><span class="mi">08</span> <span class="mf">41.38</span> <span class="mf">41.68</span> <span class="mf">41.28</span> <span class="mf">41.38</span> <span class="mi">82271200</span> <span class="mf">55.11</span> <span class="mf">55.56</span> <span class="mf">55.08</span> <span class="mf">55.35</span> <span class="mi">20952000</span>
+</code></pre></div>
+<p>Let's see how <code class="language-python highlight"><span class="bp">self</span><span class="o">.</span><span class="n">data</span></code> can be used within the strategy:</p>
+<h4 id="strategyinit"><code class="language-python highlight"><span class="n">Strategy</span><span class="o">.</span><span class="n">init</span><span class="p">()</span></code><a class="headerlink" href="#strategyinit" title="Permanent link">¤</a></h4>
+<p>In the <code class="language-python highlight"><span class="n">init</span><span class="p">()</span></code> method, the full length of historical data is available. The following illustrates how to slice the data in different, sometimes equivalent, ways:</p>
+<div class="language-python highlight"><pre><span></span><code><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a><span class="c1"># self.data</span>
+<a id="__codelineno-15-2" name="__codelineno-15-2" href="#__codelineno-15-2"></a><span class="o">&lt;</span><span class="n">Data</span> <span class="n">i</span><span class="o">=</span><span class="mi">4</span> <span class="p">(</span><span class="mi">2018</span><span class="o">-</span><span class="mi">01</span><span class="o">-</span><span class="mi">08</span><span class="p">)</span> <span class="p">(</span><span class="s1">&#39;AAPL&#39;</span><span class="p">,</span> <span class="s1">&#39;Open&#39;</span><span class="p">)</span><span class="o">=</span><span class="mf">41.38</span><span class="p">,</span> <span class="p">(</span><span class="s1">&#39;AAPL&#39;</span><span class="p">,</span> <span class="s1">&#39;High&#39;</span><span class="p">)</span><span class="o">=</span><span class="mf">41.68</span><span class="p">,</span> <span class="p">(</span><span class="s1">&#39;AAPL&#39;</span><span class="p">,</span> <span class="s1">&#39;Low&#39;</span><span class="p">)</span><span class="o">=</span><span class="mf">41.28</span><span class="p">,</span> <span class="p">(</span><span class="s1">&#39;AAPL&#39;</span><span class="p">,</span> <span class="s1">&#39;Close&#39;</span><span class="p">)</span><span class="o">=</span><span class="mf">41.38</span><span class="p">,</span> <span class="p">(</span><span class="s1">&#39;AAPL&#39;</span><span class="p">,</span> <span class="s1">&#39;Volume&#39;</span><span class="p">)</span><span class="o">=</span><span class="mf">82271200.0</span><span class="p">,</span> <span class="p">(</span><span class="s1">&#39;GOOG&#39;</span><span class="p">,</span> <span class="s1">&#39;Open&#39;</span><span class="p">)</span><span class="o">=</span><span class="mf">55.11</span><span class="p">,</span> <span class="p">(</span><span class="s1">&#39;GOOG&#39;</span><span class="p">,</span> <span class="s1">&#39;High&#39;</span><span class="p">)</span><span class="o">=</span><span class="mf">55.56</span><span class="p">,</span> <span class="p">(</span><span class="s1">&#39;GOOG&#39;</span><span class="p">,</span> <span class="s1">&#39;Low&#39;</span><span class="p">)</span><span class="o">=</span><span class="mf">55.08</span><span class="p">,</span> <span class="p">(</span><span class="s1">&#39;GOOG&#39;</span><span class="p">,</span> <span class="s1">&#39;Close&#39;</span><span class="p">)</span><span class="o">=</span><span class="mf">55.35</span><span class="p">,</span> <span class="p">(</span><span class="s1">&#39;GOOG&#39;</span><span class="p">,</span> <span class="s1">&#39;Volume&#39;</span><span class="p">)</span><span class="o">=</span><span class="mf">20952000.0</span><span class="o">&gt;</span>
+<a id="__codelineno-15-3" name="__codelineno-15-3" href="#__codelineno-15-3"></a>
+<a id="__codelineno-15-4" name="__codelineno-15-4" href="#__codelineno-15-4"></a><span class="c1"># self.data.df</span>
+<a id="__codelineno-15-5" name="__codelineno-15-5" href="#__codelineno-15-5"></a>          <span class="n">AAPL</span>                              <span class="n">GOOG</span> 
+<a id="__codelineno-15-6" name="__codelineno-15-6" href="#__codelineno-15-6"></a>          <span class="n">Open</span>  <span class="n">High</span>  <span class="n">Low</span>   <span class="n">Close</span> <span class="n">Volume</span>    <span class="n">Open</span>  <span class="n">High</span>  <span class="n">Low</span>   <span class="n">Close</span> <span class="n">Volume</span>
+<a id="__codelineno-15-7" name="__codelineno-15-7" href="#__codelineno-15-7"></a><span class="n">Date</span>          
+<a id="__codelineno-15-8" name="__codelineno-15-8" href="#__codelineno-15-8"></a><span class="mi">2018</span><span class="o">-</span><span class="mi">01</span><span class="o">-</span><span class="mi">02</span> <span class="mf">40.39</span> <span class="mf">40.90</span> <span class="mf">40.18</span> <span class="mf">40.89</span> <span class="mi">102223600</span> <span class="mf">52.42</span> <span class="mf">53.35</span> <span class="mf">52.26</span> <span class="mf">53.25</span> <span class="mi">24752000</span>
+<a id="__codelineno-15-9" name="__codelineno-15-9" href="#__codelineno-15-9"></a><span class="mi">2018</span><span class="o">-</span><span class="mi">01</span><span class="o">-</span><span class="mi">03</span> <span class="mf">40.95</span> <span class="mf">41.43</span> <span class="mf">40.82</span> <span class="mf">40.88</span> <span class="mi">118071600</span> <span class="mf">53.22</span> <span class="mf">54.31</span> <span class="mf">53.16</span> <span class="mf">54.12</span> <span class="mi">28604000</span>
+<a id="__codelineno-15-10" name="__codelineno-15-10" href="#__codelineno-15-10"></a><span class="mi">2018</span><span class="o">-</span><span class="mi">01</span><span class="o">-</span><span class="mi">04</span> <span class="mf">40.95</span> <span class="mf">41.18</span> <span class="mf">40.85</span> <span class="mf">41.07</span> <span class="mi">89738400</span> <span class="mf">54.40</span> <span class="mf">54.68</span> <span class="mf">54.20</span> <span class="mf">54.32</span> <span class="mi">20092000</span>
+<a id="__codelineno-15-11" name="__codelineno-15-11" href="#__codelineno-15-11"></a><span class="mi">2018</span><span class="o">-</span><span class="mi">01</span><span class="o">-</span><span class="mi">05</span> <span class="mf">41.17</span> <span class="mf">41.63</span> <span class="mf">41.08</span> <span class="mf">41.54</span> <span class="mi">94640000</span> <span class="mf">54.70</span> <span class="mf">55.21</span> <span class="mf">54.60</span> <span class="mf">55.11</span> <span class="mi">25582000</span>
+<a id="__codelineno-15-12" name="__codelineno-15-12" href="#__codelineno-15-12"></a><span class="mi">2018</span><span class="o">-</span><span class="mi">01</span><span class="o">-</span><span class="mi">08</span> <span class="mf">41.38</span> <span class="mf">41.68</span> <span class="mf">41.28</span> <span class="mf">41.38</span> <span class="mi">82271200</span> <span class="mf">55.11</span> <span class="mf">55.56</span> <span class="mf">55.08</span> <span class="mf">55.35</span> <span class="mi">20952000</span>
+<a id="__codelineno-15-13" name="__codelineno-15-13" href="#__codelineno-15-13"></a>
+<a id="__codelineno-15-14" name="__codelineno-15-14" href="#__codelineno-15-14"></a><span class="c1"># self.data.Close</span>
+<a id="__codelineno-15-15" name="__codelineno-15-15" href="#__codelineno-15-15"></a><span class="p">[[</span><span class="mf">40.89</span> <span class="mf">53.25</span><span class="p">]</span>
+<a id="__codelineno-15-16" name="__codelineno-15-16" href="#__codelineno-15-16"></a> <span class="p">[</span><span class="mf">40.88</span> <span class="mf">54.12</span><span class="p">]</span>
+<a id="__codelineno-15-17" name="__codelineno-15-17" href="#__codelineno-15-17"></a> <span class="p">[</span><span class="mf">41.07</span> <span class="mf">54.32</span><span class="p">]</span>
+<a id="__codelineno-15-18" name="__codelineno-15-18" href="#__codelineno-15-18"></a> <span class="p">[</span><span class="mf">41.54</span> <span class="mf">55.11</span><span class="p">]</span>
+<a id="__codelineno-15-19" name="__codelineno-15-19" href="#__codelineno-15-19"></a> <span class="p">[</span><span class="mf">41.38</span> <span class="mf">55.35</span><span class="p">]]</span>
+<a id="__codelineno-15-20" name="__codelineno-15-20" href="#__codelineno-15-20"></a>
+<a id="__codelineno-15-21" name="__codelineno-15-21" href="#__codelineno-15-21"></a><span class="c1"># self.data.Close.df</span>
+<a id="__codelineno-15-22" name="__codelineno-15-22" href="#__codelineno-15-22"></a>            <span class="n">AAPL</span>   <span class="n">GOOG</span>
+<a id="__codelineno-15-23" name="__codelineno-15-23" href="#__codelineno-15-23"></a><span class="n">Date</span>                                     
+<a id="__codelineno-15-24" name="__codelineno-15-24" href="#__codelineno-15-24"></a><span class="mi">2018</span><span class="o">-</span><span class="mi">01</span><span class="o">-</span><span class="mi">02</span>  <span class="mf">40.89</span>  <span class="mf">53.25</span>
+<a id="__codelineno-15-25" name="__codelineno-15-25" href="#__codelineno-15-25"></a><span class="mi">2018</span><span class="o">-</span><span class="mi">01</span><span class="o">-</span><span class="mi">03</span>  <span class="mf">40.88</span>  <span class="mf">54.12</span>
+<a id="__codelineno-15-26" name="__codelineno-15-26" href="#__codelineno-15-26"></a><span class="mi">2018</span><span class="o">-</span><span class="mi">01</span><span class="o">-</span><span class="mi">04</span>  <span class="mf">41.07</span>  <span class="mf">54.32</span>
+<a id="__codelineno-15-27" name="__codelineno-15-27" href="#__codelineno-15-27"></a><span class="mi">2018</span><span class="o">-</span><span class="mi">01</span><span class="o">-</span><span class="mi">05</span>  <span class="mf">41.54</span>  <span class="mf">55.11</span>
+<a id="__codelineno-15-28" name="__codelineno-15-28" href="#__codelineno-15-28"></a><span class="mi">2018</span><span class="o">-</span><span class="mi">01</span><span class="o">-</span><span class="mi">08</span>  <span class="mf">41.38</span>  <span class="mf">55.35</span>
+<a id="__codelineno-15-29" name="__codelineno-15-29" href="#__codelineno-15-29"></a>
+<a id="__codelineno-15-30" name="__codelineno-15-30" href="#__codelineno-15-30"></a><span class="c1"># self.data.df.xs(&quot;Close&quot;, axis=1, level=1)</span>
+<a id="__codelineno-15-31" name="__codelineno-15-31" href="#__codelineno-15-31"></a>            <span class="n">AAPL</span>   <span class="n">GOOG</span>
+<a id="__codelineno-15-32" name="__codelineno-15-32" href="#__codelineno-15-32"></a><span class="n">Date</span>                                     
+<a id="__codelineno-15-33" name="__codelineno-15-33" href="#__codelineno-15-33"></a><span class="mi">2018</span><span class="o">-</span><span class="mi">01</span><span class="o">-</span><span class="mi">02</span>  <span class="mf">40.89</span>  <span class="mf">53.25</span>
+<a id="__codelineno-15-34" name="__codelineno-15-34" href="#__codelineno-15-34"></a><span class="mi">2018</span><span class="o">-</span><span class="mi">01</span><span class="o">-</span><span class="mi">03</span>  <span class="mf">40.88</span>  <span class="mf">54.12</span>
+<a id="__codelineno-15-35" name="__codelineno-15-35" href="#__codelineno-15-35"></a><span class="mi">2018</span><span class="o">-</span><span class="mi">01</span><span class="o">-</span><span class="mi">04</span>  <span class="mf">41.07</span>  <span class="mf">54.32</span>
+<a id="__codelineno-15-36" name="__codelineno-15-36" href="#__codelineno-15-36"></a><span class="mi">2018</span><span class="o">-</span><span class="mi">01</span><span class="o">-</span><span class="mi">05</span>  <span class="mf">41.54</span>  <span class="mf">55.11</span>
+<a id="__codelineno-15-37" name="__codelineno-15-37" href="#__codelineno-15-37"></a><span class="mi">2018</span><span class="o">-</span><span class="mi">01</span><span class="o">-</span><span class="mi">08</span>  <span class="mf">41.38</span>  <span class="mf">55.35</span>
+<a id="__codelineno-15-38" name="__codelineno-15-38" href="#__codelineno-15-38"></a>
+<a id="__codelineno-15-39" name="__codelineno-15-39" href="#__codelineno-15-39"></a><span class="c1"># self.data.Close[-1]</span>
+<a id="__codelineno-15-40" name="__codelineno-15-40" href="#__codelineno-15-40"></a><span class="p">[</span><span class="mf">41.38</span> <span class="mf">55.35</span><span class="p">]</span>
+<a id="__codelineno-15-41" name="__codelineno-15-41" href="#__codelineno-15-41"></a>
+<a id="__codelineno-15-42" name="__codelineno-15-42" href="#__codelineno-15-42"></a><span class="c1"># self.data.Close.df.iloc[-1]</span>
+<a id="__codelineno-15-43" name="__codelineno-15-43" href="#__codelineno-15-43"></a><span class="n">AAPL</span>    <span class="mf">41.38</span>
+<a id="__codelineno-15-44" name="__codelineno-15-44" href="#__codelineno-15-44"></a><span class="n">GOOG</span>    <span class="mf">55.35</span>
+<a id="__codelineno-15-45" name="__codelineno-15-45" href="#__codelineno-15-45"></a><span class="n">Name</span><span class="p">:</span> <span class="mi">2018</span><span class="o">-</span><span class="mi">01</span><span class="o">-</span><span class="mi">08</span><span class="p">,</span> <span class="n">dtype</span><span class="p">:</span> <span class="n">float64</span>
+<a id="__codelineno-15-46" name="__codelineno-15-46" href="#__codelineno-15-46"></a>
+<a id="__codelineno-15-47" name="__codelineno-15-47" href="#__codelineno-15-47"></a><span class="c1"># self.data[&quot;AAPL&quot;]</span>
+<a id="__codelineno-15-48" name="__codelineno-15-48" href="#__codelineno-15-48"></a><span class="p">[[</span><span class="mf">4.039000e+01</span> <span class="mf">4.090000e+01</span> <span class="mf">4.018000e+01</span> <span class="mf">4.089000e+01</span> <span class="mf">1.022236e+08</span><span class="p">]</span>
+<a id="__codelineno-15-49" name="__codelineno-15-49" href="#__codelineno-15-49"></a> <span class="p">[</span><span class="mf">4.095000e+01</span> <span class="mf">4.143000e+01</span> <span class="mf">4.082000e+01</span> <span class="mf">4.088000e+01</span> <span class="mf">1.180716e+08</span><span class="p">]</span>
+<a id="__codelineno-15-50" name="__codelineno-15-50" href="#__codelineno-15-50"></a> <span class="p">[</span><span class="mf">4.095000e+01</span> <span class="mf">4.118000e+01</span> <span class="mf">4.085000e+01</span> <span class="mf">4.107000e+01</span> <span class="mf">8.973840e+07</span><span class="p">]</span>
+<a id="__codelineno-15-51" name="__codelineno-15-51" href="#__codelineno-15-51"></a> <span class="p">[</span><span class="mf">4.117000e+01</span> <span class="mf">4.163000e+01</span> <span class="mf">4.108000e+01</span> <span class="mf">4.154000e+01</span> <span class="mf">9.464000e+07</span><span class="p">]</span>
+<a id="__codelineno-15-52" name="__codelineno-15-52" href="#__codelineno-15-52"></a> <span class="p">[</span><span class="mf">4.138000e+01</span> <span class="mf">4.168000e+01</span> <span class="mf">4.128000e+01</span> <span class="mf">4.138000e+01</span> <span class="mf">8.227120e+07</span><span class="p">]]</span>
+<a id="__codelineno-15-53" name="__codelineno-15-53" href="#__codelineno-15-53"></a>
+<a id="__codelineno-15-54" name="__codelineno-15-54" href="#__codelineno-15-54"></a><span class="c1"># self.data[&quot;AAPL&quot;].df</span>
+<a id="__codelineno-15-55" name="__codelineno-15-55" href="#__codelineno-15-55"></a>            <span class="n">Open</span>   <span class="n">High</span>    <span class="n">Low</span>  <span class="n">Close</span>     <span class="n">Volume</span>
+<a id="__codelineno-15-56" name="__codelineno-15-56" href="#__codelineno-15-56"></a><span class="n">Date</span>                                                              
+<a id="__codelineno-15-57" name="__codelineno-15-57" href="#__codelineno-15-57"></a><span class="mi">2018</span><span class="o">-</span><span class="mi">01</span><span class="o">-</span><span class="mi">02</span>  <span class="mf">40.39</span>  <span class="mf">40.90</span>  <span class="mf">40.18</span>  <span class="mf">40.89</span>  <span class="mi">102223600</span>
+<a id="__codelineno-15-58" name="__codelineno-15-58" href="#__codelineno-15-58"></a><span class="mi">2018</span><span class="o">-</span><span class="mi">01</span><span class="o">-</span><span class="mi">03</span>  <span class="mf">40.95</span>  <span class="mf">41.43</span>  <span class="mf">40.82</span>  <span class="mf">40.88</span>  <span class="mi">118071600</span>
+<a id="__codelineno-15-59" name="__codelineno-15-59" href="#__codelineno-15-59"></a><span class="mi">2018</span><span class="o">-</span><span class="mi">01</span><span class="o">-</span><span class="mi">04</span>  <span class="mf">40.95</span>  <span class="mf">41.18</span>  <span class="mf">40.85</span>  <span class="mf">41.07</span>   <span class="mi">89738400</span>
+<a id="__codelineno-15-60" name="__codelineno-15-60" href="#__codelineno-15-60"></a><span class="mi">2018</span><span class="o">-</span><span class="mi">01</span><span class="o">-</span><span class="mi">05</span>  <span class="mf">41.17</span>  <span class="mf">41.63</span>  <span class="mf">41.08</span>  <span class="mf">41.54</span>   <span class="mi">94640000</span>
+<a id="__codelineno-15-61" name="__codelineno-15-61" href="#__codelineno-15-61"></a><span class="mi">2018</span><span class="o">-</span><span class="mi">01</span><span class="o">-</span><span class="mi">08</span>  <span class="mf">41.38</span>  <span class="mf">41.68</span>  <span class="mf">41.28</span>  <span class="mf">41.38</span>   <span class="mi">82271200</span>
+<a id="__codelineno-15-62" name="__codelineno-15-62" href="#__codelineno-15-62"></a>
+<a id="__codelineno-15-63" name="__codelineno-15-63" href="#__codelineno-15-63"></a><span class="c1"># self.data.df[&quot;AAPL&quot;]</span>
+<a id="__codelineno-15-64" name="__codelineno-15-64" href="#__codelineno-15-64"></a>            <span class="n">Open</span>   <span class="n">High</span>    <span class="n">Low</span>  <span class="n">Close</span>     <span class="n">Volume</span>
+<a id="__codelineno-15-65" name="__codelineno-15-65" href="#__codelineno-15-65"></a><span class="n">Date</span>                                                              
+<a id="__codelineno-15-66" name="__codelineno-15-66" href="#__codelineno-15-66"></a><span class="mi">2018</span><span class="o">-</span><span class="mi">01</span><span class="o">-</span><span class="mi">02</span>  <span class="mf">40.39</span>  <span class="mf">40.90</span>  <span class="mf">40.18</span>  <span class="mf">40.89</span>  <span class="mi">102223600</span>
+<a id="__codelineno-15-67" name="__codelineno-15-67" href="#__codelineno-15-67"></a><span class="mi">2018</span><span class="o">-</span><span class="mi">01</span><span class="o">-</span><span class="mi">03</span>  <span class="mf">40.95</span>  <span class="mf">41.43</span>  <span class="mf">40.82</span>  <span class="mf">40.88</span>  <span class="mi">118071600</span>
+<a id="__codelineno-15-68" name="__codelineno-15-68" href="#__codelineno-15-68"></a><span class="mi">2018</span><span class="o">-</span><span class="mi">01</span><span class="o">-</span><span class="mi">04</span>  <span class="mf">40.95</span>  <span class="mf">41.18</span>  <span class="mf">40.85</span>  <span class="mf">41.07</span>   <span class="mi">89738400</span>
+<a id="__codelineno-15-69" name="__codelineno-15-69" href="#__codelineno-15-69"></a><span class="mi">2018</span><span class="o">-</span><span class="mi">01</span><span class="o">-</span><span class="mi">05</span>  <span class="mf">41.17</span>  <span class="mf">41.63</span>  <span class="mf">41.08</span>  <span class="mf">41.54</span>   <span class="mi">94640000</span>
+<a id="__codelineno-15-70" name="__codelineno-15-70" href="#__codelineno-15-70"></a><span class="mi">2018</span><span class="o">-</span><span class="mi">01</span><span class="o">-</span><span class="mi">08</span>  <span class="mf">41.38</span>  <span class="mf">41.68</span>  <span class="mf">41.28</span>  <span class="mf">41.38</span>   <span class="mi">82271200</span>
+<a id="__codelineno-15-71" name="__codelineno-15-71" href="#__codelineno-15-71"></a>
+<a id="__codelineno-15-72" name="__codelineno-15-72" href="#__codelineno-15-72"></a><span class="c1"># self.data[&quot;AAPL&quot;, &quot;Close&quot;]</span>
+<a id="__codelineno-15-73" name="__codelineno-15-73" href="#__codelineno-15-73"></a><span class="p">[</span><span class="mf">40.89</span> <span class="mf">40.88</span> <span class="mf">41.07</span> <span class="mf">41.54</span> <span class="mf">41.38</span><span class="p">]</span>
+<a id="__codelineno-15-74" name="__codelineno-15-74" href="#__codelineno-15-74"></a>
+<a id="__codelineno-15-75" name="__codelineno-15-75" href="#__codelineno-15-75"></a><span class="c1"># self.data[&quot;AAPL&quot;, &quot;Close&quot;].df</span>
+<a id="__codelineno-15-76" name="__codelineno-15-76" href="#__codelineno-15-76"></a><span class="n">Date</span>
+<a id="__codelineno-15-77" name="__codelineno-15-77" href="#__codelineno-15-77"></a><span class="mi">2018</span><span class="o">-</span><span class="mi">01</span><span class="o">-</span><span class="mi">02</span>    <span class="mf">40.89</span>
+<a id="__codelineno-15-78" name="__codelineno-15-78" href="#__codelineno-15-78"></a><span class="mi">2018</span><span class="o">-</span><span class="mi">01</span><span class="o">-</span><span class="mi">03</span>    <span class="mf">40.88</span>
+<a id="__codelineno-15-79" name="__codelineno-15-79" href="#__codelineno-15-79"></a><span class="mi">2018</span><span class="o">-</span><span class="mi">01</span><span class="o">-</span><span class="mi">04</span>    <span class="mf">41.07</span>
+<a id="__codelineno-15-80" name="__codelineno-15-80" href="#__codelineno-15-80"></a><span class="mi">2018</span><span class="o">-</span><span class="mi">01</span><span class="o">-</span><span class="mi">05</span>    <span class="mf">41.54</span>
+<a id="__codelineno-15-81" name="__codelineno-15-81" href="#__codelineno-15-81"></a><span class="mi">2018</span><span class="o">-</span><span class="mi">01</span><span class="o">-</span><span class="mi">08</span>    <span class="mf">41.38</span>
+<a id="__codelineno-15-82" name="__codelineno-15-82" href="#__codelineno-15-82"></a><span class="n">Name</span><span class="p">:</span> <span class="p">(</span><span class="n">AAPL</span><span class="p">,</span> <span class="n">Close</span><span class="p">),</span> <span class="n">dtype</span><span class="p">:</span> <span class="n">float64</span>
+<a id="__codelineno-15-83" name="__codelineno-15-83" href="#__codelineno-15-83"></a>
+<a id="__codelineno-15-84" name="__codelineno-15-84" href="#__codelineno-15-84"></a><span class="c1"># self.data.df[(&quot;AAPL&quot;,&quot;Close&quot;)]</span>
+<a id="__codelineno-15-85" name="__codelineno-15-85" href="#__codelineno-15-85"></a><span class="n">Date</span>
+<a id="__codelineno-15-86" name="__codelineno-15-86" href="#__codelineno-15-86"></a><span class="mi">2018</span><span class="o">-</span><span class="mi">01</span><span class="o">-</span><span class="mi">02</span>    <span class="mf">40.89</span>
+<a id="__codelineno-15-87" name="__codelineno-15-87" href="#__codelineno-15-87"></a><span class="mi">2018</span><span class="o">-</span><span class="mi">01</span><span class="o">-</span><span class="mi">03</span>    <span class="mf">40.88</span>
+<a id="__codelineno-15-88" name="__codelineno-15-88" href="#__codelineno-15-88"></a><span class="mi">2018</span><span class="o">-</span><span class="mi">01</span><span class="o">-</span><span class="mi">04</span>    <span class="mf">41.07</span>
+<a id="__codelineno-15-89" name="__codelineno-15-89" href="#__codelineno-15-89"></a><span class="mi">2018</span><span class="o">-</span><span class="mi">01</span><span class="o">-</span><span class="mi">05</span>    <span class="mf">41.54</span>
+<a id="__codelineno-15-90" name="__codelineno-15-90" href="#__codelineno-15-90"></a><span class="mi">2018</span><span class="o">-</span><span class="mi">01</span><span class="o">-</span><span class="mi">08</span>    <span class="mf">41.38</span>
+<a id="__codelineno-15-91" name="__codelineno-15-91" href="#__codelineno-15-91"></a><span class="n">Name</span><span class="p">:</span> <span class="p">(</span><span class="n">AAPL</span><span class="p">,</span> <span class="n">Close</span><span class="p">),</span> <span class="n">dtype</span><span class="p">:</span> <span class="n">float64</span>
+<a id="__codelineno-15-92" name="__codelineno-15-92" href="#__codelineno-15-92"></a>
+<a id="__codelineno-15-93" name="__codelineno-15-93" href="#__codelineno-15-93"></a><span class="c1"># self.data[&quot;AAPL&quot;, &quot;Close&quot;][-1]</span>
+<a id="__codelineno-15-94" name="__codelineno-15-94" href="#__codelineno-15-94"></a><span class="mf">41.38</span>
+<a id="__codelineno-15-95" name="__codelineno-15-95" href="#__codelineno-15-95"></a>
+<a id="__codelineno-15-96" name="__codelineno-15-96" href="#__codelineno-15-96"></a><span class="c1"># self.data[&quot;AAPL&quot;, &quot;Close&quot;].df[-1]</span>
+<a id="__codelineno-15-97" name="__codelineno-15-97" href="#__codelineno-15-97"></a><span class="mf">41.38</span>
+<a id="__codelineno-15-98" name="__codelineno-15-98" href="#__codelineno-15-98"></a>
+<a id="__codelineno-15-99" name="__codelineno-15-99" href="#__codelineno-15-99"></a><span class="c1"># self.data.df[(&quot;AAPL&quot;,&quot;Close&quot;)][-1]</span>
+<a id="__codelineno-15-100" name="__codelineno-15-100" href="#__codelineno-15-100"></a><span class="mf">41.38</span>
+</code></pre></div>
+<p>Since <code class="language-python highlight"><span class="n">Strategy</span><span class="o">.</span><span class="n">init</span><span class="p">()</span></code> is only called once, performance is generally not an issue. It's recommended to use <code class="language-python highlight"><span class="o">.</span><span class="n">df</span></code> property that return DataFrame to simplify further processing.</p>
+<p>Here are some other notable properties of <code class="language-python highlight"><span class="bp">self</span><span class="o">.</span><span class="n">data</span></code>:</p>
+<div class="language-python highlight"><pre><span></span><code><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a><span class="c1"># self.data.tickers</span>
+<a id="__codelineno-16-2" name="__codelineno-16-2" href="#__codelineno-16-2"></a><span class="p">[</span><span class="s1">&#39;AAPL&#39;</span><span class="p">,</span> <span class="s1">&#39;GOOG&#39;</span><span class="p">]</span>
+<a id="__codelineno-16-3" name="__codelineno-16-3" href="#__codelineno-16-3"></a>
+<a id="__codelineno-16-4" name="__codelineno-16-4" href="#__codelineno-16-4"></a><span class="c1"># self.data.index</span>
+<a id="__codelineno-16-5" name="__codelineno-16-5" href="#__codelineno-16-5"></a><span class="n">DatetimeIndex</span><span class="p">([</span><span class="s1">&#39;2018-01-02&#39;</span><span class="p">,</span> <span class="s1">&#39;2018-01-03&#39;</span><span class="p">,</span>
+<a id="__codelineno-16-6" name="__codelineno-16-6" href="#__codelineno-16-6"></a>               <span class="s1">&#39;2018-01-04&#39;</span><span class="p">,</span> <span class="s1">&#39;2018-01-05&#39;</span><span class="p">,</span>
+<a id="__codelineno-16-7" name="__codelineno-16-7" href="#__codelineno-16-7"></a>               <span class="s1">&#39;2018-01-08&#39;</span><span class="p">],</span>
+<a id="__codelineno-16-8" name="__codelineno-16-8" href="#__codelineno-16-8"></a>              <span class="n">dtype</span><span class="o">=</span><span class="s1">&#39;datetime64[ns]&#39;</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s1">&#39;Date&#39;</span><span class="p">,</span> <span class="n">freq</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span>
+</code></pre></div>
+<h4 id="strategynext">Strategy.next()<a class="headerlink" href="#strategynext" title="Permanent link">¤</a></h4>
+<p>In <code class="language-python highlight"><span class="n">Strategy</span><span class="o">.</span><span class="n">next</span><span class="p">()</span></code>, both <code class="language-python highlight"><span class="bp">self</span><span class="o">.</span><span class="n">data</span></code> and registered indicators are revealed progressively to prevent look-ahead bias. </p>
+<p>Since <code class="language-python highlight"><span class="n">Strategy</span><span class="o">.</span><span class="n">next</span><span class="p">()</span></code> is called for every bar in a backtest and optimizing a strategy may take many backtest runs, data indexing performance can be a concern in <code class="language-python highlight"><span class="n">Strategy</span><span class="o">.</span><span class="n">next</span><span class="p">()</span></code>. Therefore, indicators are returned as Numpy array by default, for example:</p>
+<div class="language-python highlight"><pre><span></span><code><a id="__codelineno-17-1" name="__codelineno-17-1" href="#__codelineno-17-1"></a><span class="c1"># self.sma at time step 4</span>
+<a id="__codelineno-17-2" name="__codelineno-17-2" href="#__codelineno-17-2"></a><span class="p">[[</span>        <span class="n">nan</span>         <span class="n">nan</span><span class="p">]</span>
+<a id="__codelineno-17-3" name="__codelineno-17-3" href="#__codelineno-17-3"></a> <span class="p">[</span>        <span class="n">nan</span>         <span class="n">nan</span><span class="p">]</span>
+<a id="__codelineno-17-4" name="__codelineno-17-4" href="#__codelineno-17-4"></a> <span class="p">[</span><span class="mf">40.94666667</span> <span class="mf">53.89666667</span><span class="p">]</span>
+<a id="__codelineno-17-5" name="__codelineno-17-5" href="#__codelineno-17-5"></a> <span class="p">[</span><span class="mf">41.16333333</span> <span class="mf">54.51666667</span><span class="p">]]</span>
+</code></pre></div>
+<p>To access the DataFrame version of indicators, use <code class="language-python highlight"><span class="o">.</span><span class="n">df</span></code> property:</p>
+<div class="language-python highlight"><pre><span></span><code><a id="__codelineno-18-1" name="__codelineno-18-1" href="#__codelineno-18-1"></a><span class="c1"># self.sma.df at time step 4</span>
+<a id="__codelineno-18-2" name="__codelineno-18-2" href="#__codelineno-18-2"></a>                                <span class="n">AAPL</span>       <span class="n">GOOG</span>
+<a id="__codelineno-18-3" name="__codelineno-18-3" href="#__codelineno-18-3"></a><span class="n">Date</span>                                             
+<a id="__codelineno-18-4" name="__codelineno-18-4" href="#__codelineno-18-4"></a><span class="mi">2018</span><span class="o">-</span><span class="mi">01</span><span class="o">-</span><span class="mi">02</span>        <span class="n">NaN</span>        <span class="n">NaN</span>
+<a id="__codelineno-18-5" name="__codelineno-18-5" href="#__codelineno-18-5"></a><span class="mi">2018</span><span class="o">-</span><span class="mi">01</span><span class="o">-</span><span class="mi">03</span>        <span class="n">NaN</span>        <span class="n">NaN</span>
+<a id="__codelineno-18-6" name="__codelineno-18-6" href="#__codelineno-18-6"></a><span class="mi">2018</span><span class="o">-</span><span class="mi">01</span><span class="o">-</span><span class="mi">04</span>  <span class="mf">40.946667</span>  <span class="mf">53.896667</span>
+<a id="__codelineno-18-7" name="__codelineno-18-7" href="#__codelineno-18-7"></a><span class="mi">2018</span><span class="o">-</span><span class="mi">01</span><span class="o">-</span><span class="mi">05</span>  <span class="mf">41.163333</span>  <span class="mf">54.516667</span>
+</code></pre></div>
+<p><code class="language-python highlight"><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">)</span></code> returns the current time step, and <code class="language-python highlight"><span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">now</span></code> returns the current simulation time. They can be used
+to take actions at fixed time interval or on specific days.</p>
+<div class="language-python highlight"><pre><span></span><code><a id="__codelineno-19-1" name="__codelineno-19-1" href="#__codelineno-19-1"></a><span class="c1"># rebalance every 10 days</span>
+<a id="__codelineno-19-2" name="__codelineno-19-2" href="#__codelineno-19-2"></a><span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">)</span> <span class="o">%</span> <span class="mi">10</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+<a id="__codelineno-19-3" name="__codelineno-19-3" href="#__codelineno-19-3"></a>    <span class="bp">self</span><span class="o">.</span><span class="n">rebalance</span><span class="p">()</span>
+<a id="__codelineno-19-4" name="__codelineno-19-4" href="#__codelineno-19-4"></a>
+<a id="__codelineno-19-5" name="__codelineno-19-5" href="#__codelineno-19-5"></a><span class="c1"># rebalance every Friday</span>
+<a id="__codelineno-19-6" name="__codelineno-19-6" href="#__codelineno-19-6"></a><span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">now</span><span class="o">.</span><span class="n">weekday</span><span class="p">()</span> <span class="o">==</span> <span class="mi">4</span><span class="p">:</span>
+<a id="__codelineno-19-7" name="__codelineno-19-7" href="#__codelineno-19-7"></a>    <span class="bp">self</span><span class="o">.</span><span class="n">rebalance</span><span class="p">()</span>
+<a id="__codelineno-19-8" name="__codelineno-19-8" href="#__codelineno-19-8"></a>
+<a id="__codelineno-19-9" name="__codelineno-19-9" href="#__codelineno-19-9"></a><span class="c1"># rebalance on the first trading day of each month</span>
+<a id="__codelineno-19-10" name="__codelineno-19-10" href="#__codelineno-19-10"></a><span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">index</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">month</span> <span class="o">!=</span> <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">index</span><span class="p">[</span><span class="o">-</span><span class="mi">2</span><span class="p">]</span><span class="o">.</span><span class="n">month</span><span class="p">:</span>
+<a id="__codelineno-19-11" name="__codelineno-19-11" href="#__codelineno-19-11"></a>    <span class="bp">self</span><span class="o">.</span><span class="n">rebalance</span><span class="p">()</span>
+</code></pre></div>
+<h3 id="single-asset">Single Asset<a class="headerlink" href="#single-asset" title="Permanent link">¤</a></h3>
+<p>Suppose the following data is used to backtest a single asset strategy. </p>
+<div class="language-python highlight"><pre><span></span><code><a id="__codelineno-20-1" name="__codelineno-20-1" href="#__codelineno-20-1"></a>          <span class="n">AAPL</span>                              
+<a id="__codelineno-20-2" name="__codelineno-20-2" href="#__codelineno-20-2"></a>          <span class="n">Open</span>  <span class="n">High</span>  <span class="n">Low</span>   <span class="n">Close</span> <span class="n">Volume</span>
+<a id="__codelineno-20-3" name="__codelineno-20-3" href="#__codelineno-20-3"></a><span class="n">Date</span>
+<a id="__codelineno-20-4" name="__codelineno-20-4" href="#__codelineno-20-4"></a><span class="mi">2018</span><span class="o">-</span><span class="mi">01</span><span class="o">-</span><span class="mi">02</span> <span class="mf">40.39</span> <span class="mf">40.90</span> <span class="mf">40.18</span> <span class="mf">40.89</span> <span class="mi">102223600</span>
+<a id="__codelineno-20-5" name="__codelineno-20-5" href="#__codelineno-20-5"></a><span class="mi">2018</span><span class="o">-</span><span class="mi">01</span><span class="o">-</span><span class="mi">03</span> <span class="mf">40.95</span> <span class="mf">41.43</span> <span class="mf">40.82</span> <span class="mf">40.88</span> <span class="mi">118071600</span>
+<a id="__codelineno-20-6" name="__codelineno-20-6" href="#__codelineno-20-6"></a><span class="mi">2018</span><span class="o">-</span><span class="mi">01</span><span class="o">-</span><span class="mi">04</span> <span class="mf">40.95</span> <span class="mf">41.18</span> <span class="mf">40.85</span> <span class="mf">41.07</span> <span class="mi">89738400</span>
+<a id="__codelineno-20-7" name="__codelineno-20-7" href="#__codelineno-20-7"></a><span class="mi">2018</span><span class="o">-</span><span class="mi">01</span><span class="o">-</span><span class="mi">05</span> <span class="mf">41.17</span> <span class="mf">41.63</span> <span class="mf">41.08</span> <span class="mf">41.54</span> <span class="mi">94640000</span>
+<a id="__codelineno-20-8" name="__codelineno-20-8" href="#__codelineno-20-8"></a><span class="mi">2018</span><span class="o">-</span><span class="mi">01</span><span class="o">-</span><span class="mi">08</span> <span class="mf">41.38</span> <span class="mf">41.68</span> <span class="mf">41.28</span> <span class="mf">41.38</span> <span class="mi">82271200</span>
+</code></pre></div>
+<p>Since there is only one asset, specifying the asset name is not necessary. <code class="language-python highlight"><span class="bp">self</span><span class="o">.</span><span class="n">data</span></code> can be accessed as follows:</p>
+<div class="language-python highlight"><pre><span></span><code><a id="__codelineno-21-1" name="__codelineno-21-1" href="#__codelineno-21-1"></a><span class="c1"># self.data.the_ticker</span>
+<a id="__codelineno-21-2" name="__codelineno-21-2" href="#__codelineno-21-2"></a><span class="n">AAPL</span>
+<a id="__codelineno-21-3" name="__codelineno-21-3" href="#__codelineno-21-3"></a>
+<a id="__codelineno-21-4" name="__codelineno-21-4" href="#__codelineno-21-4"></a><span class="c1"># self.data</span>
+<a id="__codelineno-21-5" name="__codelineno-21-5" href="#__codelineno-21-5"></a><span class="o">&lt;</span><span class="n">Data</span> <span class="n">i</span><span class="o">=</span><span class="mi">4</span> <span class="p">(</span><span class="mi">2018</span><span class="o">-</span><span class="mi">01</span><span class="o">-</span><span class="mi">08</span><span class="p">)</span> <span class="p">(</span><span class="s1">&#39;AAPL&#39;</span><span class="p">,</span> <span class="s1">&#39;Open&#39;</span><span class="p">)</span><span class="o">=</span><span class="mf">41.38</span><span class="p">,</span> <span class="p">(</span><span class="s1">&#39;AAPL&#39;</span><span class="p">,</span> <span class="s1">&#39;High&#39;</span><span class="p">)</span><span class="o">=</span><span class="mf">41.68</span><span class="p">,</span> <span class="p">(</span><span class="s1">&#39;AAPL&#39;</span><span class="p">,</span> <span class="s1">&#39;Low&#39;</span><span class="p">)</span><span class="o">=</span><span class="mf">41.28</span><span class="p">,</span> <span class="p">(</span><span class="s1">&#39;AAPL&#39;</span><span class="p">,</span> <span class="s1">&#39;Close&#39;</span><span class="p">)</span><span class="o">=</span><span class="mf">41.38</span><span class="p">,</span> <span class="p">(</span><span class="s1">&#39;AAPL&#39;</span><span class="p">,</span> <span class="s1">&#39;Volume&#39;</span><span class="p">)</span><span class="o">=</span><span class="mf">82271200.0</span><span class="o">&gt;</span>
+<a id="__codelineno-21-6" name="__codelineno-21-6" href="#__codelineno-21-6"></a>
+<a id="__codelineno-21-7" name="__codelineno-21-7" href="#__codelineno-21-7"></a><span class="c1"># self.data.df</span>
+<a id="__codelineno-21-8" name="__codelineno-21-8" href="#__codelineno-21-8"></a>            <span class="n">Open</span>   <span class="n">High</span>    <span class="n">Low</span>  <span class="n">Close</span>     <span class="n">Volume</span>
+<a id="__codelineno-21-9" name="__codelineno-21-9" href="#__codelineno-21-9"></a><span class="n">Date</span>                                                              
+<a id="__codelineno-21-10" name="__codelineno-21-10" href="#__codelineno-21-10"></a><span class="mi">2018</span><span class="o">-</span><span class="mi">01</span><span class="o">-</span><span class="mi">02</span>  <span class="mf">40.39</span>  <span class="mf">40.90</span>  <span class="mf">40.18</span>  <span class="mf">40.89</span>  <span class="mi">102223600</span>
+<a id="__codelineno-21-11" name="__codelineno-21-11" href="#__codelineno-21-11"></a><span class="mi">2018</span><span class="o">-</span><span class="mi">01</span><span class="o">-</span><span class="mi">03</span>  <span class="mf">40.95</span>  <span class="mf">41.43</span>  <span class="mf">40.82</span>  <span class="mf">40.88</span>  <span class="mi">118071600</span>
+<a id="__codelineno-21-12" name="__codelineno-21-12" href="#__codelineno-21-12"></a><span class="mi">2018</span><span class="o">-</span><span class="mi">01</span><span class="o">-</span><span class="mi">04</span>  <span class="mf">40.95</span>  <span class="mf">41.18</span>  <span class="mf">40.85</span>  <span class="mf">41.07</span>   <span class="mi">89738400</span>
+<a id="__codelineno-21-13" name="__codelineno-21-13" href="#__codelineno-21-13"></a><span class="mi">2018</span><span class="o">-</span><span class="mi">01</span><span class="o">-</span><span class="mi">05</span>  <span class="mf">41.17</span>  <span class="mf">41.63</span>  <span class="mf">41.08</span>  <span class="mf">41.54</span>   <span class="mi">94640000</span>
+<a id="__codelineno-21-14" name="__codelineno-21-14" href="#__codelineno-21-14"></a><span class="mi">2018</span><span class="o">-</span><span class="mi">01</span><span class="o">-</span><span class="mi">08</span>  <span class="mf">41.38</span>  <span class="mf">41.68</span>  <span class="mf">41.28</span>  <span class="mf">41.38</span>   <span class="mi">82271200</span>
+<a id="__codelineno-21-15" name="__codelineno-21-15" href="#__codelineno-21-15"></a>
+<a id="__codelineno-21-16" name="__codelineno-21-16" href="#__codelineno-21-16"></a><span class="c1"># self.data.Close</span>
+<a id="__codelineno-21-17" name="__codelineno-21-17" href="#__codelineno-21-17"></a><span class="p">[</span><span class="mf">40.89</span> <span class="mf">40.88</span> <span class="mf">41.07</span> <span class="mf">41.54</span> <span class="mf">41.38</span><span class="p">]</span>
+<a id="__codelineno-21-18" name="__codelineno-21-18" href="#__codelineno-21-18"></a>
+<a id="__codelineno-21-19" name="__codelineno-21-19" href="#__codelineno-21-19"></a><span class="c1"># self.data[&quot;Close&quot;]</span>
+<a id="__codelineno-21-20" name="__codelineno-21-20" href="#__codelineno-21-20"></a><span class="p">[</span><span class="mf">40.89</span> <span class="mf">40.88</span> <span class="mf">41.07</span> <span class="mf">41.54</span> <span class="mf">41.38</span><span class="p">]</span>
+<a id="__codelineno-21-21" name="__codelineno-21-21" href="#__codelineno-21-21"></a>
+<a id="__codelineno-21-22" name="__codelineno-21-22" href="#__codelineno-21-22"></a><span class="c1"># self.data.Close.df</span>
+<a id="__codelineno-21-23" name="__codelineno-21-23" href="#__codelineno-21-23"></a><span class="n">Date</span>
+<a id="__codelineno-21-24" name="__codelineno-21-24" href="#__codelineno-21-24"></a><span class="mi">2018</span><span class="o">-</span><span class="mi">01</span><span class="o">-</span><span class="mi">02</span>    <span class="mf">40.89</span>
+<a id="__codelineno-21-25" name="__codelineno-21-25" href="#__codelineno-21-25"></a><span class="mi">2018</span><span class="o">-</span><span class="mi">01</span><span class="o">-</span><span class="mi">03</span>    <span class="mf">40.88</span>
+<a id="__codelineno-21-26" name="__codelineno-21-26" href="#__codelineno-21-26"></a><span class="mi">2018</span><span class="o">-</span><span class="mi">01</span><span class="o">-</span><span class="mi">04</span>    <span class="mf">41.07</span>
+<a id="__codelineno-21-27" name="__codelineno-21-27" href="#__codelineno-21-27"></a><span class="mi">2018</span><span class="o">-</span><span class="mi">01</span><span class="o">-</span><span class="mi">05</span>    <span class="mf">41.54</span>
+<a id="__codelineno-21-28" name="__codelineno-21-28" href="#__codelineno-21-28"></a><span class="mi">2018</span><span class="o">-</span><span class="mi">01</span><span class="o">-</span><span class="mi">08</span>    <span class="mf">41.38</span>
+<a id="__codelineno-21-29" name="__codelineno-21-29" href="#__codelineno-21-29"></a><span class="n">Name</span><span class="p">:</span> <span class="n">AAPL</span><span class="p">,</span> <span class="n">dtype</span><span class="p">:</span> <span class="n">float64</span>
+<a id="__codelineno-21-30" name="__codelineno-21-30" href="#__codelineno-21-30"></a>
+<a id="__codelineno-21-31" name="__codelineno-21-31" href="#__codelineno-21-31"></a><span class="c1"># self.data[&quot;Close&quot;].df</span>
+<a id="__codelineno-21-32" name="__codelineno-21-32" href="#__codelineno-21-32"></a><span class="n">Date</span>
+<a id="__codelineno-21-33" name="__codelineno-21-33" href="#__codelineno-21-33"></a><span class="mi">2018</span><span class="o">-</span><span class="mi">01</span><span class="o">-</span><span class="mi">02</span>    <span class="mf">40.89</span>
+<a id="__codelineno-21-34" name="__codelineno-21-34" href="#__codelineno-21-34"></a><span class="mi">2018</span><span class="o">-</span><span class="mi">01</span><span class="o">-</span><span class="mi">03</span>    <span class="mf">40.88</span>
+<a id="__codelineno-21-35" name="__codelineno-21-35" href="#__codelineno-21-35"></a><span class="mi">2018</span><span class="o">-</span><span class="mi">01</span><span class="o">-</span><span class="mi">04</span>    <span class="mf">41.07</span>
+<a id="__codelineno-21-36" name="__codelineno-21-36" href="#__codelineno-21-36"></a><span class="mi">2018</span><span class="o">-</span><span class="mi">01</span><span class="o">-</span><span class="mi">05</span>    <span class="mf">41.54</span>
+<a id="__codelineno-21-37" name="__codelineno-21-37" href="#__codelineno-21-37"></a><span class="mi">2018</span><span class="o">-</span><span class="mi">01</span><span class="o">-</span><span class="mi">08</span>    <span class="mf">41.38</span>
+<a id="__codelineno-21-38" name="__codelineno-21-38" href="#__codelineno-21-38"></a><span class="n">Name</span><span class="p">:</span> <span class="n">AAPL</span><span class="p">,</span> <span class="n">dtype</span><span class="p">:</span> <span class="n">float64</span>
+<a id="__codelineno-21-39" name="__codelineno-21-39" href="#__codelineno-21-39"></a>
+<a id="__codelineno-21-40" name="__codelineno-21-40" href="#__codelineno-21-40"></a><span class="c1"># self.data.df[&quot;Close&quot;]</span>
+<a id="__codelineno-21-41" name="__codelineno-21-41" href="#__codelineno-21-41"></a><span class="n">Date</span>
+<a id="__codelineno-21-42" name="__codelineno-21-42" href="#__codelineno-21-42"></a><span class="mi">2018</span><span class="o">-</span><span class="mi">01</span><span class="o">-</span><span class="mi">02</span>    <span class="mf">40.89</span>
+<a id="__codelineno-21-43" name="__codelineno-21-43" href="#__codelineno-21-43"></a><span class="mi">2018</span><span class="o">-</span><span class="mi">01</span><span class="o">-</span><span class="mi">03</span>    <span class="mf">40.88</span>
+<a id="__codelineno-21-44" name="__codelineno-21-44" href="#__codelineno-21-44"></a><span class="mi">2018</span><span class="o">-</span><span class="mi">01</span><span class="o">-</span><span class="mi">04</span>    <span class="mf">41.07</span>
+<a id="__codelineno-21-45" name="__codelineno-21-45" href="#__codelineno-21-45"></a><span class="mi">2018</span><span class="o">-</span><span class="mi">01</span><span class="o">-</span><span class="mi">05</span>    <span class="mf">41.54</span>
+<a id="__codelineno-21-46" name="__codelineno-21-46" href="#__codelineno-21-46"></a><span class="mi">2018</span><span class="o">-</span><span class="mi">01</span><span class="o">-</span><span class="mi">08</span>    <span class="mf">41.38</span>
+<a id="__codelineno-21-47" name="__codelineno-21-47" href="#__codelineno-21-47"></a><span class="n">Name</span><span class="p">:</span> <span class="n">Close</span><span class="p">,</span> <span class="n">dtype</span><span class="p">:</span> <span class="n">float64</span>
+<a id="__codelineno-21-48" name="__codelineno-21-48" href="#__codelineno-21-48"></a>
+<a id="__codelineno-21-49" name="__codelineno-21-49" href="#__codelineno-21-49"></a><span class="c1"># self.data.Close[-1]</span>
+<a id="__codelineno-21-50" name="__codelineno-21-50" href="#__codelineno-21-50"></a><span class="mf">41.38</span>
+<a id="__codelineno-21-51" name="__codelineno-21-51" href="#__codelineno-21-51"></a>
+<a id="__codelineno-21-52" name="__codelineno-21-52" href="#__codelineno-21-52"></a><span class="c1"># self.data.Close.df.iloc[-1]</span>
+<a id="__codelineno-21-53" name="__codelineno-21-53" href="#__codelineno-21-53"></a><span class="mf">41.38</span>
+<a id="__codelineno-21-54" name="__codelineno-21-54" href="#__codelineno-21-54"></a>
+<a id="__codelineno-21-55" name="__codelineno-21-55" href="#__codelineno-21-55"></a><span class="c1"># self.data[&quot;Close&quot;][-1]</span>
+<a id="__codelineno-21-56" name="__codelineno-21-56" href="#__codelineno-21-56"></a><span class="mf">41.38</span>
+<a id="__codelineno-21-57" name="__codelineno-21-57" href="#__codelineno-21-57"></a>
+<a id="__codelineno-21-58" name="__codelineno-21-58" href="#__codelineno-21-58"></a><span class="c1"># self.data[&quot;Close&quot;].df[-1]</span>
+<a id="__codelineno-21-59" name="__codelineno-21-59" href="#__codelineno-21-59"></a><span class="mf">41.38</span>
+<a id="__codelineno-21-60" name="__codelineno-21-60" href="#__codelineno-21-60"></a>
+<a id="__codelineno-21-61" name="__codelineno-21-61" href="#__codelineno-21-61"></a><span class="c1"># self.data.df[&quot;Close&quot;][-1]</span>
+<a id="__codelineno-21-62" name="__codelineno-21-62" href="#__codelineno-21-62"></a><span class="mf">41.38</span>
+</code></pre></div>
+<h2 id="backtest">Backtest<a class="headerlink" href="#backtest" title="Permanent link">¤</a></h2>
+<p>Once the data and strategy are defined, the backtest can be run as follows:</p>
+<div class="language-python highlight"><pre><span></span><code><a id="__codelineno-22-1" name="__codelineno-22-1" href="#__codelineno-22-1"></a><span class="kn">from</span> <span class="nn">minitrade.backtest</span> <span class="kn">import</span> <span class="n">Backtest</span>
+<a id="__codelineno-22-2" name="__codelineno-22-2" href="#__codelineno-22-2"></a>
+<a id="__codelineno-22-3" name="__codelineno-22-3" href="#__codelineno-22-3"></a><span class="n">bt</span> <span class="o">=</span> <span class="n">Backtest</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">MyStrategy</span><span class="p">)</span>
+<a id="__codelineno-22-4" name="__codelineno-22-4" href="#__codelineno-22-4"></a><span class="n">result</span> <span class="o">=</span> <span class="n">bt</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>
+</code></pre></div>
+<p>The date range for backtesting is inferred from the data. </p>
+<p>The <code class="language-python highlight"><span class="n">run</span><span class="p">()</span></code> method returns a <code class="language-python highlight"><span class="n">pandas</span><span class="o">.</span><span class="n">Series</span></code> with the backtest statistics:</p>
+<div class="language-python highlight"><pre><span></span><code><a id="__codelineno-23-1" name="__codelineno-23-1" href="#__codelineno-23-1"></a><span class="c1"># print(result)</span>
+<a id="__codelineno-23-2" name="__codelineno-23-2" href="#__codelineno-23-2"></a><span class="n">Start</span>                                                   <span class="mi">2023</span><span class="o">-</span><span class="mi">01</span><span class="o">-</span><span class="mi">03</span> <span class="mi">00</span><span class="p">:</span><span class="mi">00</span><span class="p">:</span><span class="mi">00</span>
+<a id="__codelineno-23-3" name="__codelineno-23-3" href="#__codelineno-23-3"></a><span class="n">End</span>                                                     <span class="mi">2024</span><span class="o">-</span><span class="mi">03</span><span class="o">-</span><span class="mi">28</span> <span class="mi">00</span><span class="p">:</span><span class="mi">00</span><span class="p">:</span><span class="mi">00</span>
+<a id="__codelineno-23-4" name="__codelineno-23-4" href="#__codelineno-23-4"></a><span class="n">Duration</span>                                                  <span class="mi">450</span> <span class="n">days</span> <span class="mi">00</span><span class="p">:</span><span class="mi">00</span><span class="p">:</span><span class="mi">00</span>
+<a id="__codelineno-23-5" name="__codelineno-23-5" href="#__codelineno-23-5"></a><span class="n">Exposure</span> <span class="n">Time</span> <span class="p">[</span><span class="o">%</span><span class="p">]</span>                                                 <span class="mf">88.745981</span>
+<a id="__codelineno-23-6" name="__codelineno-23-6" href="#__codelineno-23-6"></a><span class="n">Equity</span> <span class="n">Final</span> <span class="p">[</span><span class="err">$</span><span class="p">]</span>                                                 <span class="mf">11860.6813</span>
+<a id="__codelineno-23-7" name="__codelineno-23-7" href="#__codelineno-23-7"></a><span class="n">Equity</span> <span class="n">Peak</span> <span class="p">[</span><span class="err">$</span><span class="p">]</span>                                                <span class="mf">11879.591159</span>
+<a id="__codelineno-23-8" name="__codelineno-23-8" href="#__codelineno-23-8"></a><span class="n">Return</span> <span class="p">[</span><span class="o">%</span><span class="p">]</span>                                                        <span class="mf">18.606813</span>
+<a id="__codelineno-23-9" name="__codelineno-23-9" href="#__codelineno-23-9"></a><span class="n">Buy</span> <span class="o">&amp;</span> <span class="n">Hold</span> <span class="n">Return</span> <span class="p">[</span><span class="o">%</span><span class="p">]</span>                                             <span class="mf">12.122283</span>
+<a id="__codelineno-23-10" name="__codelineno-23-10" href="#__codelineno-23-10"></a><span class="n">Return</span> <span class="p">(</span><span class="n">Ann</span><span class="o">.</span><span class="p">)</span> <span class="p">[</span><span class="o">%</span><span class="p">]</span>                                                 <span class="mf">15.357352</span>
+<a id="__codelineno-23-11" name="__codelineno-23-11" href="#__codelineno-23-11"></a><span class="n">Volatility</span> <span class="p">(</span><span class="n">Ann</span><span class="o">.</span><span class="p">)</span> <span class="p">[</span><span class="o">%</span><span class="p">]</span>                                             <span class="mf">15.370613</span>
+<a id="__codelineno-23-12" name="__codelineno-23-12" href="#__codelineno-23-12"></a><span class="n">Sharpe</span> <span class="n">Ratio</span>                                                       <span class="mf">0.999137</span>
+<a id="__codelineno-23-13" name="__codelineno-23-13" href="#__codelineno-23-13"></a><span class="n">Sortino</span> <span class="n">Ratio</span>                                                      <span class="mf">1.717817</span>
+<a id="__codelineno-23-14" name="__codelineno-23-14" href="#__codelineno-23-14"></a><span class="n">Calmar</span> <span class="n">Ratio</span>                                                       <span class="mf">0.945122</span>
+<a id="__codelineno-23-15" name="__codelineno-23-15" href="#__codelineno-23-15"></a><span class="n">Max</span><span class="o">.</span> <span class="n">Drawdown</span> <span class="p">[</span><span class="o">%</span><span class="p">]</span>                                                <span class="o">-</span><span class="mf">16.249076</span>
+<a id="__codelineno-23-16" name="__codelineno-23-16" href="#__codelineno-23-16"></a><span class="n">Avg</span><span class="o">.</span> <span class="n">Drawdown</span> <span class="p">[</span><span class="o">%</span><span class="p">]</span>                                                 <span class="o">-</span><span class="mf">3.229986</span>
+<a id="__codelineno-23-17" name="__codelineno-23-17" href="#__codelineno-23-17"></a><span class="n">Max</span><span class="o">.</span> <span class="n">Drawdown</span> <span class="n">Duration</span>                                    <span class="mi">181</span> <span class="n">days</span> <span class="mi">00</span><span class="p">:</span><span class="mi">00</span><span class="p">:</span><span class="mi">00</span>
+<a id="__codelineno-23-18" name="__codelineno-23-18" href="#__codelineno-23-18"></a><span class="n">Avg</span><span class="o">.</span> <span class="n">Drawdown</span> <span class="n">Duration</span>                                     <span class="mi">35</span> <span class="n">days</span> <span class="mi">00</span><span class="p">:</span><span class="mi">00</span><span class="p">:</span><span class="mi">00</span>
+<a id="__codelineno-23-19" name="__codelineno-23-19" href="#__codelineno-23-19"></a><span class="c1"># Trades                                                                111</span>
+<a id="__codelineno-23-20" name="__codelineno-23-20" href="#__codelineno-23-20"></a><span class="n">Win</span> <span class="n">Rate</span> <span class="p">[</span><span class="o">%</span><span class="p">]</span>                                                      <span class="mf">64.864865</span>
+<a id="__codelineno-23-21" name="__codelineno-23-21" href="#__codelineno-23-21"></a><span class="n">Best</span> <span class="n">Trade</span> <span class="p">[</span><span class="o">%</span><span class="p">]</span>                                                    <span class="mf">28.119439</span>
+<a id="__codelineno-23-22" name="__codelineno-23-22" href="#__codelineno-23-22"></a><span class="n">Worst</span> <span class="n">Trade</span> <span class="p">[</span><span class="o">%</span><span class="p">]</span>                                                   <span class="o">-</span><span class="mf">6.810767</span>
+<a id="__codelineno-23-23" name="__codelineno-23-23" href="#__codelineno-23-23"></a><span class="n">Avg</span><span class="o">.</span> <span class="n">Trade</span> <span class="p">[</span><span class="o">%</span><span class="p">]</span>                                                     <span class="mf">2.376234</span>
+<a id="__codelineno-23-24" name="__codelineno-23-24" href="#__codelineno-23-24"></a><span class="n">Max</span><span class="o">.</span> <span class="n">Trade</span> <span class="n">Duration</span>                                        <span class="mi">66</span> <span class="n">days</span> <span class="mi">00</span><span class="p">:</span><span class="mi">00</span><span class="p">:</span><span class="mi">00</span>
+<a id="__codelineno-23-25" name="__codelineno-23-25" href="#__codelineno-23-25"></a><span class="n">Avg</span><span class="o">.</span> <span class="n">Trade</span> <span class="n">Duration</span>                                        <span class="mi">16</span> <span class="n">days</span> <span class="mi">00</span><span class="p">:</span><span class="mi">00</span><span class="p">:</span><span class="mi">00</span>
+<a id="__codelineno-23-26" name="__codelineno-23-26" href="#__codelineno-23-26"></a><span class="n">Profit</span> <span class="n">Factor</span>                                                       <span class="mf">3.35965</span>
+<a id="__codelineno-23-27" name="__codelineno-23-27" href="#__codelineno-23-27"></a><span class="n">Expectancy</span> <span class="p">[</span><span class="o">%</span><span class="p">]</span>                                                     <span class="mf">2.577326</span>
+<a id="__codelineno-23-28" name="__codelineno-23-28" href="#__codelineno-23-28"></a><span class="n">SQN</span>                                                                <span class="mf">1.246637</span>
+<a id="__codelineno-23-29" name="__codelineno-23-29" href="#__codelineno-23-29"></a><span class="n">Kelly</span> <span class="n">Criterion</span>                                                    <span class="mf">0.242071</span>
+<a id="__codelineno-23-30" name="__codelineno-23-30" href="#__codelineno-23-30"></a><span class="n">_strategy</span>                                                        <span class="n">MyStrategy</span>
+<a id="__codelineno-23-31" name="__codelineno-23-31" href="#__codelineno-23-31"></a><span class="n">_equity_curve</span>                               <span class="n">Equity</span>          <span class="n">MMM</span>         <span class="o">...</span>
+<a id="__codelineno-23-32" name="__codelineno-23-32" href="#__codelineno-23-32"></a><span class="n">_trades</span>                        <span class="n">EntryBar</span>  <span class="n">ExitBar</span> <span class="n">Ticker</span>  <span class="n">Size</span>  <span class="n">EntryPric</span><span class="o">...</span>
+<a id="__codelineno-23-33" name="__codelineno-23-33" href="#__codelineno-23-33"></a><span class="n">_orders</span>                              <span class="n">Ticker</span>  <span class="n">Side</span>  <span class="n">Size</span>
+<a id="__codelineno-23-34" name="__codelineno-23-34" href="#__codelineno-23-34"></a><span class="n">SignalTime</span>      <span class="o">...</span>
+<a id="__codelineno-23-35" name="__codelineno-23-35" href="#__codelineno-23-35"></a><span class="n">_positions</span>                <span class="p">{</span><span class="s1">&#39;MMM&#39;</span><span class="p">:</span> <span class="mi">37</span><span class="p">,</span> <span class="s1">&#39;AXP&#39;</span><span class="p">:</span> <span class="mi">17</span><span class="p">,</span> <span class="s1">&#39;AAPL&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span> <span class="s1">&#39;BA&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span> <span class="s1">&#39;CV...</span>
+<a id="__codelineno-23-36" name="__codelineno-23-36" href="#__codelineno-23-36"></a><span class="n">_trade_start_bar</span>                                                         <span class="mi">10</span>
+<a id="__codelineno-23-37" name="__codelineno-23-37" href="#__codelineno-23-37"></a><span class="n">dtype</span><span class="p">:</span> <span class="nb">object</span>
+</code></pre></div>
+<p>The backtest result can be visually inspected using the <code class="language-python highlight"><span class="n">plot</span><span class="p">()</span></code> method:</p>
+<div class="language-python highlight"><pre><span></span><code><a id="__codelineno-24-1" name="__codelineno-24-1" href="#__codelineno-24-1"></a><span class="n">bt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">plot_allocation</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</code></pre></div>
+<p><img alt="plot of multi-asset strategy" src="https://i.postimg.cc/7YcRjxtD/temp-Image-Tsgj-WL.avif" /></p>
+<h2 id="optimization">Optimization<a class="headerlink" href="#optimization" title="Permanent link">¤</a></h2>
+<p><code class="language-python highlight"><span class="n">Minitrade</span></code> provides a simple interface to optimize strategy parameters. The <code class="language-python highlight"><span class="n">optimize</span><span class="p">()</span></code> method takes a list of parameters to optimize, a constraint function, and a metric to maximize.</p>
+<div class="language-python highlight"><pre><span></span><code><a id="__codelineno-25-1" name="__codelineno-25-1" href="#__codelineno-25-1"></a><span class="n">stats</span><span class="p">,</span> <span class="n">heatmap</span> <span class="o">=</span> <span class="n">bt</span><span class="o">.</span><span class="n">optimize</span><span class="p">(</span>
+<a id="__codelineno-25-2" name="__codelineno-25-2" href="#__codelineno-25-2"></a>    <span class="n">lookback</span><span class="o">=</span><span class="nb">range</span><span class="p">(</span><span class="mi">10</span><span class="p">,</span> <span class="mi">60</span><span class="p">,</span> <span class="mi">10</span><span class="p">),</span>
+<a id="__codelineno-25-3" name="__codelineno-25-3" href="#__codelineno-25-3"></a>    <span class="n">constraint</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+<a id="__codelineno-25-4" name="__codelineno-25-4" href="#__codelineno-25-4"></a>    <span class="n">maximize</span><span class="o">=</span><span class="s1">&#39;Equity Final [$]&#39;</span><span class="p">,</span>
+<a id="__codelineno-25-5" name="__codelineno-25-5" href="#__codelineno-25-5"></a>    <span class="n">random_state</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
+<a id="__codelineno-25-6" name="__codelineno-25-6" href="#__codelineno-25-6"></a>    <span class="n">return_heatmap</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</code></pre></div>
+<p>It returns the backtest statistics for the optimal parameter and the results for each parameter combination.</p>
+<div class="language-python highlight"><pre><span></span><code><a id="__codelineno-26-1" name="__codelineno-26-1" href="#__codelineno-26-1"></a><span class="c1"># print(heatmap)</span>
+<a id="__codelineno-26-2" name="__codelineno-26-2" href="#__codelineno-26-2"></a><span class="n">lookback</span>
+<a id="__codelineno-26-3" name="__codelineno-26-3" href="#__codelineno-26-3"></a><span class="mi">10</span>          <span class="mf">11839.802638</span>
+<a id="__codelineno-26-4" name="__codelineno-26-4" href="#__codelineno-26-4"></a><span class="mi">20</span>          <span class="mf">10751.761075</span>
+<a id="__codelineno-26-5" name="__codelineno-26-5" href="#__codelineno-26-5"></a><span class="mi">30</span>          <span class="mf">11462.385435</span>
+<a id="__codelineno-26-6" name="__codelineno-26-6" href="#__codelineno-26-6"></a><span class="mi">40</span>          <span class="mf">10283.880003</span>
+<a id="__codelineno-26-7" name="__codelineno-26-7" href="#__codelineno-26-7"></a><span class="mi">50</span>          <span class="mf">10458.447683</span>
+<a id="__codelineno-26-8" name="__codelineno-26-8" href="#__codelineno-26-8"></a><span class="n">Name</span><span class="p">:</span> <span class="n">Equity</span> <span class="n">Final</span> <span class="p">[</span><span class="err">$</span><span class="p">],</span> <span class="n">dtype</span><span class="p">:</span> <span class="n">float64</span>
+</code></pre></div>
+<h2 id="further-reading">Further Reading<a class="headerlink" href="#further-reading" title="Permanent link">¤</a></h2>
+<p>The <a href="../api_backtest/">API Reference</a> provides detailed information on the classes and methods available in <code class="language-python highlight"><span class="n">Minitrade</span></code>.</p>
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+    <div class="md-copyright__highlight">
+      Copyright &copy; 2024 Wei Wu
+    </div>
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    <script id="__config" type="application/json">{"base": "..", "features": ["navigation.instant", "navigation.tracking", "navigation.sections", "navigation.indexes", "toc.follow", "navigation.top"], "search": "../assets/javascripts/workers/search.6ce7567c.min.js", "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.525ec568.min.js"></script>
+      
+    
+  </body>
+</html>
