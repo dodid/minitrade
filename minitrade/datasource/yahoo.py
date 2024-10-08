@@ -4,7 +4,6 @@ from datetime import datetime, timedelta, timezone
 
 import pandas as pd
 import yfinance as yf
-
 from minitrade.datasource import QuoteSource
 from minitrade.utils.config import config
 
@@ -51,14 +50,14 @@ Spot price:
         proxy: str
             Http proxy URI to override currently setting if not None
         '''
-        self.proxy = proxy or config.sources.yahoo.proxy
+        self.proxy = proxy or config.sources.yahoo.proxy or None
         self.use_adjusted = use_adjusted
 
     def _format_ticker(self, ticker):
         return ticker
 
     def _ticker_timezone(self, ticker):
-        return yf.Ticker(self._format_ticker(ticker)).fast_info['timezone']
+        return yf.Ticker(self._format_ticker(ticker), proxy=self.proxy).fast_info['timezone']
 
     def _ticker_calendar(self, ticker):
         mapping = {
@@ -77,7 +76,7 @@ Spot price:
             'FGI': 'NYSE',   # FTSE index
             'CBT': 'NYSE',   # Chicago Board of Trade
         }
-        exch = yf.Ticker(self._format_ticker(ticker)).fast_info['exchange']
+        exch = yf.Ticker(self._format_ticker(ticker), proxy=self.proxy).fast_info['exchange']
         if exch in mapping:
             return mapping[exch]
         else:
@@ -88,9 +87,9 @@ Spot price:
         # Push 1 day out to include "end" in final data
         end_1 = end and (datetime.strptime(end, '%Y-%m-%d') + timedelta(days=1)).strftime('%Y-%m-%d')
         # Yahoo finance uses '-' instead of '.' in ticker symbol
-        tk = yf.Ticker(self._format_ticker(ticker))
+        tk = yf.Ticker(self._format_ticker(ticker), proxy=self.proxy)
         df: pd.DataFrame = tk.history(start=start, end=end_1, interval='1d',
-                                      auto_adjust=self.use_adjusted, proxy=self.proxy, timeout=10)
+                                      auto_adjust=self.use_adjusted, timeout=10)
         df = df[['Open', 'High', 'Low', 'Close', 'Volume']]
         # Today's data from history api are not reliable. Replace them with spot prices.
         today = self.today(ticker)
@@ -119,20 +118,20 @@ Spot price:
         period = {1: 7, 2: 60, 5: 60, 15: 60, 30: 60, 60: 730}
         # Push 1 day out to include "end" in final data
         end_1 = end and (datetime.strptime(end, '%Y-%m-%d') + timedelta(days=1)).strftime('%Y-%m-%d')
-        tk = yf.Ticker(self._format_ticker(ticker))
+        tk = yf.Ticker(self._format_ticker(ticker), proxy=self.proxy)
         if start:
             df: pd.DataFrame = tk.history(start=start, end=end_1, interval=f'{interval}m',
-                                          auto_adjust=True, proxy=self.proxy, timeout=10)
+                                          auto_adjust=True, timeout=10)
         else:
             df: pd.DataFrame = tk.history(period=f'{period[interval]}d', interval=f'{interval}m',
-                                          auto_adjust=True, proxy=self.proxy, timeout=10)
+                                          auto_adjust=True, timeout=10)
         df = df[['Open', 'High', 'Low', 'Close', 'Volume']]
         df.index = df.index.tz_convert(timezone.utc)
         return df
 
     def _spot(self, tickers):
         try:
-            data = {ticker: yf.Ticker(self._format_ticker(ticker)).fast_info['lastPrice']
+            data = {ticker: yf.Ticker(self._format_ticker(ticker), proxy=self.proxy).fast_info['lastPrice']
                     if self.is_trading_now(ticker) else None for ticker in tickers}
             df = pd.Series(data, name=datetime.now(timezone.utc)).astype(float)
             return df

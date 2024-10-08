@@ -1868,7 +1868,7 @@ class Backtest:
         """
 
         if not (isinstance(strategy, type) and issubclass(strategy, Strategy)):
-            raise TypeError('`strategy` must be a Strategy sub-type')
+            raise TypeError(f'`strategy` must be a Strategy sub-type. Got {type(strategy)}')
         if not isinstance(data, pd.DataFrame):
             raise TypeError("`data` must be a pandas.DataFrame with columns")
         if not isinstance(commission, Number):
